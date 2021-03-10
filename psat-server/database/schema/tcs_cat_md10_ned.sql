@@ -1,0 +1,21 @@
+CREATE TABLE `tcs_cat_md10_ned` (
+  `Object_Name` varchar(40) NOT NULL,
+  `RA_deg` double NOT NULL,
+  `DEC_deg` double NOT NULL,
+  `Type` varchar(30),
+  `Velocity` double,
+  `Redshift` float,
+  `Redshift_Flag` varchar(30),
+  `Magnitude` varchar(30),
+  `htm20ID` bigint(20) unsigned,
+  `htm16ID` bigint(20) unsigned,
+  `cx` double,
+  `cy` double,
+  `cz` double,
+  `id` bigint(20) unsigned,
+  KEY `key_id` (`id`),
+  KEY `key_recno` (`Object_Name`),
+  KEY `idx_htm20ID` (`htm20ID`),
+  KEY `idx_htm16ID` (`htm16ID`),
+  KEY `idx_RA_deg_DEC_deg` (`RA_deg`,`DEC_deg`)
+) ENGINE=MyISAM;
