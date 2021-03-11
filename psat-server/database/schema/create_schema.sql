@@ -81,3 +81,6 @@ source atlas_stacked_forced_photometry.sql;
 
 -- 2020-05-11 KWS Added new tcs_zooniverse_scores table.
 source tcs_zooniverse_scores.sql;
+
+-- 2021-03-11 KWS Added atlas_diff_logs table.
+source atlas_diff_logs.sql;
