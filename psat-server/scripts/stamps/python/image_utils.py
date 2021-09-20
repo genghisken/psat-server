@@ -751,13 +751,13 @@ def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/at
         output, errors = p.communicate()
 
         if errors.strip() == '':
-            if 'The images do not overlap' in output:
+            if 'The images do not overlap' in str(output):
                 print(output)
                 status = PSTAMP_NO_OVERLAP
             else:
                 status = PSTAMP_SUCCESS
         else:
-            if 'The images do not overlap' in output:
+            if 'The images do not overlap' in str(output):
                 print(output)
                 status = PSTAMP_NO_OVERLAP
             else:

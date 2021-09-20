@@ -2,7 +2,7 @@
 """Make ATLAS Stamps in the context of the transient server database.
 
 Usage:
-  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--earliest] [--nondetections] [--discoverylimit=<discoverylimit>] [--lastdetectionlimit=<lastdetectionlimit>] [--requesttype=<requesttype>] [--wpwarp=<wpwarp>] [--update] [--ddc] [--skipdownload] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--loglocationdownloads=<loglocationdownloads>] [--logprefixdownloads=<logprefixdownloads>]
+  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--earliest] [--nondetections] [--discoverylimit=<discoverylimit>] [--lastdetectionlimit=<lastdetectionlimit>] [--requesttype=<requesttype>] [--wpwarp=<wpwarp>] [--update] [--ddc] [--skipdownload] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--loglocationdownloads=<loglocationdownloads>] [--logprefixdownloads=<logprefixdownloads>] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>]
   %s (-h | --help)
   %s --version
 
@@ -25,6 +25,10 @@ Options:
   --logprefix=<logprefix>                         Log prefix [default: stamp_cutter]
   --loglocationdownloads=<loglocationdownloads>   Downloader log file location [default: /tmp/]
   --logprefixdownloads=<logprefixdownloads>       Downloader log prefix [default: stamp_downloader]
+  --redregex=<redregex>                           Reduced image regular expression. Caps = variable. [default: EXPNAME.fits.fz]
+  --diffregex=<diffregex>                         Diff image regular expression. Caps = variable. [default: EXPNAME.diff.fz]
+  --redlocation=<redlocation>                     Reduced image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable).  Null value means use standard ATLAS archive location.
+  --difflocation=<difflocation>                   Diff image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable). Null value means use standard ATLAS archive location.
 
 
 """
@@ -79,7 +83,7 @@ def workerStampCutter(num, db, listFragment, dateAndTime, firstPass, miscParamet
     wpwarp = miscParameters[7]
 
     # Call the postage stamp downloader
-    objectsForUpdate = makeATLASObjectPostageStamps3(conn, listFragment, PSSImageRootLocation, limit = limit, mostRecent = mostRecent, nonDets = nondetections, discoveryLimit = discoverylimit, lastDetectionLimit=lastdetectionlimit, requestType = requestType, ddc = ddc, wpwarp = wpwarp)
+    objectsForUpdate = makeATLASObjectPostageStamps3(conn, listFragment, PSSImageRootLocation, limit = limit, mostRecent = mostRecent, nonDets = nondetections, discoveryLimit = discoverylimit, lastDetectionLimit=lastdetectionlimit, requestType = requestType, ddc = ddc, wpwarp = wpwarp, options = options)
     #q.put(objectsForUpdate)
 
     print("Process complete.")
@@ -179,27 +183,28 @@ def main():
         sys.stderr.write("The number of objects (%d) exceeds the maximum allowed (%d). Cannot continue.\n" % (len(objectList), MAX_NUMBER_OF_OBJECTS))
         sys.exit(1)
 
-    # Single threaded
-    exposureSet = getUniqueExposures(conn, objectList, limit = limit, mostRecent = mostRecent, nonDets = nondetections, discoveryLimit = discoverylimit, lastDetectionLimit=lastdetectionlimit, requestType = requestType, ddc = options.ddc)
+    # Only download exposures if requested. Otherwise assume we already HAVE the data.
+    if not options.skipdownload:
+        exposureSet = getUniqueExposures(conn, objectList, limit = limit, mostRecent = mostRecent, nonDets = nondetections, discoveryLimit = discoverylimit, lastDetectionLimit=lastdetectionlimit, requestType = requestType, ddc = options.ddc)
 
-    # Download threads with multiprocessing - try 10 threads by default
-    print("TOTAL OBJECTS = %d" % len(exposureSet))
+        # Download threads with multiprocessing - try 10 threads by default
+        print("TOTAL OBJECTS = %d" % len(exposureSet))
 
-    print("Downloading exposures...")
+        print("Downloading exposures...")
 
-    if len(exposureSet) > 0:
-        nProcessors, listChunks = splitList(exposureSet, bins = options.downloadthreads)
+        if len(exposureSet) > 0:
+            nProcessors, listChunks = splitList(exposureSet, bins = options.downloadthreads)
 
-        print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
-        parallelProcess(db, dateAndTime, nProcessors, listChunks, workerImageDownloader, miscParameters = [options], drainQueues = False)
-        print("%s Done Parallel Processing" % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
+            print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
+            parallelProcess(db, dateAndTime, nProcessors, listChunks, workerImageDownloader, miscParameters = [options], drainQueues = False)
+            print("%s Done Parallel Processing" % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
 
-        # Belt and braces. Do again, with one less thread.
-        nProcessors, listChunks = splitList(exposureSet, bins = options.downloadthreads - 1)
+            # Belt and braces. Do again, with one less thread.
+            nProcessors, listChunks = splitList(exposureSet, bins = options.downloadthreads - 1)
 
-        print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
-        parallelProcess(db, dateAndTime, nProcessors, listChunks, workerImageDownloader, miscParameters = [options], drainQueues = False)
-        print("%s Done Parallel Processing" % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
+            print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
+            parallelProcess(db, dateAndTime, nProcessors, listChunks, workerImageDownloader, miscParameters = [options], drainQueues = False)
+            print("%s Done Parallel Processing" % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
 
     # Produce stamps with multiprocessing - try n(CPUs) threads by default
     print("Producing stamps...")

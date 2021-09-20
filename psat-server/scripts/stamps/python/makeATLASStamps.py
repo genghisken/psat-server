@@ -2,7 +2,7 @@
 """Make ATLAS Stamps in the context of the transient server database.
 
 Usage:
-  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--earliest] [--nondetections] [--discoverylimit=<discoverylimit>] [--lastdetectionlimit=<lastdetectionlimit>] [--requesttype=<requesttype>] [--wpwarp=<wpwarp>] [--update] [--ddc] [--skipdownload]
+  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--earliest] [--nondetections] [--discoverylimit=<discoverylimit>] [--lastdetectionlimit=<lastdetectionlimit>] [--requesttype=<requesttype>] [--wpwarp=<wpwarp>] [--update] [--ddc] [--skipdownload] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>]
   %s (-h | --help)
   %s --version
 
@@ -21,12 +21,17 @@ Options:
   --ddc                                       Use the DDC schema for queries
   --skipdownload                              Do not attempt to download the exposures (assumes they already exist locally)
   --wpwarp=<wpwarp>                           Which version of wpwarp to use? (1 or 2) [default: 2]
+  --redregex=<redregex>                       Reduced image regular expression. Caps = variable. [default: EXPNAME.fits.fz]
+  --diffregex=<diffregex>                     Diff image regular expression. Caps = variable. [default: EXPNAME.diff.fz]
+  --redlocation=<redlocation>                 Reduced image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable).  Null value means use standard ATLAS archive location.
+  --difflocation=<difflocation>               Diff image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable). Null value means use standard ATLAS archive location.
 
-
+E.g.:
+  %s ~/config_fakers.yaml 1130252001002421600 --ddc --skipdownload --redlocation=/atlas/diff/CAMERA/fake/MJD.fake --redregex=EXPNAME.fits+fake --difflocation=/atlas/diff/CAMERA/fake/MJD.fake --diffregex=EXPNAME.diff+fake
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, shutil, re, csv, subprocess
 
@@ -56,7 +61,7 @@ import os, shutil, re, csv, subprocess
 import sys, os, errno
 import datetime
 import subprocess
-from gkutils.commonutils import dbConnect, PROCESSING_FLAGS, calculateRMSScatter
+from gkutils.commonutils import dbConnect, PROCESSING_FLAGS, calculateRMSScatter, Struct, cleanOptions
 import MySQLdb
 from pstamp_utils import getLightcurveDetectionsAtlas2, getExistingDetectionImages, getExistingNonDetectionImages, DETECTIONTYPES, REQUESTTYPES, PSTAMP_SUCCESS, PSTAMP_NO_OVERLAP, PSTAMP_SYSTEM_ERROR, IPP_IDET_NON_DETECTION_VALUE, insertPostageStampImageRecordAtlas
 import image_utils as imu
@@ -385,10 +390,31 @@ def downloadExposures(exposureSet, useMonsta = True):
 
 # 2015-12-02 KWS New version of this code for the ATLAS ddet schema
 # 2016-10-10 KWS Added ability to request non-detections
-def makeATLASObjectPostageStamps3(conn, candidateList, PSSImageRootLocation, stampSize = 200, limit = 0, mostRecent = True, detectionType = DETECTIONTYPES['detections'], requestType = REQUESTTYPES['incremental'], useMonsta = True, nonDets = False, discoveryLimit = 10, lastDetectionLimit=20, ddc = False, wpwarp = 1, remoteLocation = 'xfer@atlas-base-adm02.ifa.hawaii.edu:/atlas/red', remoteDiffLocation = 'xfer@atlas-base-adm02.ifa.hawaii.edu:/atlas/diff', localLocation = '/atlas/red', localDiffLocation = '/atlas/diff'):
+def makeATLASObjectPostageStamps3(conn, candidateList, PSSImageRootLocation, stampSize = 200, limit = 0, mostRecent = True, detectionType = DETECTIONTYPES['detections'], requestType = REQUESTTYPES['incremental'], useMonsta = True, nonDets = False, discoveryLimit = 10, lastDetectionLimit=20, ddc = False, wpwarp = 1, remoteLocation = 'xfer@atlas-base-adm02.ifa.hawaii.edu:/atlas/red', remoteDiffLocation = 'xfer@atlas-base-adm02.ifa.hawaii.edu:/atlas/diff', localLocation = '/atlas/red', localDiffLocation = '/atlas/diff', options = None):
+   """makeATLASObjectPostageStamps3.
+
+   Args:
+       conn:
+       candidateList:
+       PSSImageRootLocation:
+       stampSize:
+       limit:
+       mostRecent:
+       detectionType:
+       requestType:
+       useMonsta:
+       nonDets:
+       discoveryLimit:
+       lastDetectionLimit:
+       ddc:
+       wpwarp:
+       remoteLocation:
+       remoteDiffLocation:
+       localLocation:
+       localDiffLocation:
+       options:
    """
-   Code to create postage stamps for ATLAS objects.
-   """
+
 
    import subprocess
    from collections import OrderedDict
@@ -473,10 +499,14 @@ def makeATLASObjectPostageStamps3(conn, candidateList, PSSImageRootLocation, sta
 
 
          if useMonsta:
-             targetImage = localLocation + '/' + camera + '/' + mjd + '/' + diffId + '.fits.fz'
-#             if camera == '02a' and int(mjd) <= 57771:
-#                 targetImage = '/atlas/red/' + camera + '.ORIG' + '/' + mjd + '/' + diffId + '.fits.fz'
-             diffImage = localDiffLocation + '/' + camera + '/' + mjd + '/' + diffId + '.diff.fz'
+            if options is not None and options.redregex is not None and options.redlocation is not None and options.diffregex is not None and options.difflocation is not None: 
+               targetImage = options.redlocation.replace('CAMERA', camera).replace('MJD', mjd) + '/' + options.redregex.replace('EXPNAME', diffId)
+               diffImage = options.difflocation.replace('CAMERA', camera).replace('MJD', mjd) + '/' + options.diffregex.replace('EXPNAME', diffId)
+            else:
+               targetImage = localLocation + '/' + camera + '/' + mjd + '/' + diffId + '.fits.fz'
+  #             if camera == '02a' and int(mjd) <= 57771:
+  #                 targetImage = '/atlas/red/' + camera + '.ORIG' + '/' + mjd + '/' + diffId + '.fits.fz'
+               diffImage = localDiffLocation + '/' + camera + '/' + mjd + '/' + diffId + '.diff.fz'
          else:
              targetImage = '/atlas/unpacked/red/' + camera + '/' + mjd + '/' + diffId + '.fits'
 #             if camera == '02a' and int(mjd) <= 57771:
@@ -796,19 +826,16 @@ def main():
 
     PSSImageRootLocation = '/' + hostname + '/images/' + database
 
-    # 2016-06-06 KWS Split the stamp cutting processes into separate methods
-    #                so that the different methods can be called with different
-    #                multiprocessing options. (E.g. 10 processes for downloads
-    #                but 32 processes for stamp cutting.)
     #exposureSet = getUniqueExposures(conn, objectList, limit = limit, mostRecent = mostRecent)
-    if not options.downloadexposures:
+    # Only download exposures if requested. Otherwise assume we already HAVE the data.
+    if not options.skipdownload:
         exposureSet = getUniqueExposures(conn, objectList, limit = limit, mostRecent = mostRecent, nonDets = nondetections, discoveryLimit = discoverylimit, lastDetectionLimit=lastdetectionlimit, ddc = options.ddc)
         exposureSet.sort()
         for row in exposureSet:
             print(row)
         downloadExposures(exposureSet)
 
-    makeATLASObjectPostageStamps3(conn, objectList, PSSImageRootLocation, limit = limit, mostRecent = mostRecent, nonDets = nondetections, discoveryLimit = discoverylimit, lastDetectionLimit=lastdetectionlimit, requestType = requestType, ddc = options.ddc, wpwarp = options.wpwarp)
+    makeATLASObjectPostageStamps3(conn, objectList, PSSImageRootLocation, limit = limit, mostRecent = mostRecent, nonDets = nondetections, discoveryLimit = discoverylimit, lastDetectionLimit=lastdetectionlimit, requestType = requestType, ddc = options.ddc, wpwarp = options.wpwarp, options = options)
 
     conn.close()
 
