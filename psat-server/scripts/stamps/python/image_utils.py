@@ -53,7 +53,7 @@ def addJpegCrossHairs(inputFilename, outputFilename, xhLength = 20, xhOpening = 
        finder:
    """
    from PIL import Image
-   from utils import coords_dec_to_sex
+   from gkutils.commonutils import coords_dec_to_sex
    im = Image.open(inputFilename)
    x = im.size[0]
    y = im.size[1]
@@ -672,7 +672,7 @@ def getFITSPostageStamp(filename, outputFilename, x, y, dx, dy):
         p = subprocess.Popen([cmd, filename, '-o', outputFilename, str(x), str(y), str(dx), str(dy)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, errors = p.communicate()
 
-        if errors.strip() == '':
+        if str(errors).strip() == '':
             status = PSTAMP_SUCCESS
         else:
             # Errors is not blank.  Need to fix!
@@ -752,13 +752,13 @@ def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/at
 
         if errors.strip() == '':
             if 'The images do not overlap' in str(output):
-                print(output)
+                print(str(output))
                 status = PSTAMP_NO_OVERLAP
             else:
                 status = PSTAMP_SUCCESS
         else:
             if 'The images do not overlap' in str(output):
-                print(output)
+                print(str(output))
                 status = PSTAMP_NO_OVERLAP
             else:
                 status = PSTAMP_SUCCESS

@@ -2,7 +2,7 @@
 """Make ATLAS Stamps in the context of the transient server database.
 
 Usage:
-  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--earliest] [--nondetections] [--discoverylimit=<discoverylimit>] [--lastdetectionlimit=<lastdetectionlimit>] [--requesttype=<requesttype>] [--wpwarp=<wpwarp>] [--update] [--ddc] [--skipdownload] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--loglocationdownloads=<loglocationdownloads>] [--logprefixdownloads=<logprefixdownloads>] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>]
+  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--earliest] [--nondetections] [--discoverylimit=<discoverylimit>] [--lastdetectionlimit=<lastdetectionlimit>] [--requesttype=<requesttype>] [--wpwarp=<wpwarp>] [--update] [--ddc] [--skipdownload] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--loglocationdownloads=<loglocationdownloads>] [--logprefixdownloads=<logprefixdownloads>] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>] [--flagdate=<flagdate>]
   %s (-h | --help)
   %s --version
 
@@ -29,12 +29,15 @@ Options:
   --diffregex=<diffregex>                         Diff image regular expression. Caps = variable. [default: EXPNAME.diff.fz]
   --redlocation=<redlocation>                     Reduced image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable).  Null value means use standard ATLAS archive location.
   --difflocation=<difflocation>                   Diff image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable). Null value means use standard ATLAS archive location.
+  --flagdate=<flagdate>                           Date threshold - no hyphens [default: 20151220].
 
+E.g.:
+  %s ~/config_fakers.yaml --detectionlist=4 --ddc --skipdownload --redlocation=/atlas/diff/CAMERA/fake/MJD.fake --redregex=EXPNAME.fits+fake --difflocation=/atlas/diff/CAMERA/fake/MJD.fake --diffregex=EXPNAME.diff+fake
 
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, shutil, re, csv, subprocess
 
@@ -44,7 +47,7 @@ import os, shutil, re, csv, subprocess
 import sys, os
 import datetime
 import subprocess
-from gkutils.commonutils import dbConnect, PROCESSING_FLAGS
+from gkutils.commonutils import dbConnect, PROCESSING_FLAGS, Struct, cleanOptions
 import MySQLdb
 from makeATLASStamps import getUniqueExposures, downloadExposures, makeATLASObjectPostageStamps3, getObjectsByList, getObjectsByCustomList
 from pstamp_utils import REQUESTTYPES
