@@ -2,7 +2,7 @@
 """Ingest ATLAS data files.
 
 Usage:
-  %s <configfile> <regex> [--ingester=<ingester>] [--days=<days>] [--maxjobs=<maxjobs>] [--camera=<camera>] [--mjd=<mjd>] [--verbose] [--atlasroot=<atlasroot>] [--pid=<pid>]
+  %s <configfile> <regex> [--ingester=<ingester>] [--days=<days>] [--maxjobs=<maxjobs>] [--camera=<camera>] [--mjd=<mjd>] [--verbose] [--atlasroot=<atlasroot>] [--pid=<pid>] [--difflocation=<difflocation>]
   %s (-h | --help)
   %s --version
 
@@ -17,17 +17,21 @@ Options:
   --mjd=<mjd>                       Modified Julian Day to ingest. Used to test ingest.
   --verbose                         Run verbosely.
   --atlasroot=<atlasroot>           ATLAS root location [default: /atlas/].
+  --difflocation=<difflocation>     Diff catalogue location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable). Null value means use standard ATLAS archive location.
 
+E.g.:
+  %s ~/config_fakers.yaml *.ddc --mjd=58940 --camera=01a --difflocation=/atlas/diff/CAMERA/fake/MJD.fake
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, shutil, re, csv, subprocess
 from gkutils.commonutils import Struct, cleanOptions
 from gkutils.commonutils import find, dbConnect, getCurrentMJD
 import optparse, warnings, subprocess, datetime
 import glob
+from collections import OrderedDict
 
 
 # Script to Ingest ATLAS detecton files.
@@ -67,6 +71,50 @@ def getFilesIngested(conn, mjdthreshold, camera = '02a'):
         fileList = [x['ddtfile'] for x in result_set]
 
     return fileList
+
+
+def getFilesIngestedddc2(conn, mjdthreshold, mjdToIngest = None, camera = '02a'):
+    """
+    Get all ingested ddc files
+    """
+
+    import MySQLdb
+
+    try:
+        cursor = conn.cursor (MySQLdb.cursors.DictCursor)
+
+        if mjdToIngest:
+            cursor.execute ("""
+                select concat(obs,'.ddc') ddcfile
+                  from atlas_metadataddc
+                 where truncate(mjd,0) > %s
+                   and truncate(mjd,0) <= %s
+                   and substr(obs,1,3) = %s
+              order by obs
+            """,(mjdthreshold, mjdToIngest, camera))
+        else:
+            cursor.execute ("""
+                select concat(obs,'.ddc') ddcfile
+                  from atlas_metadataddc
+                 where truncate(mjd,0) > %s
+                   and substr(obs,1,3) = %s
+              order by obs
+            """,(mjdthreshold,camera))
+        result_set = cursor.fetchall ()
+
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print("Error %d: %s" % (e.args[0], e.args[1]))
+        sys.exit (1)
+
+    fileList = []
+    if result_set:
+        fileList = [x['ddcfile'] for x in result_set]
+
+    return fileList
+
+
 
 
 def getFilesIngestedddc(conn, mjdthreshold, mjdToIngest = None, camera = '02a'):
@@ -112,7 +160,7 @@ def getFilesIngestedddc(conn, mjdthreshold, mjdToIngest = None, camera = '02a'):
 
 # 2019-01-30 KWS Added atlasbase as the default ingest root, but sometimes we just want
 #                to ingest from a custom location. Hence allow this in future.
-def getFiles(regex, camera, mjdToIngest = None, mjdthreshold = None, days = None, atlasroot='/atlas/'):
+def getFiles(regex, camera, mjdToIngest = None, mjdthreshold = None, days = None, atlasroot='/atlas/', options = None):
     """getFiles.
 
     Args:
@@ -122,6 +170,7 @@ def getFiles(regex, camera, mjdToIngest = None, mjdthreshold = None, days = None
         mjdthreshold:
         days:
         atlasroot:
+        options:
     """
     # If mjdToIngest is defined, ignore mjdThreshold. If neither
     # are defined, grab all the files.
@@ -131,18 +180,27 @@ def getFiles(regex, camera, mjdToIngest = None, mjdthreshold = None, days = None
     # e.g. directory = "/atlas/diff/" + camera "/5[0-9][0-9][0-9][0-9]", regex = *.ddc
 
     if mjdToIngest:
-        directory = atlasroot + "diff/" + camera + "/" + str(mjdToIngest)
+        if options is not None and options.difflocation is not None:
+            directory = options.difflocation.replace('CAMERA', camera).replace('MJD', str(mjdToIngest))
+        else:
+            directory = atlasroot + "diff/" + camera + "/" + str(mjdToIngest)
         fileList = glob.glob(directory + '/' + regex)
     else:
         if mjdthreshold and days:
             fileList = []
             for day in range(days):
-                directory = atlasroot + "diff/" + camera + "/%d" % (mjdthreshold + day)
+                if options is not None and options.difflocation is not None:
+                    directory = options.difflocation.replace('CAMERA', camera).replace('MJD', str(mjdthreshold + day))
+                else:
+                    directory = atlasroot + "diff/" + camera + "/%d" % (mjdthreshold + day)
                 files = glob.glob(directory + '/' + regex)
                 if files:
                     fileList += files
         else:
-            directory = atlasroot + "diff/" + camera + "/5[0-9][0-9][0-9][0-9]"
+            if options is not None and options.difflocation is not None:
+                directory = options.difflocation.replace('CAMERA', camera).replace('MJD', '/[56][0-9][0-9][0-9][0-9]')
+            else:
+                directory = atlasroot + "diff/" + camera + "/[56][0-9][0-9][0-9][0-9]"
             fileList = glob.glob(directory + '/' + regex)
 
     fileList.sort()
@@ -164,10 +222,10 @@ def ingesterWrapper(ingester, configFile, fileList):
         output, errors = p.communicate()
 
         if output:
-            print(output)
+            print(str(output))
 
         if errors:
-            print(errors)
+            print(str(errors))
 
 
 def main():
@@ -202,7 +260,7 @@ def main():
     days = int(options.days)
     camera = options.camera
     try:
-        mjdToIngest = int(options.mjd)
+        mjdToIngest = options.mjd
     except TypeError as e:
         mjdToIngest = None
 
@@ -219,18 +277,21 @@ def main():
 
     ingester = options.ingester
 
-    fileList = getFiles(regex, camera, mjdToIngest = mjdToIngest, mjdthreshold = mjdthreshold, days = days)
-    ingestedFiles = getFilesIngestedddc(conn, mjdthreshold = mjdthreshold, mjdToIngest = mjdToIngest, camera = camera)
+    fileList = getFiles(regex, camera, mjdToIngest = mjdToIngest, mjdthreshold = mjdthreshold, days = days, options = options)
+    ingestedFiles = getFilesIngestedddc2(conn, mjdthreshold = mjdthreshold, mjdToIngest = mjdToIngest, camera = camera)
+
+    fileListDict = OrderedDict()
 
     print("List of files...")
     for row in fileList:
+        fileListDict[os.path.basename(row)] = row
         print(row)
 
     print("List of ingested files...")
     for row in ingestedFiles:
         print(row)
 
-    filesToIngest = list(set(fileList) - set(ingestedFiles))
+    filesToIngest = [fileListDict[x] for x in list(set(fileListDict.keys()) - set(ingestedFiles))]
     filesToIngest.sort()
 
     print("List of files to ingest...")
@@ -240,7 +301,6 @@ def main():
 
     print("TOTAL OBJECTS TO CHECK = %d" % len(filesToIngest))
 
-    #return 0
     ingesterWrapper(ingester, configFile, filesToIngest)
 
     conn.close ()

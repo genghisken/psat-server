@@ -2,7 +2,7 @@
 """Ingest ATLAS data files.
 
 Usage:
-  %s <configfile> <regex> [--ingester=<ingester>] [--days=<days>] [--maxjobs=<maxjobs>] [--camera=<camera>] [--mjd=<mjd>] [--verbose] [--atlasroot=<atlasroot>] [--pid=<pid>] [--loglocation=<loglocation>] [--logprefix=<logprefix>]
+  %s <configfile> <regex> [--ingester=<ingester>] [--days=<days>] [--maxjobs=<maxjobs>] [--camera=<camera>] [--mjd=<mjd>] [--verbose] [--atlasroot=<atlasroot>] [--pid=<pid>] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--difflocation=<difflocation>]
   %s (-h | --help)
   %s --version
 
@@ -19,18 +19,22 @@ Options:
   --logprefix=<logprefix>           Log prefix [default: ingester]
   --verbose                         Run verbosely.
   --atlasroot=<atlasroot>           ATLAS root location [default: /atlas/].
+  --difflocation=<difflocation>     Diff catalogue location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable). Null value means use standard ATLAS archive location.
 
+E.g.:
+  %s ~/config_fakers.yaml *.ddc --mjd=58940 --camera=01a --difflocation=/atlas/diff/CAMERA/fake/MJD.fake
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, shutil, re, csv, subprocess
 
-from ingesterWrapper import ingesterWrapper, getFilesIngested, getFiles, getFilesIngestedddc
+from ingesterWrapper import ingesterWrapper, getFilesIngested, getFiles, getFilesIngestedddc, getFilesIngestedddc2
 from gkutils.commonutils import find, dbConnect, getCurrentMJD, splitList, parallelProcess
 from gkutils.commonutils import Struct, cleanOptions
 import warnings, subprocess, datetime
+from collections import OrderedDict
 
 
 # Script to Ingest ATLAS detecton files.
@@ -95,7 +99,7 @@ def main():
     days = int(options.days)
     camera = options.camera
     try:
-        mjdToIngest = int(options.mjd)
+        mjdToIngest = options.mjd
     except TypeError as e:
         mjdToIngest = None
 
@@ -116,23 +120,29 @@ def main():
 
     ingester = options.ingester
 
-    fileList = getFiles(regex, camera, mjdToIngest = mjdToIngest, mjdthreshold = mjdthreshold, days = days, atlasroot=options.atlasroot)
-    ingestedFiles = getFilesIngestedddc(conn, mjdthreshold = mjdthreshold, camera = camera)
+    fileList = getFiles(regex, camera, mjdToIngest = mjdToIngest, mjdthreshold = mjdthreshold, days = days, atlasroot=options.atlasroot, options = options)
+    ingestedFiles = getFilesIngestedddc2(conn, mjdthreshold = mjdthreshold, camera = camera)
+
+
+
+    fileListDict = OrderedDict()
 
     print("List of files...")
     for row in fileList:
+        fileListDict[os.path.basename(row)] = row
         print(row)
 
     print("List of ingested files...")
     for row in ingestedFiles:
         print(row)
 
-    filesToIngest = list(set(fileList) - set(ingestedFiles))
+    filesToIngest = [fileListDict[x] for x in list(set(fileListDict.keys()) - set(ingestedFiles))]
     filesToIngest.sort()
 
     print("List of files to ingest...")
     for row in filesToIngest:
         print(row)
+
 
     print("TOTAL OBJECTS TO CHECK = %d" % len(filesToIngest))
 
