@@ -1,0 +1,226 @@
+version: 1
+
+databases:
+    local:
+        username: CONFIG_LOCAL_DB_USER
+        password: CONFIG_LOCAL_DB_PASS
+        hostname: CONFIG_LOCAL_DB_HOST
+        database: CONFIG_LOCAL_DB_NAME
+
+    ps1_nameserver:
+        username: CONFIG_NAMESERVER_DB_USER
+        password: CONFIG_NAMESERVER_DB_PASS
+        adminusername: CONFIG_NAMESERVER_DB_ADMIN_USER
+        adminpassword: CONFIG_NAMESERVER_DB_ADMIN_PASS
+        hostname: CONFIG_NAMESERVER_DB_HOST
+        database: CONFIG_NAMESERVER_DB_NAME
+
+    backup:
+        username: CONFIG_LOCAL_DB_BACKUP_USER
+        password: CONFIG_LOCAL_DB_BACKUP_PASS
+        hostname: CONFIG_LOCAL_DB_BACKUP_HOST
+        database: CONFIG_LOCAL_DB_BACKUP_NAME
+
+    pessto:
+        username: CONFIG_PESSTO_DB_USER
+        password: CONFIG_PESSTO_DB_PASS
+        hostname: CONFIG_PESSTO_DB_HOST
+        database: CONFIG_PESSTO_DB_NAME
+        port: CONFIG_PESSTO_DB_PORT
+
+    catalogues:
+        username: CONFIG_LOCAL_CATALOGUE_DB_USER
+        password: CONFIG_LOCAL_CATALOGUE_DB_USER
+        hostname: CONFIG_LOCAL_CATALOGUE_DB_USER
+        database: CONFIG_LOCAL_CATALOGUE_DB_USER
+
+    sherlock:
+        username: CONFIG_SHERLOCK_DB_USER
+        password: CONFIG_SHERLOCK_DB_PASS
+        hostname: CONFIG_SHERLOCK_DB_HOST
+        database: CONFIG_SHERLOCK_DB_NAME
+        port: CONFIG_SHERLOCK_DB_PORT
+
+
+code_paths:
+    codebase: CONFIG_CODEBASE
+    ipprepository: CONFIG_IPP_REPOSITORY
+    loglocation: CONFIG_LOG_LOCATION
+    logprefix: CONFIG_LOG_PREFIX
+    stagingdirectory: CONFIG_STAGING_DIRECTORY
+    dump_location_root: CONFIG_KELVIN_USER_AND_ARCHIVE_DIRECTORY
+    local_dump_location: CONFIG_LOCAL_DUMP_LOCATION
+    offsite_backup_location: CONFIG_KELVIN_USER_AND_ARCHIVE_DIRECTORY
+    ingest_type: 3PI
+
+
+flags_and_recurrence_radius:
+    recurrence_search_radius: CONFIG_ASSOCIATION_RADIUS
+
+    # Pan-STARRS specific values
+    check_bad_flags: true
+    check_good_flags: false
+    # Bad flags = 0001 0000 0000 0011 1011 1100 1000 1000, as defined by C. Waters.
+    bad_flag_value: 268680328
+    good_flag_value: 5
+    ingest_galactic_plane: false
+    ingest_galactic_plane_only: false
+
+    # ATLAS specific values
+    vstar_search_radius: CONFIG_VSTAR_SEARCH_RADIUS
+    match_stars: false
+    skip_htm: false
+    write_detections_file: false
+    max_detections: 90000
+    diff_detections: true
+    ingest_moments: false
+    verbosity: 0
+    median_mag_limit: 13.0
+
+
+postage_stamp_parameters:
+    max_number_of_objects: CONFIG_PSTAMP_MAX_OBJECTS
+    objects_per_iteration: CONFIG_PSTAMP_OBJECTS_PER_ITERATION
+    det_objects_per_iteration: CONFIG_DET_OBJECTS_PER_ITERATION
+    email: CONFIG_PSTAMP_EMAIL
+    camera: gpc1
+    det_request_prefix: "psst_det_request"
+    request_prefix: "psst_ps_request"
+    postage_stamp_server_url: CONFIG_PSTAMP_REQUEST_URL
+    username: CONFIG_PSTAMP_USER
+    password: CONFIG_PSTAMP_PASS
+
+
+# 2019-09-02 KWS Add a map of bad OTAs and cells. For compactness, * means 0-7. We
+#                can expand the map as it's being loaded or at application time.
+bad_ota_map:
+    - 
+        ota: XY3*
+        cells:
+            - "3*"
+    - 
+        ota: XY4*
+        cells:
+            - "4*"
+    - 
+        ota: XY37
+    - 
+        ota: XY57
+    - 
+        ota: XY01
+    - 
+        ota: XY73
+    - 
+        ota: XY17
+    - 
+        ota: XY76
+        cells:
+            - "26"
+    - 
+        ota: XY11
+        cells:
+            - "03"
+
+
+web_credentials:
+    ps13pi:
+        username: CONFIG_3PI_WEB_USER
+        password: CONFIG_3PI_WEB_PASS
+    ps1md:
+        username: CONFIG_MD_WEB_USER
+        password: CONFIG_MD_WEB_USER
+    ps1fgss:
+        username: CONFIG_FGSS_WEB_USER
+        password: CONFIG_FGSS_WEB_PASS
+
+tns_api:
+    ps1:
+        sandbox:
+            baseurl: https://sandbox.wis-tns.org/api/
+            api_key: CONFIG_PS_API_KEY_SANDBOX
+            bot_id: CONFIG_PS_BOT_ID
+            bot_name: CONFIG_PS_BOT_NAME
+        live:
+            baseurl: https://www.wis-tns.org/api/
+            api_key: CONFIG_PS_API_KEY_LIVE
+            bot_id: CONFIG_PS_BOT_ID
+            bot_name: CONFIG_PS_BOT_NAME
+        authors: "K. C. Chambers, T. de Boer, J. Bulger, J. Fairlamb, M. Huber, C.-C. Lin, T. Lowe, E. Magnier, A. Schultz, R. J. Wainscoat, H. Gao (IfA, University of Hawaii), K. W. Smith, D. R. Young, J. Gillanders, S. Srivastav, M. Fulton, S. J. Smartt, S. Sim (Queen's University Belfast), D. E. Wright (University of Minnesota)"
+        supplementaryauthors: "C.-K. Chang, W.-P. Chen, W.-H. Ip (NCU)"
+        supplementaryauthorstrigger: NCU
+        zooniverse_boilerplate: "This transient was discovered with the help of citizen science project Supernova Hunters run by Zooniverse."
+        zooniverse_score_threshold: 0.01
+    atlas:
+        sandbox:
+            baseurl: https://sandbox.wis-tns.org/api/
+            api_key: CONFIG_ATLAS_API_KEY_SANDBOX
+            bot_id: CONFIG_ATLAS_BOT_ID
+            bot_name: CONFIG_ATLASPS_BOT_NAME
+        live:
+            baseurl: https://www.wis-tns.org/api/
+            api_key: CONFIG_ATLAS_API_KEY_LIVE
+            bot_id: CONFIG_ATLAS_BOT_ID
+            bot_name: CONFIG_ATLAS_BOT_NAME
+        authors: "J. Tonry, L. Denneau, H. Weiland (IfA, University of Hawaii), A. Heinze, B. Stalder (LSST), A. Rest (STScI), C. Stubbs (Harvard University), K. W. Smith, S. J. Smartt, D. R. Young, S. Srivastav, M. Fulton, J. Gillanders, T. Moore, C. Richman, L. Cai (Queen's University Belfast), T.-W. Chen (Stockholm), D. E. Wright (University of Minnesota), J. Anderson (ESO)"
+
+machine_learning:
+    # ATLAS pixel (DEW ML)
+    paths:
+        root_path: CONFIG_ML_DEW_CLASSIFIERS/ufldl/
+        clf_path: CONFIG_ML_DEW_CLASSIFIERS/ufldl/classifiers/
+        scaler_path: CONFIG_ML_DEW_CLASSIFIERS/ufldl/scalers/
+        features_path: CONFIG_ML_DEW_CLASSIFIERS/ufldl/features/
+        sf_path: CONFIG_ML_DEW_CLASSIFIERS/ufldl/trained_sparseFilters/
+    classifier_components:
+        #classifier: SoftMax_lambda1.000000e-03_SF_maxiter100_L1_atlas_20x20_skew3_signpreserve_6x6_k400_patches_stl-10_unlabeled_meansub_20150325_psdb_6x6_pooled5.pkl
+        classifier: SoftMax_lambda3.000000e-04_SF_maxiter100_L1_andrei_20x20_skew3_signpreserve_f10000b30000_6x6_k400_patches_stl-10_unlabeled_meansub_20150325_psdb_6x6_pooled5_.pkl
+        sparsefilter: SF_400_patches_stl-10_unlabeled_meansub_20150325_psdb_6x6_maxiter100.mat
+        pixel_threshold: 0.01
+    training_data:
+        #data: atlas_20x20_skew3_signpreserve.mat
+        data: andrei_20x20_skew3_signpreserve_f10000b30000.mat
+        patches: patches_stl-10_unlabeled_meansub_20150325_psdb_6x6.mat
+    convolution_features:
+        #trained_features: SF_maxiter100_L1_atlas_20x20_skew3_signpreserve_6x6_k400_patches_stl-10_unlabeled_meansub_20150325_psdb_6x6_pooled5.mat
+        trained_features: SF_maxiter100_L1_andrei_20x20_skew3_signpreserve_f10000b30000_6x6_k400_patches_stl-10_unlabeled_meansub_20150325_psdb_6x6_pooled5.mat
+    data_scalers:
+        scaler: scaler.pkl
+        minmax_scaler: minMax_scaler.pkl
+    classifier_pipeline_constants:
+        image_dim: 20
+        patch_dim: 6
+        pool_dim: 5
+        num_features: 400
+        step_size: 400
+
+    # Pan-STARRS Catalogue ML
+    catalogue_classifier_components:
+        catalogue_path: CONFIG_ML_CATALOGUE_CLASSIFIERS/rf/
+        # 2020-10-18 KWS Increased the threshold from 0.033 to 0.153. (from 1% to 3% MDR to reduce load on the stamp server.)
+        catalogue_classifier: RF_n_estimators100_max_features8_min_samples_leaf50_ps1_catalogue_training_from_image_training_g400000_b1200000_20190710.pkl
+        catalogue_threshold: 0.153
+        features:
+            - "sky"
+            - "psf_major"
+            - "psf_minor"
+            - "psf_theta"
+            - "psf_qf"
+            - "psf_npix"
+            - "moments_xx"
+            - "moments_xy"
+            - "moments_yy"
+            - "diff_npos"
+            - "diff_fratio"
+            - "diff_nratio_bad"
+            - "diff_nratio_mask"
+            - "diff_nratio_all"
+            - "psf_qf_perfect"
+
+# Catalogue classifier RF_n_estimators100_max_features8_min_samples_leaf50_ps1_catalogue_training_from_image_training_g400000_b1200000_20190710.pkl
+# [+] FoM at 0.005 MDR : 0.364 | decision boundary : 0.013 
+# [+] FoM at 0.010 MDR : 0.253 | decision boundary : 0.033 
+# [+] FoM at 0.020 MDR : 0.152 | decision boundary : 0.090 
+# [+] FoM at 0.030 MDR : 0.106 | decision boundary : 0.153 
+# [+] FoM at 0.040 MDR : 0.080 | decision boundary : 0.214 
+# [+] FoM at 0.050 MDR : 0.063 | decision boundary : 0.273 
+
