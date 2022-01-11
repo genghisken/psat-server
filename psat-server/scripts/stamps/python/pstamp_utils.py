@@ -1858,6 +1858,7 @@ def searchUniqueObjectsForFinder(conn, candidate, avgRA, avgDEC):
    return result_set
 
 # 2015-05-31 KWS Updated query to get filename, ppsub_input and ppsub_reference
+# 2021-12-28 KWS Get the fpa_detector so we know whether or not to send a gpc1 or gpc2 request.
 def searchRecurrentObjectsForFinder(conn, candidate, avgRA, avgDEC, limit = 3):
    """searchRecurrentObjectsForFinder.
 
@@ -1874,7 +1875,7 @@ def searchRecurrentObjectsForFinder(conn, candidate, avgRA, avgDEC, limit = 3):
       cursor = conn.cursor (MySQLdb.cursors.DictCursor)
 
       cursor.execute ("""
-         select r.transient_object_id id, r.ipp_idet, %s ra_psf, %s dec_psf, m.imageid, filename, ppsub_input, ppsub_reference, m.skycell sc,
+         select r.transient_object_id id, r.ipp_idet, %s ra_psf, %s dec_psf, m.imageid, filename, ppsub_input, ppsub_reference, m.skycell sc, m.fpa_detector,
                 cast(truncate(m.mjd_obs,3) as char) tdate,
                 if(instr(m.filename,'MD'), substr(m.filename, instr(m.filename,'MD'),4), 'null') field,
                 if(instr(m.filename,'skycell'), substr(m.filename, instr(m.filename,'skycell'),instr(m.filename,'.dif') - instr(m.filename,'skycell')), 'null') skycell,
@@ -1996,7 +1997,7 @@ def getLightcurveDetections(conn, candidate, filters = "grizywxBV", limit = 0):
        limit:
    """
    import MySQLdb
-   from psat_server_web.atlas.atlas.commonqueries import LC_NON_DET_AND_BLANKS_QUERY, LC_DET_QUERY
+   from psat_server_web.ps1.psdb.commonqueries import LC_NON_DET_AND_BLANKS_QUERY, LC_DET_QUERY
 
    try:
        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
@@ -2028,7 +2029,7 @@ def getLightcurveNonDetectionsAndBlanks(conn, candidate, filters="grizywxBV", ip
        ippIdetBlank:
    """
    import MySQLdb
-   from psat_server_web.atlas.atlas.commonqueries import LC_NON_DET_AND_BLANKS_QUERY, LC_DET_QUERY
+   from psat_server_web.ps1.psdb.commonqueries import LC_NON_DET_AND_BLANKS_QUERY, LC_DET_QUERY
 
    #modifiedResultSet = []
 
@@ -2437,11 +2438,11 @@ def getDetectabilityInfo2(conn, candidate, limitDays = 100, limitDaysAfter = 0, 
             # We just need the diff ID
             # Don't request forced photometry that we already have!
             if row['mjd'] > maxForcedPhotometryMJD:
-                print(row['id'])
+                print(row['id'], row['fpa_detector'])
                 for imType in ['target','ref','diff']:
                     print("%s (%s): %s" % (imType, diffImageCombination[imType][0], diffImageCombination[imType][1]), end=' ')
                 print()
-                detectabilityData.append(json.dumps({'mjd': row['mjd'], 'filter': row['filter'], 'diff': diffImageCombination['diff'][1]}))
+                detectabilityData.append(json.dumps({'mjd': row['mjd'], 'filter': row['filter'], 'diff': diffImageCombination['diff'][1], 'pscamera': row['fpa_detector']}))
 
         # Now we must eliminate the dupes.  Sadly, we can't use sets, since "dicts are not hashable" but we
         # can do a trick by converting the dict to json and then back to dict.
@@ -2553,7 +2554,7 @@ def deleteForcedPhotometry(conn, candidate):
 
    return conn.affected_rows()
 
-                 
+# 2021-12-28 KWS Added pscamera header - so we now know which telescope this came from. 
 def insertForcedPhotometry(conn, row):
    """insertForcedPhotometry.
 
@@ -2615,8 +2616,9 @@ def insertForcedPhotometry(conn, row):
                 diff_nratio_all,
                 flags,
                 n_frames,
-                padding)
-          values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                padding,
+                pscamera)
+          values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
           """, (row["transient_object_id"],
                 row["mjd_obs"],
                 row["exptime"],
@@ -2664,7 +2666,8 @@ def insertForcedPhotometry(conn, row):
                 row["diff_nratio_all"],
                 row["flags"],
                 row["n_frames"],
-                row["padding"]))
+                row["padding"],
+                row["pscamera"]))
 
    except MySQLdb.Error as e:
       print("Error %d: %s" % (e.args[0], e.args[1]))
@@ -3486,7 +3489,11 @@ def writeFITSPostageStampRequestById(conn, gpc1Conn, outfile, requestName, resul
          rownum.append(row)
 
          # 2020-06-07 KWS TEMPORARY FIX: If the image type is 'ref' force camera to be gpc1.
-         cam = camera
+         try:
+             cam = result["fpa_detector"].lower()
+         except KeyError as e:
+             cam = camera
+
          if imageType == 'ref':
              cam = 'gpc1'
 
@@ -3830,7 +3837,10 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
       for result in detectabilityResultSet:
          #rownum.append(str(candidate)) # Detectability rows are ASCII values
          rownum.append("%s_%05d" % (base26(candidate['id']), row))
-         project.append(camera)
+         try:
+             project.append(result["pscamera"].lower())
+         except KeyError as e:
+             project.append(camera)
          #rownum.append("%05d" % (row))
          ra1_deg.append(ra)
          dec1_deg.append(dec)
@@ -4348,8 +4358,14 @@ def writeFinderPostageStampRequestById(conn, gpc1Conn, outfile, requestName, res
       #                as floats.
       # 2013-11-28 KWS For 3pi the result["ra_psf"] and result["dec_psf"] are in SQL Decimal format.
       #                They need to be cast as floats.
+      # 2021-12-28 KWS Pull out the camera from the fpa_detector value - use it to specify gpc1 or gpc2.
       rownum.append(row)
-      project.append(camera)
+
+      try:
+          project.append(result["fpa_detector"].lower())
+      except KeyError as e:
+          project.append(camera)
+
       survey_name.append('null')
       ipp_release.append('null')
       job_type.append('stamp')
