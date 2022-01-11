@@ -55,7 +55,7 @@ def worker(num, db, objectListFragment, dateAndTime, firstPass, miscParameters):
     configFile = miscParameters[1]
 
     
-    ingesterWrapper(options.ingester, options.configFile, objectListFragment)
+    ingesterWrapper(options.ingester, options.configfile, objectListFragment)
     print("Process complete.")
 
     return 0
