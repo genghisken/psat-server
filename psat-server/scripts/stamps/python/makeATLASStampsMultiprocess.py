@@ -2,7 +2,7 @@
 """Make ATLAS Stamps in the context of the transient server database.
 
 Usage:
-  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--earliest] [--nondetections] [--discoverylimit=<discoverylimit>] [--lastdetectionlimit=<lastdetectionlimit>] [--requesttype=<requesttype>] [--wpwarp=<wpwarp>] [--update] [--ddc] [--skipdownload] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--loglocationdownloads=<loglocationdownloads>] [--logprefixdownloads=<logprefixdownloads>] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>] [--flagdate=<flagdate>]
+  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--earliest] [--nondetections] [--discoverylimit=<discoverylimit>] [--lastdetectionlimit=<lastdetectionlimit>] [--requesttype=<requesttype>] [--wpwarp=<wpwarp>] [--update] [--ddc] [--skipdownload] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--loglocationdownloads=<loglocationdownloads>] [--logprefixdownloads=<logprefixdownloads>] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>] [--flagdate=<flagdate>] [--downloadthreads=<downloadthreads>]
   %s (-h | --help)
   %s --version
 
@@ -30,6 +30,7 @@ Options:
   --redlocation=<redlocation>                     Reduced image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable).  Null value means use standard ATLAS archive location.
   --difflocation=<difflocation>                   Diff image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable). Null value means use standard ATLAS archive location.
   --flagdate=<flagdate>                           Date threshold - no hyphens [default: 20151220].
+  --downloadthreads=<downloadthreads>             Number of threads to use for image downloads [default: 10].
 
 E.g.:
   %s ~/config_fakers.yaml --detectionlist=4 --ddc --skipdownload --redlocation=/atlas/diff/CAMERA/fake/MJD.fake --redregex=EXPNAME.fits+fake --difflocation=/atlas/diff/CAMERA/fake/MJD.fake --diffregex=EXPNAME.diff+fake
@@ -196,14 +197,14 @@ def main():
         print("Downloading exposures...")
 
         if len(exposureSet) > 0:
-            nProcessors, listChunks = splitList(exposureSet, bins = options.downloadthreads)
+            nProcessors, listChunks = splitList(exposureSet, bins = int(options.downloadthreads))
 
             print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
             parallelProcess(db, dateAndTime, nProcessors, listChunks, workerImageDownloader, miscParameters = [options], drainQueues = False)
             print("%s Done Parallel Processing" % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
 
             # Belt and braces. Do again, with one less thread.
-            nProcessors, listChunks = splitList(exposureSet, bins = options.downloadthreads - 1)
+            nProcessors, listChunks = splitList(exposureSet, bins = int(options.downloadthreads) - 1)
 
             print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
             parallelProcess(db, dateAndTime, nProcessors, listChunks, workerImageDownloader, miscParameters = [options], drainQueues = False)
