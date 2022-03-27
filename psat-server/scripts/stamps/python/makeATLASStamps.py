@@ -716,6 +716,8 @@ def getObjectsByList(conn, listId = 4, objectType = -1, dateThreshold = '2009-01
             and (object_classification is null or object_classification & %s > 0)
             and (processing_flags & %s = 0 or processing_flags is null)
             and followup_flag_date > %s
+            and sherlockClassification is not null
+            and sherlockClassification not in ('VS','BS')
             order by followup_id
         """, (listId, objectType, processingFlags, dateThreshold))
 
