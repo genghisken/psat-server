@@ -687,7 +687,7 @@ def getFITSPostageStamp(filename, outputFilename, x, y, dx, dy):
     return status
 
 
-def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/atlas/vendor/monsta/bin/monsta', monstaScript = '/atlas/lib/monsta/subarray_ken2.pro', ccdSize = 10560):
+def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/atlas/vendor/monsta/bin/monsta', monstaScript = '/atlas/lib/monsta/subarray_ken3.pro', ccdSize = 10560):
     """
     Use monsta subarray to cut out a substamp
     """
