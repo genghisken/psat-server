@@ -710,7 +710,16 @@ def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/at
         return status, rot
 
     # Get the size of the existing data.  Are we too close to the edge?
-    h = pf.open(filename)
+    # 2022-06-07 KWS Issue 2: Problem with bad FITS file. Not sure what's causing
+    #                the error yet, but this try/except block should mitigate
+    #                the problem.
+    try:
+        h = pf.open(filename)
+    except OSError as e:
+        print("File %s does not appear to be a valid FITS file." % filename)
+        print(e)
+        return status, rot
+
     try:
         header = h[1].header
         try:
