@@ -26,7 +26,7 @@ Options:
 
 
 E.g.:
-  %s ../../../../config/config4_db4.yaml 1105142531182852400 --limit 30 --update --ddc --useflagdate
+  %s ../../../../../atlas/config/config4_db1.yaml 1211632161362135500 --ddc --limit=30 --limitafter=3 --useflagdate --update
 """
 
 import sys
