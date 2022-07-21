@@ -399,24 +399,6 @@ def main(argv = None):
     limit = int(options.limit)
     limitafter = int(options.limitafter)
 
-
-    import yaml
-    with open(configFile) as yaml_file:
-        config = yaml.load(yaml_file)
-
-    username = config['databases']['local']['username']
-    password = config['databases']['local']['password']
-    database = config['databases']['local']['database']
-    hostname = config['databases']['local']['hostname']
-
-    detectionList = 1
-    customList = None
-
-    conn = dbConnect(hostname, username, password, database)
-
-    update = options.update
-    limit = int(options.limit)
-
     objectList = []
 
     if options.candidate is not None and len(options.candidate) > 0:
@@ -445,9 +427,6 @@ def main(argv = None):
 
     print("LENGTH OF OBJECTLIST = ", len(objectList))
 
-
-    conn = dbConnect(hostname, username, password, database)
-
     perObjectExps, allExps = getForcedPhotometryUniqueExposures(conn, objectList, discoveryLimit = limit, cutoffLimit = limitafter, incremental = True, ddc = options.ddc, useFlagDate = options.useflagdate)
     if options.test:
         for obj in objectList:
@@ -463,7 +442,8 @@ def main(argv = None):
 
     fphot = doForcedPhotometry(options, objectList, perObjectExps)
 
-    insertForcedPhotometry(conn, fphot)
+    if options.update:
+        insertForcedPhotometry(conn, fphot)
 
 if __name__ == '__main__':
     main()
