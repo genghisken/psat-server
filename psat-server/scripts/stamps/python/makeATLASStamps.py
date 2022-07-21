@@ -176,7 +176,8 @@ def doRsync(exposureSet, imageType, userId = 'xfer', remoteMachine = 'atlas-base
     # Get the diff images
     # 2018-04-16 KWS Removed the 'u' flag. We don't need to update the images.
     #p = subprocess.Popen([rsyncCmd, '-e "ssh -c arcfour -o Compression=no"', '-axKL', '--files-from=%s' % rsyncFile, remote, local], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    p = subprocess.Popen([rsyncCmd, '-avxKL', '--files-from=%s' % rsyncFile, remote, local], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # 2022-07-21 KWS Added text=True to the Popen command. Ensures that the response comes back as text.
+    p = subprocess.Popen([rsyncCmd, '-avxKL', '--files-from=%s' % rsyncFile, remote, local], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     output, errors = p.communicate()
 
     if output.strip():
@@ -341,7 +342,7 @@ def downloadExposures(exposureSet, useMonsta = True):
     
           outputFilename = outputFileDirectory + file + '.diff'
     
-          p = subprocess.Popen([funpackCmd, '-O', outputFilename, inputFilename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+          p = subprocess.Popen([funpackCmd, '-O', outputFilename, inputFilename], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
           output, errors = p.communicate()
     
           if output.strip():
@@ -377,7 +378,7 @@ def downloadExposures(exposureSet, useMonsta = True):
     
           outputFilename = outputFileDirectory + file + '.fits'
     
-          p = subprocess.Popen([funpackCmd, '-O', outputFilename, inputFilename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+          p = subprocess.Popen([funpackCmd, '-O', outputFilename, inputFilename], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
           output, errors = p.communicate()
     
           if output.strip():
@@ -515,7 +516,7 @@ def makeATLASObjectPostageStamps3(conn, candidateList, PSSImageRootLocation, sta
 
          if ippIdet == IPP_IDET_NON_DETECTION_VALUE:
             xhColor = 'brown1'
-            p = subprocess.Popen([pix2skyCmd, '-sky2pix', diffImage, str(avgRa), str(avgDec)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = subprocess.Popen([pix2skyCmd, '-sky2pix', diffImage, str(avgRa), str(avgDec)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             output, errors = p.communicate()
             if output:
                 x,y = output.split()
@@ -614,11 +615,11 @@ def makeATLASObjectPostageStamps3(conn, candidateList, PSSImageRootLocation, sta
                targetImage = imageDownloadLocation + '/' + imageGroupName + '_' + 'target.fits'
                #p = subprocess.Popen([wpwarp1Cmd, '-samp', absoluteLocalImageName, diffImage], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                if wpwarp == 1:
-                   p = subprocess.Popen([wpwarp1Cmd, '-samp', absoluteLocalImageName, targetImage], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                   p = subprocess.Popen([wpwarp1Cmd, '-samp', absoluteLocalImageName, targetImage], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                else:
                    # Use the new wpwarp2. E.g. wpwarp2 -novar -nomask -nozerosat -wp /tmp/02a58993o0492c_new.tmpl /tmp/ATLAS20nvd_02a58993o0492c.fits
                    print(wpwarp2Cmd, '-novar', '-nomask', '-nozerosat', '-wp', absoluteLocalImageName, targetImage)
-                   p = subprocess.Popen([wpwarp2Cmd, '-novar', '-nomask', '-nozerosat', '-wp', absoluteLocalImageName, targetImage], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                   p = subprocess.Popen([wpwarp2Cmd, '-novar', '-nomask', '-nozerosat', '-wp', absoluteLocalImageName, targetImage], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
                output, errors = p.communicate()
                rc = p.returncode

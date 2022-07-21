@@ -2,7 +2,7 @@
 """Do ATLAS forced photometry.
 
 Usage:
-  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--update] [--ddc] [--skipdownload] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>] [--tphorce=<tphorcelocation>] [--useflagdate]
+  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--limitafter=<limitafter>] [--update] [--ddc] [--skipdownload] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>] [--tphorce=<tphorcelocation>] [--useflagdate] [--test]
   %s (-h | --help)
   %s --version
 
@@ -12,7 +12,8 @@ Options:
   --update                                    Update the database
   --detectionlist=<detectionlist>             List option
   --customlist=<customlist>                   Custom List option
-  --limit=<limit>                             Number of detections for which to request images [default: 6]
+  --limit=<limit>                             Number of days before first detection (or flag date) to check [default: 0]
+  --limitafter=<limitafter>                   Number of days after first detection (or flag date) to check [default: 150]
   --ddc                                       Use the DDC schema for queries
   --skipdownload                              Do not attempt to download the exposures (assumes they already exist locally)
   --redregex=<redregex>                       Reduced image regular expression. Caps = variable. [default: EXPNAME.fits.fz]
@@ -21,10 +22,11 @@ Options:
   --difflocation=<difflocation>               Diff image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable). Null value means use standard ATLAS archive location.
   --tphorce=<tphorcelocation>                 Location of the tphorce shell script [default: /usr/local/ps1code/gitrelease/tphorce/tphorce].
   --useflagdate                               Use the flag date as the threshold for the number of days instead of the first detection (which might be rogue).
+  --test                                      Just list the exposures for which we will do forced photometry.
 
 
 E.g.:
-  %s ../../../../config/config4_db4.yaml 1105142531182852400 --limit 30 --update --ddc
+  %s ../../../../config/config4_db4.yaml 1105142531182852400 --limit 30 --update --ddc --useflagdate
 """
 
 import sys
@@ -44,7 +46,34 @@ FORCED_PHOT_LIMIT_SNR = 3.0
 #FORCED_PHOT_DET_SNR = 3.0
 #FORCED_PHOT_LIMIT_SNR = 3.0
 
-def getForcedPhotometryUniqueExposures(conn, candidateList, discoveryLimit = 20, incremental = True, ddc = False, useFlagDate = False):
+def getATLASObject(conn, objectId):
+    """getATLASObject.
+
+    Args:
+        conn:
+        objectId:
+    """
+    import MySQLdb
+
+    try:
+        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute ("""
+            select id, followup_id, ra, `dec`, atlas_designation 'name', object_classification, followup_flag_date
+            from atlas_diff_objects
+            where id = %s
+        """, (objectId,))
+        resultSet = cursor.fetchone ()
+
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print("Error %d: %s" % (e.args[0], e.args[1]))
+        sys.exit (1)
+
+    return resultSet
+
+
+def getForcedPhotometryUniqueExposures(conn, candidateList, discoveryLimit = 20, cutoffLimit = 100, incremental = True, ddc = False, useFlagDate = False):
     """getForcedPhotometryUniqueExposures.
 
     Args:
@@ -89,17 +118,24 @@ def getForcedPhotometryUniqueExposures(conn, candidateList, discoveryLimit = 20,
         if useFlagDate:
             firstDetection = getMJDFromSqlDate(candidate['followup_flag_date'].strftime("%Y-%m-%d") + ' 00:00:00') 
 
+        print("First Detection MJD = %d" % firstDetection)
+        print("Earliest Limit = %d" % (firstDetection - discoveryLimit) )
+        print("Cutoff Limit = %d" % (firstDetection + cutoffLimit) )
         for row in recurrences:
-            if row.mjd >= firstDetection - discoveryLimit:
+            if row.mjd >= firstDetection - discoveryLimit and row.mjd <= firstDetection + cutoffLimit:
                 objectCoords.append({'RA': row.ra, 'DEC': row.dec})
                 if row.expname not in existingExposures:
                     objectExps.append(row.expname)
                     exposures.append(row.expname)
 
-        avgRa, avgDec, rms = calculateRMSScatter(objectCoords)
+        avgRa = None
+        avgDec = None
+        rms = None
+        if objectCoords:
+            avgRa, avgDec, rms = calculateRMSScatter(objectCoords)
 
         for row in blanks:
-            if row.mjd >= firstDetection - discoveryLimit:
+            if row.mjd >= firstDetection - discoveryLimit and row.mjd <= firstDetection + cutoffLimit:
                 if row.expname not in existingExposures:
                     objectExps.append(row.expname)
                     exposures.append(row.expname)
@@ -109,7 +145,7 @@ def getForcedPhotometryUniqueExposures(conn, candidateList, discoveryLimit = 20,
     uniqueExposures = sorted(list(set(exposures)))
     return perObjectExposures, uniqueExposures
 
-def doForcedPhotometry(objectList, perObjectExps):
+def doForcedPhotometry(options, objectList, perObjectExps):
     """doForcedPhotometry.
 
     Args:
@@ -138,17 +174,19 @@ def doForcedPhotometry(objectList, perObjectExps):
             tphName = ATLAS_ROOT + '/red/' + camera + '/' + mjd + '/' + aux + exp + '.tph'
 
             #print TPHORCE, imageName, tphName, perObjectExps[candidate['id']]['avgRa'], perObjectExps[candidate['id']]['avgDec'], '3.0'
-            p = subprocess.Popen([options.tphorce, imageName, tphName, str(perObjectExps[candidate['id']]['avgRa']), str(perObjectExps[candidate['id']]['avgDec']), str(FORCED_PHOT_DET_SNR), str(FORCED_PHOT_LIMIT_SNR)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # 2022-07-21 KWS Added text=True to the Popen command. Ensures that the response comes back as text.
+            p = subprocess.Popen([options.tphorce, imageName, tphName, str(perObjectExps[candidate['id']]['avgRa']), str(perObjectExps[candidate['id']]['avgDec']), str(FORCED_PHOT_DET_SNR), str(FORCED_PHOT_LIMIT_SNR)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             output, errors = p.communicate()
     
             if output.strip():
+                print(output)
                 csvData = readGenericDataFile(io.StringIO(output), delimiter = ',')
                 # There should only be one CSV row
                 data = None
                 try:
                     data = csvData[0]
                 except IndexError as e:
-                    print("ERROR: This is not a CSV file. Output = %s" % output.strip())
+                    print("ERROR: This is not a CSV file. Output = %s" % str(output).strip())
 
                 if data:
                     data['limiting_mag'] = False
@@ -359,6 +397,7 @@ def main(argv = None):
 
     update = options.update
     limit = int(options.limit)
+    limitafter = int(options.limitafter)
 
 
     import yaml
@@ -382,7 +421,10 @@ def main(argv = None):
 
     if options.candidate is not None and len(options.candidate) > 0:
         for cand in options.candidate:
-            objectList.append({'id': int(cand)})
+            obj = getATLASObject(conn, objectId = int(cand))
+            if obj:
+                objectList.append(obj)
+
     else:
 
         if options.customlist is not None:
@@ -406,13 +448,20 @@ def main(argv = None):
 
     conn = dbConnect(hostname, username, password, database)
 
-    perObjectExps, allExps = getForcedPhotometryUniqueExposures(conn, objectList, discoveryLimit = limit, incremental = False, ddc = options.ddc, useFlagDate = options.useflagdate)
+    perObjectExps, allExps = getForcedPhotometryUniqueExposures(conn, objectList, discoveryLimit = limit, cutoffLimit = limitafter, incremental = True, ddc = options.ddc, useFlagDate = options.useflagdate)
+    if options.test:
+        for obj in objectList:
+            print(obj['id'])
+            for exp in perObjectExps[obj['id']]['exps']:
+                print(exp)
+            
+        return 0
 
     if not options.skipdownload:
         doRsync(allExps, 'diff')
         doRsync(allExps, 'red', getMetadata = True, metadataExtension = '.tph')
 
-    fphot = doForcedPhotometry(objectList, perObjectExps)
+    fphot = doForcedPhotometry(options, objectList, perObjectExps)
 
     insertForcedPhotometry(conn, fphot)
 

@@ -2,7 +2,7 @@
 """Do ATLAS forced photometry.
 
 Usage:
-  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--update] [--ddc] [--skipdownload] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--loglocationdownloads=<loglocationdownloads>] [--logprefixdownloads=<logprefixdownloads>] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>] [--flagdate=<flagdate>] [--downloadthreads=<downloadthreads>] [--mlscore=<mlscore>]
+  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--limitafter=<limitafter>] [--update] [--ddc] [--skipdownload] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--loglocationdownloads=<loglocationdownloads>] [--logprefixdownloads=<logprefixdownloads>] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>] [--tphorce=<tphorcelocation>] [--flagdate=<flagdate>] [--downloadthreads=<downloadthreads>] [--mlscore=<mlscore>] [--useflagdate] [--test]
   %s (-h | --help)
   %s --version
 
@@ -12,7 +12,8 @@ Options:
   --update                                        Update the database
   --detectionlist=<detectionlist>                 List option
   --customlist=<customlist>                       Custom List option
-  --limit=<limit>                                 Number of detections for which to request images [default: 6]
+  --limit=<limit>                                 Number of days before first detection (or flag date) to check [default: 0]
+  --limitafter=<limitafter>                       Number of days after first detection (or flag date) to check [default: 0]
   --ddc                                           Use the DDC schema for queries
   --skipdownload                                  Do not attempt to download the exposures (assumes they already exist locally)
   --loglocation=<loglocation>                     Log file location [default: /tmp/]
@@ -23,10 +24,12 @@ Options:
   --diffregex=<diffregex>                         Diff image regular expression. Caps = variable. [default: EXPNAME.diff.fz]
   --redlocation=<redlocation>                     Reduced image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable).  Null value means use standard ATLAS archive location.
   --difflocation=<difflocation>                   Diff image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable). Null value means use standard ATLAS archive location.
+  --tphorce=<tphorcelocation>                     Location of the tphorce shell script [default: /usr/local/ps1code/gitrelease/tphorce/tphorce].
   --flagdate=<flagdate>                           Date threshold - no hyphens [default: 20151220].
   --downloadthreads=<downloadthreads>             Number of threads to use for image downloads [default: 10].
   --mlscore=<mlscore>                             ML score below which we will NOT request forced photometry.
   --useflagdate                                   Use the flag date as the threshold for the number of days instead of the first detection (which might be rogue).
+  --test                                          Just list the exposures for which we will do forced photometry.
 
 E.g.:
   %s ../../../../config/config4_db4.yaml 1105142531182852400 --limit 30 --update --ddc
@@ -49,7 +52,7 @@ from gkutils.commonutils import splitList, parallelProcess
 import queue
 
 from makeATLASStamps import getObjectsByList, getObjectsByCustomList
-from getATLASForcedPhotometry import getForcedPhotometryUniqueExposures, doForcedPhotometry, downloadFPExposures, insertForcedPhotometry
+from getATLASForcedPhotometry import getForcedPhotometryUniqueExposures, doForcedPhotometry, downloadFPExposures, insertForcedPhotometry, getATLASObject
 
 
 def workerExposureDownloader(num, db, listFragment, dateAndTime, firstPass, miscParameters):
@@ -73,7 +76,7 @@ def workerForcedPhotometry(num, db, listFragment, dateAndTime, firstPass, miscPa
     perObjectExps = miscParameters[1]
 
     # Call the postage stamp downloader
-    objectsForUpdate = doForcedPhotometry(listFragment, perObjectExps)
+    objectsForUpdate = doForcedPhotometry(options, listFragment, perObjectExps)
 
     # Write the objects for update onto a Queue object
     print("Adding %d objects onto the queue." % len(objectsForUpdate))
@@ -126,6 +129,7 @@ def main(argv = None):
 
     update = options.update
     limit = int(options.limit)
+    limitafter = int(options.limitafter)
 
     mlscore = None
     if options.mlscore is not None:
@@ -144,7 +148,9 @@ def main(argv = None):
 
     if options.candidate is not None and len(options.candidate) > 0:
         for cand in options.candidate:
-            objectList.append({'id': int(cand)})
+            obj = getATLASObject(conn, objectId = int(cand))
+            if obj:
+                objectList.append(obj)
     else:
 
         if options.customlist is not None:
@@ -178,7 +184,13 @@ def main(argv = None):
 
     # Single threaded
     #perObjectExps, exposureSet = getForcedPhotometryUniqueExposures(conn, objectList, discoveryLimit = limit, ddc = options.ddc, useFlagDate = options.useflagdate)
-    perObjectExps, exposureSet = getForcedPhotometryUniqueExposures(conn, objectList, discoveryLimit = limit, ddc = options.ddc, useFlagDate = True)
+    perObjectExps, exposureSet = getForcedPhotometryUniqueExposures(conn, objectList, discoveryLimit = limit, cutoffLimit = limitafter, ddc = options.ddc, useFlagDate = options.useflagdate)
+    if options.test:
+        for obj in objectList:
+            print(obj['id'])
+            for exp in perObjectExps[obj['id']]['exps']:
+                print(exp)
+        return 0
     # We'll hand the entire perObjectExps dictionary to each thread.
 
 
@@ -189,14 +201,14 @@ def main(argv = None):
 
     if not options.skipdownload:
         if len(exposureSet) > 0:
-            nProcessors, listChunks = splitList(exposureSet, bins = options.downloadthreads)
+            nProcessors, listChunks = splitList(exposureSet, bins = int(options.downloadthreads))
 
             print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
             parallelProcess(db, dateAndTime, nProcessors, listChunks, workerExposureDownloader, miscParameters = [options], drainQueues = False)
             print("%s Done Parallel Processing" % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
 
             # Belt and braces - try again with one less thread, just in case the previous one failed.
-            nProcessors, listChunks = splitList(exposureSet, bins = options.downloadthreads - 1)
+            nProcessors, listChunks = splitList(exposureSet, bins = int(options.downloadthreads) - 1)
 
             print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
             parallelProcess(db, dateAndTime, nProcessors, listChunks, workerExposureDownloader, miscParameters = [options], drainQueues = False)
