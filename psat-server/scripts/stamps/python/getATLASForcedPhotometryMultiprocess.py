@@ -169,14 +169,16 @@ def main(argv = None):
                     print("The list must be between 0 and 9 inclusive.  Exiting.")
                     sys.exit(1)
 
+    print("LENGTH OF OBJECTLIST = ", len(objectList))
 
-    if mlscore is not None and options.candidate is None: # Only do this filter if the IDs are not provided explicitly.
+    if mlscore is not None and not (options.candidate): # Only do this filter if the IDs are not provided explicitly.
         updatedList = []
         for row in objectList:
             if row['zooniverse_score'] is not None and row['zooniverse_score'] >= mlscore:
                 updatedList.append(row)
         if len(updatedList) > 0:
             objectList = updatedList
+            print("LENGTH OF CLIPPED OBJECTLIST = ", len(objectList))
 
     currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
     (year, month, day, hour, min, sec) = currentDate.split(':')

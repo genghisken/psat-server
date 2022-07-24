@@ -6213,7 +6213,7 @@ def makeATLASObjectPostageStamps2(conn, candidateList, PSSImageRootLocation, sta
 
    rsf.close()
 
-   p = subprocess.Popen([rsyncCmd, '-aux', '--files-from=%s' % rsyncDiffFile, remoteDiffLocation, localDiffLocation], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+   p = subprocess.Popen([rsyncCmd, '-aux', '--files-from=%s' % rsyncDiffFile, remoteDiffLocation, localDiffLocation], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
    output, errors = p.communicate()
 
    if output.strip():
@@ -6250,7 +6250,7 @@ def makeATLASObjectPostageStamps2(conn, candidateList, PSSImageRootLocation, sta
 
       outputFilename = outputFileDirectory + file + '.diff'
 
-      p = subprocess.Popen([funpackCmd, '-O', outputFilename, inputFilename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+      p = subprocess.Popen([funpackCmd, '-O', outputFilename, inputFilename], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
       output, errors = p.communicate()
 
       if output.strip():
@@ -6265,7 +6265,7 @@ def makeATLASObjectPostageStamps2(conn, candidateList, PSSImageRootLocation, sta
 
    print("Fetching Input Images...")
 
-   p = subprocess.Popen([rsyncCmd, '-aux', '--files-from=%s' % rsyncFile, remoteLocation, localLocation], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+   p = subprocess.Popen([rsyncCmd, '-aux', '--files-from=%s' % rsyncFile, remoteLocation, localLocation], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
    output, errors = p.communicate()
 
    if output.strip():
@@ -6299,7 +6299,7 @@ def makeATLASObjectPostageStamps2(conn, candidateList, PSSImageRootLocation, sta
 
       outputFilename = outputFileDirectory + file + '.fits'
 
-      p = subprocess.Popen([funpackCmd, '-O', outputFilename, inputFilename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+      p = subprocess.Popen([funpackCmd, '-O', outputFilename, inputFilename], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
       output, errors = p.communicate()
 
       if output.strip():
@@ -6426,7 +6426,7 @@ def makeATLASObjectPostageStamps2(conn, candidateList, PSSImageRootLocation, sta
                # Use wpwarp1 to create a template stamp. Since the diff image should have been
                # created first, then we should be able to use this to create the template.
                diffImage = imageDownloadLocation + '/' + imageGroupName + '_' + 'diff.fits'
-               p = subprocess.Popen([wpwarp1Cmd, '-samp', absoluteLocalImageName, diffImage], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+               p = subprocess.Popen([wpwarp1Cmd, '-samp', absoluteLocalImageName, diffImage], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                output, errors = p.communicate()
                rc = p.returncode
                print("Return Code =", rc)
@@ -6497,7 +6497,7 @@ def getATLASxyFromRaDec(imageFilename, ra, dec):
     # If image exists....
     x = None
     y = None
-    p = subprocess.Popen([pix2skyCmd, '-sky2pix', imageFilename, str(ra), str(dec)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen([pix2skyCmd, '-sky2pix', imageFilename, str(ra), str(dec)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     output, errors = p.communicate()
     if output:
         x,y = output.split()

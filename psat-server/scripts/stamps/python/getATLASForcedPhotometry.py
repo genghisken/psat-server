@@ -179,7 +179,6 @@ def doForcedPhotometry(options, objectList, perObjectExps):
             output, errors = p.communicate()
     
             if output.strip():
-                print(output)
                 csvData = readGenericDataFile(io.StringIO(output), delimiter = ',')
                 # There should only be one CSV row
                 data = None
