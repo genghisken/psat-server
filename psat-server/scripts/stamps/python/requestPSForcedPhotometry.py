@@ -48,7 +48,7 @@ def main(argv = None):
 
     import yaml
     with open(options.configFile) as yaml_file:
-        config = yaml.load(yaml_file)
+        config = yaml.load(yaml_file, Loader=yaml.SafeLoader)
 
     limitDays = int(options.limitdays)
     limitDaysAfter = int(options.limitdaysafter)
@@ -111,7 +111,7 @@ def main(argv = None):
 
     arrayLength = len(candidateList)
     maxNumberOfCandidates = OBJECTS_PER_ITERATION
-    numberOfIterations = arrayLength/maxNumberOfCandidates
+    numberOfIterations = int(arrayLength/maxNumberOfCandidates)
  
     # 2020-02-06 KWS Randomly shuffle the list - to reduce possiblilty of race conditions
     #                at the detectability server
