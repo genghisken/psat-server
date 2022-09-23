@@ -32,12 +32,13 @@ Options:
   --test                                          Just list the exposures for which we will do forced photometry.
 
 E.g.:
-  %s ../../../../../atlas/config/config4_db1.yaml 1211632161362135500 --ddc --limit=30 --limitafter=3 --useflagdate --update
+  %s ../../../../../atlas/config/config4_db1.yaml --detectionlist=2 --limit=30 --limitafter=150 --ddc --update --useflagdate --loglocation=/tmp/ --loglocationdownloads=/tmp/ --flagdate=20220101
+  %s ../../../../../atlas/config/config4_db1.yaml 1192751580350243700 --limit=30 --limitafter=150 --ddc --update --useflagdate --loglocation=/tmp/ --loglocationdownloads=/tmp/
 
 """
 
 import sys, os
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, shutil, re, csv, subprocess
 
