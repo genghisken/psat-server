@@ -3366,7 +3366,7 @@ def writeFITSRequest(outfile, requestName, results, imageTypes, xsize, ysize, ps
    exthdr.set('EXTNAME','PS1_PS_REQUEST','name of this binary table extension')
    exthdr.set('REQ_NAME',requestName,'Postage Stamp request name')
    exthdr.set('EXTVER','1','Extension version')
-   hdulist.writeto(outfile, clobber=True)
+   hdulist.writeto(outfile, overwrite=True)
 
    return
 
@@ -3593,7 +3593,7 @@ def writeFITSPostageStampRequestById(conn, gpc1Conn, outfile, requestName, resul
    exthdr.set('EXTVER','2','Extension version')
    exthdr.set('ACTION','PROCESS')
    exthdr.set('EMAIL',email,'Email address of submitter')
-   hdulist.writeto(outfile, clobber=True)
+   hdulist.writeto(outfile, overwrite=True)
 
    fileSuccessfullyWritten = True
 
@@ -3759,7 +3759,7 @@ def writeFITSPostageStampRequestBySkycell(conn, gpc1Conn, outfile, requestName, 
    exthdr.set('EXTNAME','PS1_PS_REQUEST','name of this binary table extension')
    exthdr.set('REQ_NAME',requestName,'Postage Stamp request name')
    exthdr.set('EXTVER','1','Extension version')
-   hdulist.writeto(outfile, clobber=True)
+   hdulist.writeto(outfile, overwrite=True)
 
    fileSuccessfullyWritten = True
 
@@ -3879,7 +3879,7 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
    exthdr.set('OBSCODE','566','site identifier (MPC observatory code)')
    exthdr.set('STAGE',diffType,'processing stage to examine')
    exthdr.set('EMAIL',email,'Email address of submitter')
-   hdulist.writeto(outfile, clobber=True)
+   hdulist.writeto(outfile, overwrite=True)
 
    fileSuccessfullyWritten = True
 
@@ -3964,7 +3964,7 @@ def writeDetectabilityManualFITSRequest(outfile, requestName, ra, dec, epochRows
    exthdr.set('OBSCODE','566','site identifier (MPC observatory code)')
    exthdr.set('STAGE',diffType,'processing stage to examine')
    exthdr.set('EMAIL',email,'Email address of submitter')
-   hdulist.writeto(outfile, clobber=True)
+   hdulist.writeto(outfile, overwrite=True)
 
    fileSuccessfullyWritten = True
 
@@ -4059,7 +4059,7 @@ def writeDetectabilityFITSRequestByExpName(conn, outfile, requestName, candidate
    exthdr.set('OBSCODE','566','site identifier (MPC observatory code)')
    exthdr.set('STAGE',diffType,'processing stage to examine')
    exthdr.set('EMAIL',email,'Email address of submitter')
-   hdulist.writeto(outfile, clobber=True)
+   hdulist.writeto(outfile, overwrite=True)
 
    fileSuccessfullyWritten = True
 
@@ -4248,7 +4248,7 @@ def writeFGSSPostageStampRequestById(outfile, requestName, results, xsize, ysize
    exthdr.set('EXTVER','2','Extension version')
    exthdr.set('ACTION','PROCESS')
    exthdr.set('EMAIL',email,'Email address of submitter')
-   hdulist.writeto(outfile, clobber=True)
+   hdulist.writeto(outfile, overwrite=True)
 
    fileSuccessfullyWritten = True
 
@@ -4461,7 +4461,7 @@ def writeFinderPostageStampRequestById(conn, gpc1Conn, outfile, requestName, res
    exthdr.set('EXTVER','2','Extension version')
    exthdr.set('ACTION','PROCESS')
    exthdr.set('EMAIL',email,'Email address of submitter')
-   hdulist.writeto(outfile, clobber=True)
+   hdulist.writeto(outfile, overwrite=True)
 
    fileSuccessfullyWritten = True
 
@@ -4650,7 +4650,7 @@ def writeFinderPostageStampRequestByCoords(outfile, requestName, objectList, siz
    exthdr.set('EXTVER','2','Extension version')
    exthdr.set('ACTION','PROCESS')
    exthdr.set('EMAIL',email,'Email address of submitter')
-   hdulist.writeto(outfile, clobber=True)
+   hdulist.writeto(outfile, overwrite=True)
 
    fileSuccessfullyWritten = True
 
@@ -4818,7 +4818,7 @@ def writePostageStampRequestBySkycell(outfile, requestName, skycellList, filter,
    exthdr.set('EXTVER','2','Extension version')
    exthdr.set('ACTION','PROCESS')
    exthdr.set('EMAIL',email,'Email address of submitter')
-   hdulist.writeto(outfile, clobber=True)
+   hdulist.writeto(outfile, overwrite=True)
 
    fileSuccessfullyWritten = True
 
@@ -5603,7 +5603,7 @@ def createFakeCMFFromPhotpipeCat(filename, outputFilename = None, testData = Fal
    prihdu = pf.PrimaryHDU(header = header)
    hdulist = pf.HDUList([prihdu, tbhdu])
 
-   hdulist.writeto(outputFilename, clobber=True, output_verify='fix')
+   hdulist.writeto(outputFilename, overwrite=True, output_verify='fix')
 
    return 0
 
