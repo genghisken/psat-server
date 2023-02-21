@@ -28,14 +28,17 @@ Options:
   --logprefix=<logprefix>         Log prefix [default: migration]
 
 
+E.g.:
+  %s publicuser publicpass public db1 atlas4 --ddc --list=5 --copyimages
+
 """
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, MySQLdb, shutil, re
 from gkutils.commonutils import dbConnect, find, Struct, cleanOptions
 from psat_server_web.atlas.atlas.commonqueries import getNonDetectionsUsingATLASFootprint, LC_POINTS_QUERY_ATLAS_DDC, ATLAS_METADATADDC, filterWhereClauseddc, FILTERS
-from extractATLASObjectsToNewDatabase import getATLASObjects, getSpecifiedObjects, migrateData
+from extractATLASObjectsToNewDatabase import getATLASObjects, getSpecifiedObjects, migrateData, truncateAllTables, removeAllImagesAndLocationMaps, insertAllRecords
 import gc
 from gkutils.commonutils import splitList, parallelProcess
 import queue
@@ -58,7 +61,7 @@ def worker(num, db, listFragment, dateAndTime, firstPass, miscParameters):
         print("Cannot connect to the private database")
         return 1
 
-    migrateData(conn, connPrivateReadonly, listFragment, options.database, options.sourceschema, truncateTables = options.truncate, ddc = options.ddc, copyImages = options.copyimages)
+    migrateData(conn, connPrivateReadonly, listFragment, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages)
 
     print("Process complete.")
     conn.close()
@@ -102,7 +105,7 @@ def main():
     db.append(options.database)
     db.append(options.hostname)
 
-    objectList = []
+    candidateList = []
 
     conn = dbConnect(options.hostname, options.username, options.password, options.database)
     if not conn:
@@ -123,17 +126,45 @@ def main():
     else:
         candidateList = getATLASObjects(connPrivateReadonly, listId = detectionList)
 
-    print("Length of list = %d)" % len(candidateList))
+    print("Length of list = %d" % len(candidateList))
+
+    # 2022-11-25 KWS Cannot truncate tables, etc in multiprocessing mode.
+    if options.truncate:
+        print('Truncating the tables...')
+        truncateAllTables(conn, options.database)
+        print('Removing the images...')
+        removeAllImagesAndLocationMaps(options.database)
+
+        # First of all insert the complete tables we definitely want to keep. Must be done single threaded.
+        print('Inserting data into tcs_cmf_metadata...')
+        insertAllRecords(conn, 'tcs_cmf_metadata', options.sourceschema, options.database)
+        print('Inserting data into atlas_metadata...')
+        insertAllRecords(conn, 'atlas_metadata', options.sourceschema, options.database)
+        print('Inserting data into atlas_metadataddc...')
+        insertAllRecords(conn, 'atlas_metadataddc', options.sourceschema, options.database)
+        print('Inserting data into tcs_gravity_events...')
+        insertAllRecords(conn, 'tcs_gravity_events', options.sourceschema, options.database)
+        print('Inserting data into atlas_heatmaps...')
+        insertAllRecords(conn, 'atlas_heatmaps', options.sourceschema, options.database)
+        print('Inserting data into atlas_diff_logs...')
+        insertAllRecords(conn, 'atlas_diff_logs', options.sourceschema, options.database)
+        # The following tables contain over 100 million rows each. Doing a standard
+        # replace into won't work.  Best to do a dump of the two tables and import
+        # just before going live.
+#        print('Inserting data into atlas_diff_subcells...')
+#        insertAllRecords(conn, 'atlas_diff_subcells', options.sourceschema, options.database)
+#        print('Inserting data into atlas_diff_subcell_logs...')
+#        insertAllRecords(conn, 'atlas_diff_subcell_logs', options.sourceschema, options.database)
 
     currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
     (year, month, day, hour, min, sec) = currentDate.split(':')
     dateAndTime = "%s%s%s_%s%s%s" % (year, month, day, hour, min, sec)
 
-    if len(objectList) > 0:
-        nProcessors, listChunks = splitList(objectList)
+    if len(candidateList) > 0:
+        nProcessors, listChunks = splitList(candidateList)
 
         print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
-        parallelProcess(db, dateAndTime, nProcessors, listChunks, workerStampCutter, miscParameters = [options], drainQueues = False)
+        parallelProcess(db, dateAndTime, nProcessors, listChunks, worker, miscParameters = [options], drainQueues = False)
         print("%s Done Parallel Processing" % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
 
 
