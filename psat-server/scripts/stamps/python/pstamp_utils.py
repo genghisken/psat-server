@@ -4892,62 +4892,75 @@ def extractIdFromResponse(requestName, htmlPage):
 
 
 
-def sendPSRequest(filename, requestName, username = None, password = None, realm = 'Restricted Section', postageStampServerURL = None):
-   """sendPSRequest.
+def pretty_print_POST(req):
+    """
+    At this point it is completely built and ready
+    to be fired; it is "prepared".
 
-   Args:
-       filename:
-       requestName:
-   """
-   pssServerId = -1
+    However pay attention at the formatting used in 
+    this function because it is programmed to be pretty 
+    printed and may differ from the actual request.
+    """
+    print('{}\n{}\r\n{}\r\n\r\n{}'.format(
+        '-----------START-----------',
+        req.method + ' ' + req.url,
+        '\r\n'.join('{}: {}'.format(k, v) for k, v in req.headers.items()),
+        req.body,
+    ))
 
-   if username is None or password is None:
-      print("Error: Username and Password must be present in the rquest")
-      return
-   try:
-      data = open(filename, 'rb')
-   except:
-      print("Error: could not open file %s for reading" % filename)
-      print("Check permissions on the file or folder it resides in")
-      return
 
-   cookiejar = http.cookiejar.LWPCookieJar()
+# 2023-02-20 KWS Replacement code for sendPSRequest required for python 3.
+#                Looks straightforward enough - but I think "realm" may need
+#                to be added as a header.
+def sendPSRequest(filename, requestName, username = None, password = None, postageStampServerURL = None):
+    """sendPSRequest.
 
-   # NOTE - if we don't know the Realm, just enter None for the first
-   #        parameter of add_password
+    Args:
+        filename:
+        requestName:
+        username:
+        password:
+        postageStampServerURL:
+    """
+    pssServerId = -1
 
-   passman = urllib.request.HTTPPasswordMgrWithDefaultRealm()
-   passman.add_password(realm, postageStampServerURL, username, password)
-   authhandler = urllib.request.HTTPBasicAuthHandler(passman)
-   # create the AuthHandler
+    import requests
+    from requests import Session
 
-   opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookiejar), authhandler, MultipartPostHandler.MultipartPostHandler)
-   urllib.request.install_opener(opener)
+    if username is None or password is None:
+        print("Error: Username and Password must be present in the rquest")
+        return
+    try:
+        data = {'filename': open(filename, 'rb')}
+    except:
+        print("Error: could not open file %s for reading" % filename)
+        print("Check permissions on the file or folder it resides in")
+        return
 
-   # Build the POST request
+    s = Session()
+    s.auth=(username, password)
 
-   txdata = {'filename':data}
-   # Attempt to fool the server, in case it doesn't like automated agents
-   txheaders =  {'User-agent' : 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.14) Gecko/2009091106 CentOS/3.0.14-1.el5.centos Firefox/3.0.14'}
+    headers =  {'User-agent' : 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.14) Gecko/2009091106 CentOS/3.0.14-1.el5.centos Firefox/3.0.14'}
 
-   # create a request object
-   req = urllib.request.Request(postageStampServerURL, txdata, txheaders)
+    # Need to authenticate (basic auth) so this should result in two requests to the server
+    try:
+        # First get our authenticated session established. Response code will be a 401
+        # and a "please enter your username and password" message, but that's OK.
+        # Our session is now authenticated.
+        response = s.post(postageStampServerURL)
+        # Now post the data. This time we should get a 200 OK.
+        response = s.post(postageStampServerURL, files = data, timeout = 10, headers = headers)
+        pssServerId = extractIdFromResponse(requestName, response.text)
 
-   # Because the cookie handler is installed, this should result in two requests to the Server
-   try:
-       # Now send the file.
-       psResponsePage = urllib.request.urlopen(req).read()
-       pssServerId = extractIdFromResponse(requestName, psResponsePage)
+    except IOError as e:
+        print("Something went horribly wrong. File was not uploaded.")
+        print(e)
 
-   except IOError as e:
-       print("Something went horribly wrong. File was not uploaded.")
-       print(e)
+    if (pssServerId >= 0):
+        print("Successfully uploaded file.")
+        print("Postage Stamp Server ID = %d" % pssServerId)
 
-   if (pssServerId >= 0):
-      print("Successfully uploaded file.")
-      print("Postage Stamp Server ID = %d" % pssServerId)
-
-   return pssServerId
+    return pssServerId
 
 
 # 2014-03-05 Added and modified code from Thomas Chen that facilitates PSPS requesting of postage stamps
