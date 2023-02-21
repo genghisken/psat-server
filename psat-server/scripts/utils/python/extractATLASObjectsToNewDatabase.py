@@ -36,9 +36,11 @@ Options:
   --truncate             Truncate the database tables. Default is NOT to truncate.
   --copyimages           Copy the images as well (extremely time consuming).
 
+E.g.:
+  %s publicuser publicpass public db1 atlas4 --ddc --list=5 --copyimages
 """
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, MySQLdb, shutil, re
 from gkutils.commonutils import dbConnect, find, Struct, cleanOptions
@@ -317,6 +319,9 @@ def truncateAllTables(conn, publicSchema):
 
     truncateTable(conn, 'tcs_cross_matches', publicSchema)
     truncateTable(conn, 'tcs_cross_matches_external', publicSchema)
+    truncateTable(conn, 'tcs_cmf_metadata', publicSchema)
+    truncateTable(conn, 'tcs_transient_objects', publicSchema)
+    truncateTable(conn, 'tcs_transient_reobservations', publicSchema)
     truncateTable(conn, 'tcs_images', publicSchema)
     truncateTable(conn, 'tcs_image_groups', publicSchema)
     truncateTable(conn, 'tcs_postage_stamp_images', publicSchema)
@@ -331,16 +336,22 @@ def truncateAllTables(conn, publicSchema):
     truncateTable(conn, 'atlas_metadataddc', publicSchema)
     truncateTable(conn, 'atlas_detectionsddc', publicSchema)
     truncateTable(conn, 'atlas_forced_photometry', publicSchema)
+    truncateTable(conn, 'atlas_stacked_forced_photometry', publicSchema)
+    truncateTable(conn, 'tcs_gravity_event_annotations', publicSchema)
+    truncateTable(conn, 'tcs_gravity_events', publicSchema)
+    truncateTable(conn, 'atlas_heatmaps', publicSchema)
     truncateTable(conn, 'sherlock_classifications', publicSchema)
     truncateTable(conn, 'sherlock_crossmatches', publicSchema)
-
+    truncateTable(conn, 'atlas_diff_logs', publicSchema)
+    truncateTable(conn, 'atlas_diff_subcells', publicSchema)
+    truncateTable(conn, 'atlas_diff_subcell_logs', publicSchema)
 
 def insertAllRecords(conn, tableName, privateSchema, publicSchema):
     """For meta files we need ALL of them to allow plotting of arrows on lightcurves"""
 
     try:
         cursor = conn.cursor(MySQLdb.cursors.Cursor)
-        ddl = "insert into %s.%s select * from %s.%s" % (publicSchema, tableName, privateSchema, tableName)
+        ddl = "replace into %s.%s select * from %s.%s" % (publicSchema, tableName, privateSchema, tableName)
         cursor.execute(ddl)
         cursor.close ()
 
@@ -398,17 +409,23 @@ def copyImages(conn, objectId, privateSchema, publicSchema):
 
         mjd = filename['image_filename'].split('_')[1]
         mjd = mjd.split('.')[0]
-        imageSourceFilename = IMAGEROOT_SOURCE + privateSchema + '/' + mjd + '/' + filename['image_filename'] + '.jpeg'
         imageDestinationDirectoryName = IMAGEROOT_DESTINATION + publicSchema + '/' + mjd
-        imageDestinationFilename = imageDestinationDirectoryName + '/' + filename['image_filename'] + '.jpeg'
+
+        imageSourceFilenameJpeg = IMAGEROOT_SOURCE + privateSchema + '/' + mjd + '/' + filename['image_filename'] + '.jpeg'
+        imageDestinationFilenameJpeg = imageDestinationDirectoryName + '/' + filename['image_filename'] + '.jpeg'
+        imageSourceFilenameFits = IMAGEROOT_SOURCE + privateSchema + '/' + mjd + '/' + filename['image_filename'] + '.fits'
+        imageDestinationFilenameFits = imageDestinationDirectoryName + '/' + filename['image_filename'] + '.fits'
 
         if not os.path.exists(imageDestinationDirectoryName):
-            os.makedirs(imageDestinationDirectoryName)
+            os.makedirs(imageDestinationDirectoryName, exist_ok=True)
 
         try:
-            if not os.path.exists(imageDestinationFilename):
+            if not os.path.exists(imageDestinationFilenameJpeg):
                 # Don't need to copy files we already have.
-                shutil.copy2(imageSourceFilename, imageDestinationFilename)
+                shutil.copy2(imageSourceFilenameJpeg, imageDestinationFilenameJpeg)
+            if not os.path.exists(imageDestinationFilenameFits):
+                # Don't need to copy files we already have.
+                shutil.copy2(imageSourceFilenameFits, imageDestinationFilenameFits)
         except IOError as e:
             print(e)
 
@@ -417,11 +434,7 @@ def copyImages(conn, objectId, privateSchema, publicSchema):
 #                e.g. when we announce a discovery ATel.  Hence allow publishing of the
 #                sublist without trashing the entire database.
 # 2017-05-10 KWS Added the new tcs_object_comments table
-def migrateData(conn, connPrivateReadonly, objectList, publicSchema, privateSchema, truncateTables = False, ddc = False, copyImages = False):
-
-    if truncateTables:
-        truncateAllTables(conn, publicSchema)
-        removeAllImagesAndLocationMaps(publicSchema)
+def migrateData(conn, connPrivateReadonly, objectList, publicSchema, privateSchema, ddc = False, copyimages = False):
 
     # Now add the objects one-at-a time.  The advantage of doing it this way is
     # that we can veto publication of individual objects if necessary.
@@ -431,11 +444,11 @@ def migrateData(conn, connPrivateReadonly, objectList, publicSchema, privateSche
     listLength = len(objectList)
     for object in objectList:
         print("Migrating object %d (%d of %d)" % (object['id'], counter, listLength))
+        insertRecord(conn, 'tcs_transient_objects', object['id'], 'id', privateSchema, publicSchema)
+        insertRecord(conn, 'tcs_transient_reobservations', object['id'], 'transient_object_id', privateSchema, publicSchema)
         insertRecord(conn, 'atlas_diff_objects', object['id'], 'id', privateSchema, publicSchema)
-        if ddc:
-            insertRecord(conn, 'atlas_detectionsddc', object['id'], 'atlas_object_id', privateSchema, publicSchema)
-        else:
-            insertRecord(conn, 'atlas_diff_detections', object['id'], 'atlas_object_id', privateSchema, publicSchema)
+        insertRecord(conn, 'atlas_detectionsddc', object['id'], 'atlas_object_id', privateSchema, publicSchema)
+        insertRecord(conn, 'atlas_diff_detections', object['id'], 'atlas_object_id', privateSchema, publicSchema)
         insertRecord(conn, 'atlas_forced_photometry', object['id'], 'atlas_object_id', privateSchema, publicSchema)
         insertRecord(conn, 'tcs_cross_matches', object['id'], 'transient_object_id', privateSchema, publicSchema)
         insertRecord(conn, 'tcs_latest_object_stats', object['id'], 'id', privateSchema, publicSchema)
@@ -447,6 +460,8 @@ def migrateData(conn, connPrivateReadonly, objectList, publicSchema, privateSche
         insertRecordLike(conn, 'tcs_image_groups', object['id'], 'name', privateSchema, publicSchema)
         insertRecordLike(conn, 'tcs_postage_stamp_images', object['id'], 'image_filename', privateSchema, publicSchema)
         insertRecordLike(conn, 'tcs_images', object['id'], 'target', privateSchema, publicSchema)
+        insertRecord(conn, 'tcs_gravity_event_annotations', object['id'], 'transient_object_id', privateSchema, publicSchema)
+        insertRecord(conn, 'tcs_zooniverse_scores', object['id'], 'transient_object_id', privateSchema, publicSchema)
 
         # Create a dummy recurrence so we can reuse existing code.
         recurrence = EmptyRecurreces()
@@ -470,7 +485,7 @@ def migrateData(conn, connPrivateReadonly, objectList, publicSchema, privateSche
             for info in objectInfo:
                 detectionIds.append(info['id'])
 
-        if copyImages:
+        if copyimages:
             print("Copying images...")
             copyImages(conn, object['id'], privateSchema, publicSchema)
         counter += 1
@@ -483,10 +498,10 @@ def migrateData(conn, connPrivateReadonly, objectList, publicSchema, privateSche
         else:
             insertRecord(conn, 'atlas_metadata', '\'%s\'' % (exp), 'expname', privateSchema, publicSchema)
 
-    if not ddc:
-        # Insert the moments entries.
-        for detId in set(detectionIds):
-            insertRecord(conn, 'atlas_diff_moments', detId, 'detection_id', privateSchema, publicSchema)
+#    if not ddc:
+#        # Insert the moments entries.
+#        for detId in set(detectionIds):
+#            insertRecord(conn, 'atlas_diff_moments', detId, 'detection_id', privateSchema, publicSchema)
 
 
 
@@ -499,9 +514,7 @@ def main(argv = None):
 
     detectionList = 2
 
-    truncateTables = options.truncate
-
-    print("Truncate tables =", truncateTables)
+    print("Truncate tables =", options.truncate)
 
     if 'public' not in options.database:
         sys.exit("ONLY the public database credentials should be entered")
@@ -545,8 +558,36 @@ def main(argv = None):
     else:
         candidateList = getATLASObjects(connPrivateReadonly, listId = detectionList)
 
+    # 2022-11-24 Move the table truncation outside the migrateData function so that we can do this also in the multiprocessed version.
+    if options.truncate:
+        print('Truncating the tables...')
+        truncateAllTables(conn, options.database)
+        print('Removing the images...')
+        removeAllImagesAndLocationMaps(options.database)
+
+        # First of all insert the complete tables we definitely want to keep.
+        print('Inserting data into tcs_cmf_metadata...')
+        insertAllRecords(conn, 'tcs_cmf_metadata', options.sourceschema, options.database)
+        print('Inserting data into atlas_metadata...')
+        insertAllRecords(conn, 'atlas_metadata', options.sourceschema, options.database)
+        print('Inserting data into atlas_metadataddc...')
+        insertAllRecords(conn, 'atlas_metadataddc', options.sourceschema, options.database)
+        print('Inserting data into tcs_gravity_events...')
+        insertAllRecords(conn, 'tcs_gravity_events', options.sourceschema, options.database)
+        print('Inserting data into atlas_heatmaps...')
+        insertAllRecords(conn, 'atlas_heatmaps', options.sourceschema, options.database)
+        print('Inserting data into atlas_diff_logs...')
+        insertAllRecords(conn, 'atlas_diff_logs', options.sourceschema, options.database)
+        # The following tables contain over 100 million rows each. Doing a standard
+        # replace into won't work.  Best to do a dump of the two tables and import
+        # just before going live.
+#        print('Inserting data into atlas_diff_subcells...')
+#        insertAllRecords(conn, 'atlas_diff_subcells', options.sourceschema, options.database)
+#        print('Inserting data into atlas_diff_subcell_logs...')
+#        insertAllRecords(conn, 'atlas_diff_subcell_logs', options.sourceschema, options.database)
+
     print("Length of list = %d)" % len(candidateList))
-    migrateData(conn, connPrivateReadonly, candidateList, options.database, options.sourceschema, truncateTables = truncateTables, ddc = options.ddc, copyImages = options.copyimages)
+    migrateData(conn, connPrivateReadonly, candidateList, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages)
 
     conn.close ()
     connPrivateReadonly.close ()
