@@ -496,6 +496,8 @@ def fitsToImageTest(fitsFilename, outputFilename, nsigma = 10.0, imageQuality = 
         imageQuality:
         excludeZeros:
     """
+    import img_scale
+    from PIL import Image
     r = fitsFilename
 
     rFudge = 1.0
@@ -504,21 +506,25 @@ def fitsToImageTest(fitsFilename, outputFilename, nsigma = 10.0, imageQuality = 
 
     print("Loading r image...")
     r_img = pf.getdata(r)
-    (dataStdDev, dataMedian, maskedPixelRatio, maskedPixelRatioAtCore) = getFITSImageStats2(image = r_img, imageCoreSizePercent = 10, excludeZeros = excludeZeros)
+    if len(r_img.shape) > 2:
+       r_img = r_img[1]
+       print(r_img.shape)
+
+    (dataStdDev, dataMedian, maskedPixelRatio, maskedPixelRatioAtCore, coreStdDev, coreMedian) = getFITSImageStats2(image = r_img, imageCoreSizePercent = 10, excludeZeros = excludeZeros)
     rminval = dataMedian - dataStdDev*minFudge
     rmaxval = dataMedian + (nsigma * dataStdDev) * rFudge
 
     print(rminval, rmaxval, dataMedian)
 
-    img = np.zeros((r_img.shape[0], r_img.shape[1], 3), dtype=float)
+    img = zeros((r_img.shape[0], r_img.shape[1], 3), dtype=float)
 
     print("Flipping r...")
-    img[:,:,0] = np.clip(np.flipud(img_scale.sqrt(r_img, scale_min=rminval, scale_max=rmaxval)) * 255.0, 0.0, 255.0) #red
+    img[:,:,0] = clip(flipud(img_scale.sqrt(r_img, scale_min=rminval, scale_max=rmaxval)) * 255.0, 0.0, 255.0) #red
     img[:,:,1] = img[:,:,0]
     img[:,:,2] = img[:,:,0]
 
     print("Converting array to uint8...")
-    img = img.astype(np.uint8)
+    img = img.astype(uint8)
 
     print("Saving image...")
     imgObject = Image.fromarray(img)
