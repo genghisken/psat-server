@@ -188,7 +188,8 @@ def getFiles(regex, camera, mjdToIngest = None, mjdthreshold = None, days = None
     else:
         if mjdthreshold and days:
             fileList = []
-            for day in range(days):
+            # 2023-01-06 KWS Get data for tomorrow (days + 1) as well, since STH tomorrow a day early.
+            for day in range(days + 1):
                 if options is not None and options.difflocation is not None:
                     directory = options.difflocation.replace('CAMERA', camera).replace('MJD', str(mjdthreshold + day))
                 else:
