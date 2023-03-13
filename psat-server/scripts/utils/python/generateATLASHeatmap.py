@@ -125,6 +125,9 @@ def main():
 
 
     conn = dbConnect(hostname, username, password, database)
+    # 2023-03-13 KWS MySQLdb disables autocommit by default. Switch it on globally.
+    conn.autocommit(True)
+
 
     detections = getDetectionsForHeatmap(conn, options.site, options.mjdList)
     print(len(detections))

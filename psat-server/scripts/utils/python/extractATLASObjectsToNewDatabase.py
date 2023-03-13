@@ -394,7 +394,7 @@ def insertRecordLike(conn, tableName, objectId, idColumn, privateSchema, publicS
 def removeAllImagesAndLocationMaps(publicSchema):
 
     # Pick up all the subdirectories that are MJDs.
-    directories = find('5[0-9][0-9][0-9][0-9]', IMAGEROOT_DESTINATION + publicSchema, directoriesOnly = True)
+    directories = find('[56][0-9][0-9][0-9][0-9]', IMAGEROOT_DESTINATION + publicSchema, directoriesOnly = True)
     for dir in directories:
         shutil.rmtree(dir)
 
@@ -407,8 +407,17 @@ def copyImages(conn, objectId, privateSchema, publicSchema):
     for filename in imageFilenames:
         # Copy the files over one by one. Don't worry if they're not there.
 
-        mjd = filename['image_filename'].split('_')[1]
-        mjd = mjd.split('.')[0]
+        # 2023-03-06 KWS For South Africa, the MJD of the exposure is usually 1
+        #                night BEFORE the designated night number (since it straddles
+        #                midnight UTC). So if we have exposure name in the file, get
+        #                the MJD from the exposure name. Otherwise get it from the MJD
+        #                embedded in the image_filename (as before).
+        if any([x in filename['image_filename'] for x in ['01a', '02a', '03a', '04a']]):
+            mjd = filename['image_filename'].split('_')[2][3:8]
+        else:
+            # Use the old way to get the MJD - relevant for finding charts.
+            mjd = filename['image_filename'].split('_')[1]
+            mjd = mjd.split('.')[0]
         imageDestinationDirectoryName = IMAGEROOT_DESTINATION + publicSchema + '/' + mjd
 
         imageSourceFilenameJpeg = IMAGEROOT_SOURCE + privateSchema + '/' + mjd + '/' + filename['image_filename'] + '.jpeg'
@@ -542,6 +551,9 @@ def main(argv = None):
         print("Cannot connect to the public database")
         return 1
 
+    # 2023-03-07 KWS MySQLdb disables autocommit by default. Switch it on globally.
+    conn.autocommit(True)
+
     connPrivateReadonly = dbConnect(options.hostname, options.username, options.password, options.sourceschema)
     if not connPrivateReadonly:
         print("Cannot connect to the private database")
@@ -576,6 +588,8 @@ def main(argv = None):
         insertAllRecords(conn, 'tcs_gravity_events', options.sourceschema, options.database)
         print('Inserting data into atlas_heatmaps...')
         insertAllRecords(conn, 'atlas_heatmaps', options.sourceschema, options.database)
+        print('Inserting data into tcs_object_group_definitions...')
+        insertAllRecords(conn, 'tcs_object_group_definitions', options.sourceschema, options.database)
         print('Inserting data into atlas_diff_logs...')
         insertAllRecords(conn, 'atlas_diff_logs', options.sourceschema, options.database)
         # The following tables contain over 100 million rows each. Doing a standard

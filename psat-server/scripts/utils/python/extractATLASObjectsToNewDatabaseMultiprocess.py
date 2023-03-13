@@ -19,7 +19,7 @@ Usage:
 Options:
   -h --help                       Show this screen.
   --version                       Show version.
-  --list=<listid>                 List to be migrated [default: 2].
+  --list=<listid>                 List to be migrated. Multiple lists should be separated by commas with no spaces [default: 2].
   --flagdate=<flagdate>           Flag date threshold beyond which we will select objects [default: 20170920].
   --ddc                           Assume the DDC schema.
   --truncate                      Truncate the database tables. Default is NOT to truncate.
@@ -30,10 +30,11 @@ Options:
 
 E.g.:
   %s publicuser publicpass public db1 atlas4 --ddc --list=5 --copyimages
+  %s publicuser publicpass public db1 atlas4 --ddc --list=1,2,3,5,7,8,9,10 --copyimages
 
 """
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, MySQLdb, shutil, re
 from gkutils.commonutils import dbConnect, find, Struct, cleanOptions
@@ -55,6 +56,9 @@ def worker(num, db, listFragment, dateAndTime, firstPass, miscParameters):
     if not conn:
         print("Cannot connect to the public database")
         return 1
+
+    # 2023-03-07 KWS MySQLdb disables autocommit by default. Switch it on globally.
+    conn.autocommit(True)
 
     connPrivateReadonly = dbConnect(options.hostname, options.username, options.password, options.sourceschema)
     if not connPrivateReadonly:
@@ -83,11 +87,11 @@ def main():
     opts = cleanOptions(opts)
     options = Struct(**opts)
 
-    detectionList = 2
+    detectionList = [2]
     if options.list is not None:
         try:
-            detectionList = int(options.list)
-            if detectionList < 1 or detectionList > 10:
+            detectionList = [int(x) for x in options.list.split(',')]
+            if min(detectionList) < 1 or max(detectionList) > 10:
                 print("Detection list must be between 1 and 10")
                 return 1
         except ValueError as e:
@@ -112,6 +116,9 @@ def main():
         print("Cannot connect to the public database")
         return 1
 
+    # 2023-03-07 KWS MySQLdb disables autocommit by default. Switch it on globally.
+    conn.autocommit(True)
+
     connPrivateReadonly = dbConnect(options.hostname, options.username, options.password, options.sourceschema)
     if not connPrivateReadonly:
         print("Cannot connect to the private database")
@@ -124,7 +131,11 @@ def main():
         candidateList = getSpecifiedObjects(connPrivateReadonly, candidateList)
 
     else:
-        candidateList = getATLASObjects(connPrivateReadonly, listId = detectionList)
+        candidateList = []
+        for l in detectionList:
+            specifiedList = getATLASObjects(connPrivateReadonly, listId = l)
+            if specifiedList:
+                candidateList = candidateList + list(specifiedList)
 
     print("Length of list = %d" % len(candidateList))
 
@@ -146,6 +157,8 @@ def main():
         insertAllRecords(conn, 'tcs_gravity_events', options.sourceschema, options.database)
         print('Inserting data into atlas_heatmaps...')
         insertAllRecords(conn, 'atlas_heatmaps', options.sourceschema, options.database)
+        print('Inserting data into tcs_object_group_definitions...')
+        insertAllRecords(conn, 'tcs_object_group_definitions', options.sourceschema, options.database)
         print('Inserting data into atlas_diff_logs...')
         insertAllRecords(conn, 'atlas_diff_logs', options.sourceschema, options.database)
         # The following tables contain over 100 million rows each. Doing a standard
@@ -157,8 +170,8 @@ def main():
 #        insertAllRecords(conn, 'atlas_diff_subcell_logs', options.sourceschema, options.database)
 
     currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
-    (year, month, day, hour, min, sec) = currentDate.split(':')
-    dateAndTime = "%s%s%s_%s%s%s" % (year, month, day, hour, min, sec)
+    (year, month, day, hour, mins, sec) = currentDate.split(':')
+    dateAndTime = "%s%s%s_%s%s%s" % (year, month, day, hour, mins, sec)
 
     if len(candidateList) > 0:
         nProcessors, listChunks = splitList(candidateList)
