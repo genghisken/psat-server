@@ -12,7 +12,7 @@ Assumes:
   2. The databases are in the SAME MySQL server instance.
 
 Usage:
-  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--loglocation=<loglocation>] [--logprefix=<logprefix>]
+  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>]
   %s (-h | --help)
   %s --version
 
@@ -26,6 +26,11 @@ Options:
   --copyimages                    Copy the images as well (extremely time consuming).
   --loglocation=<loglocation>     Log file location [default: /tmp/]
   --logprefix=<logprefix>         Log prefix [default: migration]
+  --nocreateinfo                  When dumping db tables from large db, skip the create statements (for inhomogenious backends situation).
+  --dumpfile=<dumpfile>           Filename of dumped data [default: /home/atls/big_tables.sql].
+  --djangofile=<djangofile>       Filename of dumped Django data [default: /home/atls/django_schema.sql].
+  --imagessource=<imagessource>   Source root location of the images [default: /db4/images/].
+  --imagesdest=<imagesdest>       Destination location for extracted images [default: /db4/images/].
 
 
 E.g.:
@@ -65,7 +70,7 @@ def worker(num, db, listFragment, dateAndTime, firstPass, miscParameters):
         print("Cannot connect to the private database")
         return 1
 
-    migrateData(conn, connPrivateReadonly, listFragment, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages)
+    migrateData(conn, connPrivateReadonly, listFragment, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages, imageRootSource = options.imagessource, imageRootDestination = options.imagesdest)
 
     print("Process complete.")
     conn.close()
@@ -113,7 +118,7 @@ def main():
 
     conn = dbConnect(options.hostname, options.username, options.password, options.database)
     if not conn:
-        print("Cannot connect to the public database")
+        print("Cannot connect to the new destination database")
         return 1
 
     # 2023-03-07 KWS MySQLdb disables autocommit by default. Switch it on globally.
@@ -121,7 +126,7 @@ def main():
 
     connPrivateReadonly = dbConnect(options.hostname, options.username, options.password, options.sourceschema)
     if not connPrivateReadonly:
-        print("Cannot connect to the private database")
+        print("Cannot connect to the source (read only) database")
         return 1
 
     # Supplied candidates override the specified list
@@ -144,7 +149,7 @@ def main():
         print('Truncating the tables...')
         truncateAllTables(conn, options.database)
         print('Removing the images...')
-        removeAllImagesAndLocationMaps(options.database)
+        removeAllImagesAndLocationMaps(options.database, options.imagesdest)
 
         # First of all insert the complete tables we definitely want to keep. Must be done single threaded.
         print('Inserting data into tcs_cmf_metadata...')
@@ -161,6 +166,34 @@ def main():
         insertAllRecords(conn, 'tcs_object_group_definitions', options.sourceschema, options.database)
         print('Inserting data into atlas_diff_logs...')
         insertAllRecords(conn, 'atlas_diff_logs', options.sourceschema, options.database)
+        print('Inserting data into tcs_processing_status...')
+        insertAllRecords(conn, 'tcs_processing_status', options.sourceschema, options.database)
+        print('Inserting data into tcs_catalogue_tables...')
+        insertAllRecords(conn, 'tcs_catalogue_tables', options.sourceschema, options.database)
+        print('Inserting data into tcs_tns_requests...')
+        insertAllRecords(conn, 'tcs_tns_requests', options.sourceschema, options.database)
+        print('Inserting data into tcs_detection_lists...')
+        insertAllRecords(conn, 'tcs_detection_lists', options.sourceschema, options.database)
+
+        print('Extracting all the Django relevant tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
+        cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site > %s' % (options.username, options.password, options.sourceschema, options.hostname, options.djangofile)
+        os.system(cmd)
+
+        print('Importing the Django tables from the %s schema.' % options.sourceschema)
+        cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.djangofile)
+        os.system(cmd)
+
+        print('Extracting the very large tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
+        noCreateInfo = ''
+        if options.nocreateinfo is not None:
+            noCreateInfo = '--no-create-info'
+        cmd = 'mysqldump -u%s --password=%s %s -h %s %s --no-tablespaces atlas_diff_subcells atlas_diff_subcell_logs > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, options.dumpfile)
+        os.system(cmd)
+
+        print('Importing the Django tables from the %s schema.' % options.sourceschema)
+        cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.dumpfile)
+        os.system(cmd)
+
         # The following tables contain over 100 million rows each. Doing a standard
         # replace into won't work.  Best to do a dump of the two tables and import
         # just before going live.

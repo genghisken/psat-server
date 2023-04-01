@@ -23,18 +23,23 @@ Assumes:
   2. The databases are in the SAME MySQL server instance.
 
 Usage:
-  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages]
+  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>]
   %s (-h | --help)
   %s --version
 
 Options:
-  -h --help              Show this screen.
-  --version              Show version.
-  --list=<listid>        List to be migrated [default: 2].
-  --flagdate=<flagdate>  Flag date threshold beyond which we will select objects [default: 20170920].
-  --ddc                  Assume the DDC schema.
-  --truncate             Truncate the database tables. Default is NOT to truncate.
-  --copyimages           Copy the images as well (extremely time consuming).
+  -h --help                      Show this screen.
+  --version                      Show version.
+  --list=<listid>                List to be migrated [default: 2].
+  --flagdate=<flagdate>          Flag date threshold beyond which we will select objects [default: 20170920].
+  --ddc                          Assume the DDC schema.
+  --truncate                     Truncate the database tables. Default is NOT to truncate.
+  --copyimages                   Copy the images as well (extremely time consuming).
+  --nocreateinfo                 When dumping db tables from large db, skip the create statements (for inhomogenious backends situation).
+  --dumpfile=<dumpfile>          Filename of dumped data [default: /home/atls/big_tables.sql].
+  --djangofile=<djangofile>      Filename of dumped Django data [default: /home/atls/django_schema.sql].
+  --imagessource=<imagessource>  Source root location of the images [default: /db4/images/].
+  --imagesdest=<imagesdest>      Destination location for extracted images [default: /db4/images/].
 
 E.g.:
   %s publicuser publicpass public db1 atlas4 --ddc --list=5 --copyimages
@@ -315,43 +320,46 @@ def truncateTable(conn, tableName, schemaName = 'atlas4public'):
 
 
 # 2017-05-10 KWS Added tcs_object_comments
-def truncateAllTables(conn, publicSchema):
+def truncateAllTables(conn, newSchema):
 
-    truncateTable(conn, 'tcs_cross_matches', publicSchema)
-    truncateTable(conn, 'tcs_cross_matches_external', publicSchema)
-    truncateTable(conn, 'tcs_cmf_metadata', publicSchema)
-    truncateTable(conn, 'tcs_transient_objects', publicSchema)
-    truncateTable(conn, 'tcs_transient_reobservations', publicSchema)
-    truncateTable(conn, 'tcs_images', publicSchema)
-    truncateTable(conn, 'tcs_image_groups', publicSchema)
-    truncateTable(conn, 'tcs_postage_stamp_images', publicSchema)
-    truncateTable(conn, 'tcs_latest_object_stats', publicSchema)
-    truncateTable(conn, 'tcs_object_comments', publicSchema)
-    truncateTable(conn, 'tcs_object_groups', publicSchema)
-    truncateTable(conn, 'tcs_object_group_definitions', publicSchema)
-    truncateTable(conn, 'atlas_diff_objects', publicSchema)
-    truncateTable(conn, 'atlas_diff_detections', publicSchema)
-    truncateTable(conn, 'atlas_diff_moments', publicSchema)
-    truncateTable(conn, 'atlas_metadata', publicSchema)
-    truncateTable(conn, 'atlas_metadataddc', publicSchema)
-    truncateTable(conn, 'atlas_detectionsddc', publicSchema)
-    truncateTable(conn, 'atlas_forced_photometry', publicSchema)
-    truncateTable(conn, 'atlas_stacked_forced_photometry', publicSchema)
-    truncateTable(conn, 'tcs_gravity_event_annotations', publicSchema)
-    truncateTable(conn, 'tcs_gravity_events', publicSchema)
-    truncateTable(conn, 'atlas_heatmaps', publicSchema)
-    truncateTable(conn, 'sherlock_classifications', publicSchema)
-    truncateTable(conn, 'sherlock_crossmatches', publicSchema)
-    truncateTable(conn, 'atlas_diff_logs', publicSchema)
-    truncateTable(conn, 'atlas_diff_subcells', publicSchema)
-    truncateTable(conn, 'atlas_diff_subcell_logs', publicSchema)
+    truncateTable(conn, 'tcs_catalogue_tables', newSchema)
+    truncateTable(conn, 'tcs_cross_matches', newSchema)
+    truncateTable(conn, 'tcs_cross_matches_external', newSchema)
+    truncateTable(conn, 'tcs_cmf_metadata', newSchema)
+    truncateTable(conn, 'tcs_detection_lists', newSchema)
+    truncateTable(conn, 'tcs_transient_objects', newSchema)
+    truncateTable(conn, 'tcs_transient_reobservations', newSchema)
+    truncateTable(conn, 'tcs_images', newSchema)
+    truncateTable(conn, 'tcs_image_groups', newSchema)
+    truncateTable(conn, 'tcs_postage_stamp_images', newSchema)
+    truncateTable(conn, 'tcs_processing_status', newSchema)
+    truncateTable(conn, 'tcs_latest_object_stats', newSchema)
+    truncateTable(conn, 'tcs_object_comments', newSchema)
+    truncateTable(conn, 'tcs_object_groups', newSchema)
+    truncateTable(conn, 'tcs_object_group_definitions', newSchema)
+    truncateTable(conn, 'atlas_diff_objects', newSchema)
+    truncateTable(conn, 'atlas_diff_detections', newSchema)
+    truncateTable(conn, 'atlas_diff_moments', newSchema)
+    truncateTable(conn, 'atlas_metadata', newSchema)
+    truncateTable(conn, 'atlas_metadataddc', newSchema)
+    truncateTable(conn, 'atlas_detectionsddc', newSchema)
+    truncateTable(conn, 'atlas_forced_photometry', newSchema)
+    truncateTable(conn, 'atlas_stacked_forced_photometry', newSchema)
+    truncateTable(conn, 'tcs_gravity_event_annotations', newSchema)
+    truncateTable(conn, 'tcs_gravity_events', newSchema)
+    truncateTable(conn, 'atlas_heatmaps', newSchema)
+    truncateTable(conn, 'sherlock_classifications', newSchema)
+    truncateTable(conn, 'sherlock_crossmatches', newSchema)
+    truncateTable(conn, 'atlas_diff_logs', newSchema)
+    truncateTable(conn, 'atlas_diff_subcells', newSchema)
+    truncateTable(conn, 'atlas_diff_subcell_logs', newSchema)
 
-def insertAllRecords(conn, tableName, privateSchema, publicSchema):
+def insertAllRecords(conn, tableName, sourceReadOnlySchema, newSchema):
     """For meta files we need ALL of them to allow plotting of arrows on lightcurves"""
 
     try:
         cursor = conn.cursor(MySQLdb.cursors.Cursor)
-        ddl = "replace into %s.%s select * from %s.%s" % (publicSchema, tableName, privateSchema, tableName)
+        ddl = "replace into %s.%s select * from %s.%s" % (newSchema, tableName, sourceReadOnlySchema, tableName)
         cursor.execute(ddl)
         cursor.close ()
 
@@ -361,11 +369,11 @@ def insertAllRecords(conn, tableName, privateSchema, publicSchema):
     return 0
 
 
-def insertRecord(conn, tableName, objectId, idColumn, privateSchema, publicSchema):
+def insertRecord(conn, tableName, objectId, idColumn, sourceReadOnlySchema, newSchema):
 
     try:
         cursor = conn.cursor(MySQLdb.cursors.Cursor)
-        ddl = "insert into %s.%s select * from %s.%s where %s = %s" % (publicSchema, tableName, privateSchema, tableName, idColumn, objectId)
+        ddl = "insert into %s.%s select * from %s.%s where %s = %s" % (newSchema, tableName, sourceReadOnlySchema, tableName, idColumn, objectId)
         print(ddl)
         cursor.execute(ddl)
         cursor.close ()
@@ -376,11 +384,11 @@ def insertRecord(conn, tableName, objectId, idColumn, privateSchema, publicSchem
     return 0
 
 
-def insertRecordLike(conn, tableName, objectId, idColumn, privateSchema, publicSchema):
+def insertRecordLike(conn, tableName, objectId, idColumn, sourceReadOnlySchema, newSchema):
 
     try:
         cursor = conn.cursor(MySQLdb.cursors.Cursor)
-        ddl = "insert into %s.%s select * from %s.%s where %s like '%s%%'" % (publicSchema, tableName, privateSchema, tableName, idColumn, objectId)
+        ddl = "insert into %s.%s select * from %s.%s where %s like '%s%%'" % (newSchema, tableName, sourceReadOnlySchema, tableName, idColumn, objectId)
         print(ddl)
         cursor.execute(ddl)
         cursor.close ()
@@ -391,19 +399,20 @@ def insertRecordLike(conn, tableName, objectId, idColumn, privateSchema, publicS
     return 0
 
 
-def removeAllImagesAndLocationMaps(publicSchema):
+def removeAllImagesAndLocationMaps(newSchema, imageRootDestination):
 
     # Pick up all the subdirectories that are MJDs.
-    directories = find('[56][0-9][0-9][0-9][0-9]', IMAGEROOT_DESTINATION + publicSchema, directoriesOnly = True)
-    for dir in directories:
-        shutil.rmtree(dir)
+    if imageRootDestination is not None:
+        directories = find('[56][0-9][0-9][0-9][0-9]', imageRootDestination + newSchema, directoriesOnly = True)
+        for dir in directories:
+            shutil.rmtree(dir)
 
 
 
 
-def copyImages(conn, objectId, privateSchema, publicSchema):
+def copyImages(conn, objectId, sourceReadOnlySchema, newSchema, imageRootSource, imageRootDestination):
 
-    imageFilenames = getObjectImages(conn, objectId, privateSchema)
+    imageFilenames = getObjectImages(conn, objectId, sourceReadOnlySchema)
     for filename in imageFilenames:
         # Copy the files over one by one. Don't worry if they're not there.
 
@@ -418,11 +427,11 @@ def copyImages(conn, objectId, privateSchema, publicSchema):
             # Use the old way to get the MJD - relevant for finding charts.
             mjd = filename['image_filename'].split('_')[1]
             mjd = mjd.split('.')[0]
-        imageDestinationDirectoryName = IMAGEROOT_DESTINATION + publicSchema + '/' + mjd
+        imageDestinationDirectoryName = imageRootDestination + newSchema + '/' + mjd
 
-        imageSourceFilenameJpeg = IMAGEROOT_SOURCE + privateSchema + '/' + mjd + '/' + filename['image_filename'] + '.jpeg'
+        imageSourceFilenameJpeg = imageRootSource + sourceReadOnlySchema + '/' + mjd + '/' + filename['image_filename'] + '.jpeg'
         imageDestinationFilenameJpeg = imageDestinationDirectoryName + '/' + filename['image_filename'] + '.jpeg'
-        imageSourceFilenameFits = IMAGEROOT_SOURCE + privateSchema + '/' + mjd + '/' + filename['image_filename'] + '.fits'
+        imageSourceFilenameFits = imageRootSource + sourceReadOnlySchema + '/' + mjd + '/' + filename['image_filename'] + '.fits'
         imageDestinationFilenameFits = imageDestinationDirectoryName + '/' + filename['image_filename'] + '.fits'
 
         if not os.path.exists(imageDestinationDirectoryName):
@@ -443,7 +452,7 @@ def copyImages(conn, objectId, privateSchema, publicSchema):
 #                e.g. when we announce a discovery ATel.  Hence allow publishing of the
 #                sublist without trashing the entire database.
 # 2017-05-10 KWS Added the new tcs_object_comments table
-def migrateData(conn, connPrivateReadonly, objectList, publicSchema, privateSchema, ddc = False, copyimages = False):
+def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnlySchema, ddc = False, copyimages = False, imageRootSource = None, imageRootDestination = None):
 
     # Now add the objects one-at-a time.  The advantage of doing it this way is
     # that we can veto publication of individual objects if necessary.
@@ -453,24 +462,25 @@ def migrateData(conn, connPrivateReadonly, objectList, publicSchema, privateSche
     listLength = len(objectList)
     for object in objectList:
         print("Migrating object %d (%d of %d)" % (object['id'], counter, listLength))
-        insertRecord(conn, 'tcs_transient_objects', object['id'], 'id', privateSchema, publicSchema)
-        insertRecord(conn, 'tcs_transient_reobservations', object['id'], 'transient_object_id', privateSchema, publicSchema)
-        insertRecord(conn, 'atlas_diff_objects', object['id'], 'id', privateSchema, publicSchema)
-        insertRecord(conn, 'atlas_detectionsddc', object['id'], 'atlas_object_id', privateSchema, publicSchema)
-        insertRecord(conn, 'atlas_diff_detections', object['id'], 'atlas_object_id', privateSchema, publicSchema)
-        insertRecord(conn, 'atlas_forced_photometry', object['id'], 'atlas_object_id', privateSchema, publicSchema)
-        insertRecord(conn, 'tcs_cross_matches', object['id'], 'transient_object_id', privateSchema, publicSchema)
-        insertRecord(conn, 'tcs_latest_object_stats', object['id'], 'id', privateSchema, publicSchema)
-        insertRecord(conn, 'tcs_cross_matches_external', object['id'], 'transient_object_id', privateSchema, publicSchema)
-        insertRecord(conn, 'tcs_object_comments', object['id'], 'transient_object_id', privateSchema, publicSchema)
-        insertRecord(conn, 'sherlock_classifications', object['id'], 'transient_object_id', privateSchema, publicSchema)
-        insertRecord(conn, 'sherlock_crossmatches', object['id'], 'transient_object_id', privateSchema, publicSchema)
-        insertRecord(conn, 'tcs_object_groups', object['id'], 'transient_object_id', privateSchema, publicSchema)
-        insertRecordLike(conn, 'tcs_image_groups', object['id'], 'name', privateSchema, publicSchema)
-        insertRecordLike(conn, 'tcs_postage_stamp_images', object['id'], 'image_filename', privateSchema, publicSchema)
-        insertRecordLike(conn, 'tcs_images', object['id'], 'target', privateSchema, publicSchema)
-        insertRecord(conn, 'tcs_gravity_event_annotations', object['id'], 'transient_object_id', privateSchema, publicSchema)
-        insertRecord(conn, 'tcs_zooniverse_scores', object['id'], 'transient_object_id', privateSchema, publicSchema)
+        insertRecord(conn, 'tcs_transient_objects', object['id'], 'id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'tcs_transient_reobservations', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'atlas_diff_objects', object['id'], 'id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'atlas_detectionsddc', object['id'], 'atlas_object_id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'atlas_diff_detections', object['id'], 'atlas_object_id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'atlas_forced_photometry', object['id'], 'atlas_object_id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'atlas_stacked_forced_photometry', object['id'], 'atlas_object_id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'tcs_cross_matches', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'tcs_latest_object_stats', object['id'], 'id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'tcs_cross_matches_external', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'tcs_object_comments', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'sherlock_classifications', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'sherlock_crossmatches', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'tcs_object_groups', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
+        insertRecordLike(conn, 'tcs_image_groups', object['id'], 'name', sourceReadOnlySchema, newSchema)
+        insertRecordLike(conn, 'tcs_postage_stamp_images', object['id'], 'image_filename', sourceReadOnlySchema, newSchema)
+        insertRecordLike(conn, 'tcs_images', object['id'], 'target', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'tcs_gravity_event_annotations', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'tcs_zooniverse_scores', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
 
         # Create a dummy recurrence so we can reuse existing code.
         recurrence = EmptyRecurreces()
@@ -494,23 +504,23 @@ def migrateData(conn, connPrivateReadonly, objectList, publicSchema, privateSche
             for info in objectInfo:
                 detectionIds.append(info['id'])
 
-        if copyimages:
+        if copyimages and imageRootSource is not None and imageRootDestination is not None:
             print("Copying images...")
-            copyImages(conn, object['id'], privateSchema, publicSchema)
+            copyImages(conn, object['id'], sourceReadOnlySchema, newSchema, imageRootSource, imageRootDestination)
         counter += 1
 
     uniqueExposures = sorted(list(set(exposures)))
     for exp in uniqueExposures:
         # Now grab all the exposure information.
         if ddc:
-            insertRecord(conn, 'atlas_metadataddc', '\'%s\'' % (exp), 'obs', privateSchema, publicSchema)
+            insertRecord(conn, 'atlas_metadataddc', '\'%s\'' % (exp), 'obs', sourceReadOnlySchema, newSchema)
         else:
-            insertRecord(conn, 'atlas_metadata', '\'%s\'' % (exp), 'expname', privateSchema, publicSchema)
+            insertRecord(conn, 'atlas_metadata', '\'%s\'' % (exp), 'expname', sourceReadOnlySchema, newSchema)
 
 #    if not ddc:
 #        # Insert the moments entries.
 #        for detId in set(detectionIds):
-#            insertRecord(conn, 'atlas_diff_moments', detId, 'detection_id', privateSchema, publicSchema)
+#            insertRecord(conn, 'atlas_diff_moments', detId, 'detection_id', sourceReadOnlySchema, newSchema)
 
 
 
@@ -525,6 +535,10 @@ def main(argv = None):
 
     print("Truncate tables =", options.truncate)
 
+    # 2023-03-27 KWS This code needs to be modified to CHECK that the credentials
+    #                of the new schema has READ ONLY access to the source schema.
+    #                The script should ABORT if the new schema credentials have
+    #                write access to the old schema.
     if 'public' not in options.database:
         sys.exit("ONLY the public database credentials should be entered")
 
@@ -575,7 +589,7 @@ def main(argv = None):
         print('Truncating the tables...')
         truncateAllTables(conn, options.database)
         print('Removing the images...')
-        removeAllImagesAndLocationMaps(options.database)
+        removeAllImagesAndLocationMaps(options.database, options.imagesdest)
 
         # First of all insert the complete tables we definitely want to keep.
         print('Inserting data into tcs_cmf_metadata...')
@@ -592,6 +606,34 @@ def main(argv = None):
         insertAllRecords(conn, 'tcs_object_group_definitions', options.sourceschema, options.database)
         print('Inserting data into atlas_diff_logs...')
         insertAllRecords(conn, 'atlas_diff_logs', options.sourceschema, options.database)
+        print('Inserting data into tcs_processing_status...')
+        insertAllRecords(conn, 'tcs_processing_status', options.sourceschema, options.database)
+        print('Inserting data into tcs_catalogue_tables...')
+        insertAllRecords(conn, 'tcs_catalogue_tables', options.sourceschema, options.database)
+        print('Inserting data into tcs_tns_requests...')
+        insertAllRecords(conn, 'tcs_tns_requests', options.sourceschema, options.database)
+        print('Inserting data into tcs_detection_lists...')
+        insertAllRecords(conn, 'tcs_detection_lists', options.sourceschema, options.database)
+
+        print('Extracting all the Django relevant tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
+        cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site > %s' % (options.username, options.password, options.sourceschema, options.hostname, options.djangofile)
+        os.system(cmd)
+
+        print('Importing the Django tables from the %s schema.' % options.sourceschema)
+        cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.djangofile)
+        os.system(cmd)
+
+        print('Extracting the very large tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
+        noCreateInfo = ''
+        if options.nocreateinfo is not None:
+            noCreateInfo = '--no-create-info'
+        cmd = 'mysqldump -u%s --password=%s %s -h %s %s --no-tablespaces atlas_diff_subcells atlas_diff_subcell_logs > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, options.dumpfile)
+        os.system(cmd)
+
+        print('Importing the Django tables from the %s schema.' % options.sourceschema)
+        cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.dumpfile)
+        os.system(cmd)
+
         # The following tables contain over 100 million rows each. Doing a standard
         # replace into won't work.  Best to do a dump of the two tables and import
         # just before going live.
@@ -601,7 +643,7 @@ def main(argv = None):
 #        insertAllRecords(conn, 'atlas_diff_subcell_logs', options.sourceschema, options.database)
 
     print("Length of list = %d)" % len(candidateList))
-    migrateData(conn, connPrivateReadonly, candidateList, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages)
+    migrateData(conn, connPrivateReadonly, candidateList, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages, imageRootSource = options.imagessource, imageRootDestination = options.imagesdest)
 
     conn.close ()
     connPrivateReadonly.close ()
