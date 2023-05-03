@@ -85,6 +85,8 @@ def main():
     db.append(hostname)
 
     conn = dbConnect(hostname, username, password, database)
+    # 2023-03-25 KWS MySQLdb disables autocommit by default. Switch it on globally.
+    conn.autocommit(True)
 
     warnings.filterwarnings("ignore")
 
