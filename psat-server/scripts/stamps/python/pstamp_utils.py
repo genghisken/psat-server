@@ -1961,15 +1961,19 @@ def getObjectsByList(conn, listId = 4, dateThreshold = '2019-01-01', processingF
 
         if objectId is not None:
             cursor.execute ("""
-                select id, if(ra_psf < 0, ra_psf + 360.0, ra_psf) ra, dec_psf `dec`, id 'name', followup_flag_date, ps1_designation, object_classification, confidence_factor rb_factor
-                from tcs_transient_objects
-                where id = %s
+                select o.id, if(ra_psf < 0, ra_psf + 360.0, ra_psf) ra, dec_psf `dec`, ps1_designation as 'name', followup_flag_date, ps1_designation, object_classification, confidence_factor rb_factor, earliest_mjd
+                from tcs_transient_objects o
+                left join tcs_latest_object_stats s
+                  on s.id = o.id
+                where o.id = %s
             """, (objectId,))
             resultSet = cursor.fetchone ()
         else:
             cursor.execute ("""
-                select id, if(ra_psf < 0, ra_psf + 360.0, ra_psf) ra, dec_psf `dec`, id 'name', followup_flag_date, ps1_designation, object_classification, confidence_factor rb_factor
-                from tcs_transient_objects
+                select o.id, if(ra_psf < 0, ra_psf + 360.0, ra_psf) ra, dec_psf `dec`, ps1_designation as 'name', followup_flag_date, ps1_designation, object_classification, confidence_factor rb_factor, earliest_mjd
+                from tcs_transient_objects o
+                left join tcs_latest_object_stats s
+                on s.id = o.id
                 where detection_list_id = %s
                 and (processing_flags & %s = 0 or processing_flags is null)
                 and followup_flag_date > %s
@@ -1981,6 +1985,126 @@ def getObjectsByList(conn, listId = 4, dateThreshold = '2019-01-01', processingF
 
     except MySQLdb.Error as e:
         sys.stderr.write("Error %d: %s\n" % (e.args[0], e.args[1]))
+        sys.exit (1)
+
+    return resultSet
+
+# 2023-05-02 KWS Added Pan-STARRS version of getObjectsByCustomList
+def getObjectsByCustomList(conn, customList, objectType = -1, processingFlags = PROCESSING_FLAGS['stamps']):
+    """getObjectsByCustomList.
+
+    Args:
+        conn:
+        customList:
+        objectType:
+        processingFlags:
+    """
+    import MySQLdb
+
+    try:
+        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute ("""
+            select o.id, o.ra_psf as ra, o.dec_psf as `dec`, o.ps1_designation as 'name', o.followup_flag_date, o.ps1_designation, o.confidence_factor as rb_pix, o.classification_confidence as rb_cat, earliest_mjd
+            from tcs_transient_objects o
+            join tcs_object_groups g
+              on g.transient_object_id = o.id
+            left join tcs_latest_object_stats s
+              on s.id = o.id
+            where g.object_group_id = %s
+              and (processing_flags & %s = 0 or processing_flags is null)
+            order by o.followup_id
+        """, (customList, processingFlags))
+
+        resultSet = cursor.fetchall ()
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print("Error %d: %s" % (e.args[0], e.args[1]))
+        sys.exit (1)
+
+    return resultSet
+
+
+def getATLASObjectsByList(conn, listId = 4, objectType = -1, dateThreshold = '2009-01-01', processingFlags = PROCESSING_FLAGS['stamps'], objectId = None):
+    """getObjectsByList.
+
+    Args:
+        conn:
+        listId:
+        objectType:
+        dateThreshold:
+        processingFlags:
+        objectId:
+    """
+    import MySQLdb
+
+    try:
+        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+
+        if objectId is not None:
+            cursor.execute ("""
+                select o.id, ifnull(ra_avg, ra) as ra, ifnull(dec_avg, `dec`) as `dec`, o.atlas_designation as 'name', followup_flag_date, atlas_designation, object_classification, zooniverse_score as rb_pix, realbogus_factor, earliest_mjd
+                from atlas_diff_objects o
+                left join tcs_latest_object_stats s
+                  on s.id = o.id
+                where o.id = %s
+            """, (objectId,))
+            resultSet = cursor.fetchone ()
+        else:
+            cursor.execute ("""
+                select o.id, ifnull(ra_avg, ra) as ra, ifnull(dec_avg, `dec`) as `dec`, o.atlas_designation as 'name', followup_flag_date, atlas_designation, other_designation, zooniverse_score as rb_pix, realbogus_factor, earliest_mjd
+                from atlas_diff_objects o
+                left join tcs_latest_object_stats s
+                on s.id = o.id
+                where detection_list_id = %s
+                and (object_classification is null or object_classification & %s > 0)
+                and (processing_flags & %s = 0 or processing_flags is null)
+                and followup_flag_date > %s
+                and sherlockClassification is not null
+                and sherlockClassification not in ('VS','BS')
+                order by followup_id
+            """, (listId, objectType, processingFlags, dateThreshold))
+            resultSet = cursor.fetchall ()
+
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print("Error %d: %s" % (e.args[0], e.args[1]))
+        sys.exit (1)
+
+    return resultSet
+
+
+def getATLASObjectsByCustomList(conn, customList, objectType = -1, processingFlags = PROCESSING_FLAGS['stamps']):
+    """getObjectsByCustomList.
+
+    Args:
+        conn:
+        customList:
+        objectType:
+        processingFlags:
+    """
+    import MySQLdb
+
+    try:
+        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute ("""
+            select o.id, ifnull(ra_avg, ra) as ra, ifnull(dec_avg, `dec`) as `dec`, o.atlas_designation as 'name', o.followup_flag_date, o.atlas_designation, o.zooniverse_score as rb_pix, o.realbogus_factor, earliest_mjd
+            from atlas_diff_objects o
+            join tcs_object_groups g
+              on g.transient_object_id = o.id
+            left join tcs_latest_object_stats s
+              on s.id = o.id
+            where g.object_group_id = %s
+              and (processing_flags & %s = 0 or processing_flags is null)
+            order by o.followup_id
+        """, (customList, processingFlags))
+
+        resultSet = cursor.fetchall ()
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print("Error %d: %s" % (e.args[0], e.args[1]))
         sys.exit (1)
 
     return resultSet
