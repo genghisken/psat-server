@@ -75,6 +75,9 @@ def workerStampCutter(num, db, listFragment, dateAndTime, firstPass, miscParamet
     options = miscParameters[8]
     sys.stdout = open('%s%s_%s_%d.log' % (options.loglocation, options.logprefix, dateAndTime, num), "w")
     conn = dbConnect(db[3], db[0], db[1], db[2])
+    # 2023-03-13 KWS MySQLdb disables autocommit by default. Switch it on globally.
+    conn.autocommit(True)
+
 
     PSSImageRootLocation = '/' + db[3] + '/images/' + db[2]
     limit = miscParameters[0]
@@ -132,6 +135,9 @@ def main():
     customList = None
 
     conn = dbConnect(hostname, username, password, database)
+    # 2023-03-13 KWS MySQLdb disables autocommit by default. Switch it on globally.
+    conn.autocommit(True)
+
 
     update = options.update
     limit = int(options.limit)

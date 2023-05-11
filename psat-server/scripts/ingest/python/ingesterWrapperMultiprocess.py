@@ -51,8 +51,8 @@ def worker(num, db, objectListFragment, dateAndTime, firstPass, miscParameters):
     sys.stdout = open('%s%s_%s_%d.log' % (options.loglocation, options.logprefix, dateAndTime, num), "w")
 
     # This is in the worker function
-    ingester = miscParameters[0]
-    configFile = miscParameters[1]
+    #ingester = options.ingester
+    #configFile = options.configfile
 
     
     ingesterWrapper(options.ingester, options.configfile, objectListFragment)
@@ -85,6 +85,8 @@ def main():
     db.append(hostname)
 
     conn = dbConnect(hostname, username, password, database)
+    # 2023-03-25 KWS MySQLdb disables autocommit by default. Switch it on globally.
+    conn.autocommit(True)
 
     warnings.filterwarnings("ignore")
 

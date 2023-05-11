@@ -1961,15 +1961,19 @@ def getObjectsByList(conn, listId = 4, dateThreshold = '2019-01-01', processingF
 
         if objectId is not None:
             cursor.execute ("""
-                select id, if(ra_psf < 0, ra_psf + 360.0, ra_psf) ra, dec_psf `dec`, id 'name', followup_flag_date, ps1_designation, object_classification, confidence_factor rb_factor
-                from tcs_transient_objects
-                where id = %s
+                select o.id, if(ra_psf < 0, ra_psf + 360.0, ra_psf) ra, dec_psf `dec`, ps1_designation as 'name', followup_flag_date, ps1_designation, object_classification, confidence_factor rb_factor, earliest_mjd
+                from tcs_transient_objects o
+                left join tcs_latest_object_stats s
+                  on s.id = o.id
+                where o.id = %s
             """, (objectId,))
             resultSet = cursor.fetchone ()
         else:
             cursor.execute ("""
-                select id, if(ra_psf < 0, ra_psf + 360.0, ra_psf) ra, dec_psf `dec`, id 'name', followup_flag_date, ps1_designation, object_classification, confidence_factor rb_factor
-                from tcs_transient_objects
+                select o.id, if(ra_psf < 0, ra_psf + 360.0, ra_psf) ra, dec_psf `dec`, ps1_designation as 'name', followup_flag_date, ps1_designation, object_classification, confidence_factor rb_factor, earliest_mjd
+                from tcs_transient_objects o
+                left join tcs_latest_object_stats s
+                on s.id = o.id
                 where detection_list_id = %s
                 and (processing_flags & %s = 0 or processing_flags is null)
                 and followup_flag_date > %s
@@ -1981,6 +1985,126 @@ def getObjectsByList(conn, listId = 4, dateThreshold = '2019-01-01', processingF
 
     except MySQLdb.Error as e:
         sys.stderr.write("Error %d: %s\n" % (e.args[0], e.args[1]))
+        sys.exit (1)
+
+    return resultSet
+
+# 2023-05-02 KWS Added Pan-STARRS version of getObjectsByCustomList
+def getObjectsByCustomList(conn, customList, objectType = -1, processingFlags = PROCESSING_FLAGS['stamps']):
+    """getObjectsByCustomList.
+
+    Args:
+        conn:
+        customList:
+        objectType:
+        processingFlags:
+    """
+    import MySQLdb
+
+    try:
+        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute ("""
+            select o.id, o.ra_psf as ra, o.dec_psf as `dec`, o.ps1_designation as 'name', o.followup_flag_date, o.ps1_designation, o.confidence_factor as rb_pix, o.classification_confidence as rb_cat, earliest_mjd
+            from tcs_transient_objects o
+            join tcs_object_groups g
+              on g.transient_object_id = o.id
+            left join tcs_latest_object_stats s
+              on s.id = o.id
+            where g.object_group_id = %s
+              and (processing_flags & %s = 0 or processing_flags is null)
+            order by o.followup_id
+        """, (customList, processingFlags))
+
+        resultSet = cursor.fetchall ()
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print("Error %d: %s" % (e.args[0], e.args[1]))
+        sys.exit (1)
+
+    return resultSet
+
+
+def getATLASObjectsByList(conn, listId = 4, objectType = -1, dateThreshold = '2009-01-01', processingFlags = PROCESSING_FLAGS['stamps'], objectId = None):
+    """getObjectsByList.
+
+    Args:
+        conn:
+        listId:
+        objectType:
+        dateThreshold:
+        processingFlags:
+        objectId:
+    """
+    import MySQLdb
+
+    try:
+        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+
+        if objectId is not None:
+            cursor.execute ("""
+                select o.id, ifnull(ra_avg, ra) as ra, ifnull(dec_avg, `dec`) as `dec`, o.atlas_designation as 'name', followup_flag_date, atlas_designation, object_classification, zooniverse_score as rb_pix, realbogus_factor, earliest_mjd
+                from atlas_diff_objects o
+                left join tcs_latest_object_stats s
+                  on s.id = o.id
+                where o.id = %s
+            """, (objectId,))
+            resultSet = cursor.fetchone ()
+        else:
+            cursor.execute ("""
+                select o.id, ifnull(ra_avg, ra) as ra, ifnull(dec_avg, `dec`) as `dec`, o.atlas_designation as 'name', followup_flag_date, atlas_designation, other_designation, zooniverse_score as rb_pix, realbogus_factor, earliest_mjd
+                from atlas_diff_objects o
+                left join tcs_latest_object_stats s
+                on s.id = o.id
+                where detection_list_id = %s
+                and (object_classification is null or object_classification & %s > 0)
+                and (processing_flags & %s = 0 or processing_flags is null)
+                and followup_flag_date > %s
+                and sherlockClassification is not null
+                and sherlockClassification not in ('VS','BS')
+                order by followup_id
+            """, (listId, objectType, processingFlags, dateThreshold))
+            resultSet = cursor.fetchall ()
+
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print("Error %d: %s" % (e.args[0], e.args[1]))
+        sys.exit (1)
+
+    return resultSet
+
+
+def getATLASObjectsByCustomList(conn, customList, objectType = -1, processingFlags = PROCESSING_FLAGS['stamps']):
+    """getObjectsByCustomList.
+
+    Args:
+        conn:
+        customList:
+        objectType:
+        processingFlags:
+    """
+    import MySQLdb
+
+    try:
+        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute ("""
+            select o.id, ifnull(ra_avg, ra) as ra, ifnull(dec_avg, `dec`) as `dec`, o.atlas_designation as 'name', o.followup_flag_date, o.atlas_designation, o.zooniverse_score as rb_pix, o.realbogus_factor, earliest_mjd
+            from atlas_diff_objects o
+            join tcs_object_groups g
+              on g.transient_object_id = o.id
+            left join tcs_latest_object_stats s
+              on s.id = o.id
+            where g.object_group_id = %s
+              and (processing_flags & %s = 0 or processing_flags is null)
+            order by o.followup_id
+        """, (customList, processingFlags))
+
+        resultSet = cursor.fetchall ()
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print("Error %d: %s" % (e.args[0], e.args[1]))
         sys.exit (1)
 
     return resultSet
@@ -4899,67 +5023,75 @@ def extractIdFromResponse(requestName, htmlPage):
    return pssServerId
 
 
+def pretty_print_POST(req):
+    """
+    At this point it is completely built and ready
+    to be fired; it is "prepared".
 
-def sendPSRequest(filename, requestName, username = None, password = None, realm = 'Restricted Section', postageStampServerURL = None):
-   """sendPSRequest.
+    However pay attention at the formatting used in 
+    this function because it is programmed to be pretty 
+    printed and may differ from the actual request.
+    """
+    print('{}\n{}\r\n{}\r\n\r\n{}'.format(
+        '-----------START-----------',
+        req.method + ' ' + req.url,
+        '\r\n'.join('{}: {}'.format(k, v) for k, v in req.headers.items()),
+        req.body,
+    ))
 
-   Args:
-       filename:
-       requestName:
-   """
-   pssServerId = -1
 
-   # TEMPORARY FIX
-   from settings import username, password, postageStampServerURL
+# 2023-02-20 KWS Replacement code for sendPSRequest required for python 3.
+#                Looks straightforward enough - but I think "realm" may need
+#                to be added as a header.
+def sendPSRequest(filename, requestName, username = None, password = None, postageStampServerURL = None):
+    """sendPSRequest.
 
-   if username is None or password is None:
-      print("Error: Username and Password must be present in the rquest")
-      return
+    Args:
+        filename:
+        requestName:
+        username:
+        password:
+        postageStampServerURL:
+    """
+    pssServerId = -1
 
-   try:
-      data = open(filename, 'rb')
-   except:
-      print("Error: could not open file %s for reading" % filename)
-      print("Check permissions on the file or folder it resides in")
-      return
+    import requests
+    from requests import Session
 
-   cookiejar = http.cookiejar.LWPCookieJar()
+    if username is None or password is None:
+        print("Error: Username and Password must be present in the rquest")
+        return
+    try:
+        data = {'filename': open(filename, 'rb')}
+    except:
+        print("Error: could not open file %s for reading" % filename)
+        print("Check permissions on the file or folder it resides in")
+        return
 
-   # NOTE - if we don't know the Realm, just enter None for the first
-   #        parameter of add_password
+    s = Session()
+    s.auth=(username, password)
 
-   passman = urllib.request.HTTPPasswordMgrWithDefaultRealm()
-   passman.add_password(realm, postageStampServerURL, username, password)
-   authhandler = urllib.request.HTTPBasicAuthHandler(passman)
-   # create the AuthHandler
+    headers =  {'User-agent' : 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.14) Gecko/2009091106 CentOS/3.0.14-1.el5.centos Firefox/3.0.14'}
 
-   opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookiejar), authhandler, MultipartPostHandler.MultipartPostHandler)
-   urllib.request.install_opener(opener)
+    # Need to authenticate (basic auth) so this should result in two requests to the server
+    try:
+        # First get our authenticated session established. Response code will be a 401
+        # and a "please enter your username and password" message, but that's OK.
+        # Our session is now authenticated.
+        response = s.post(postageStampServerURL)
+        # Now post the data. This time we should get a 200 OK.
+        response = s.post(postageStampServerURL, files = data, timeout = 10, headers = headers)
+        pssServerId = extractIdFromResponse(requestName, response.text)
 
-   # Build the POST request
+    except IOError as e:
+        print("Something went horribly wrong. File was not uploaded.")
+        print(e)
 
-   txdata = {'filename':data}
-   # Attempt to fool the server, in case it doesn't like automated agents
-   txheaders =  {'User-agent' : 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.14) Gecko/2009091106 CentOS/3.0.14-1.el5.centos Firefox/3.0.14'}
+    if (pssServerId >= 0):
+        print("Successfully uploaded file.")
+        print("Postage Stamp Server ID = %d" % pssServerId)
 
-   # create a request object
-   req = urllib.request.Request(postageStampServerURL, txdata, txheaders)
-
-   # Because the cookie handler is installed, this should result in two requests to the Server
-   try:
-       # Now send the file.
-       psResponsePage = urllib.request.urlopen(req).read()
-       pssServerId = extractIdFromResponse(requestName, psResponsePage)
-
-   except IOError as e:
-       print("Something went horribly wrong. File was not uploaded.")
-       print(e)
-
-   if (pssServerId >= 0):
-      print("Successfully uploaded file.")
-      print("Postage Stamp Server ID = %d" % pssServerId)
-
-   return pssServerId
+    return pssServerId
 
 
 # 2014-03-05 Added and modified code from Thomas Chen that facilitates PSPS requesting of postage stamps
