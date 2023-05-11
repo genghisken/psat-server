@@ -56,6 +56,7 @@ import mimetypes
 #                So if necessary we can simulate the original function.
 import email.generator
 import os, stat
+from io import IOBase, BytesIO
 
 class Callable:
     """Callable.
@@ -85,13 +86,14 @@ class MultipartPostHandler(urllib.request.BaseHandler):
         Args:
             request:
         """
-        data = request.get_data()
+        data = request.data
+        print(data)
         if data is not None and type(data) != str:
             v_files = []
             v_vars = []
             try:
                  for(key, value) in list(data.items()):
-                     if type(value) == file:
+                     if type(value) == IOBase:
                          v_files.append((key, value))
                      else:
                          v_vars.append((key, value))
@@ -109,7 +111,8 @@ class MultipartPostHandler(urllib.request.BaseHandler):
                     print("Replacing %s with %s" % (request.get_header('content-type'), 'multipart/form-data'))
                 request.add_unredirected_header('Content-Type', contenttype)
 
-            request.add_data(data)
+            print(data)
+            request.data = data
         return request
 
     def multipart_encode(vars, files, boundary = None, buffer = None):

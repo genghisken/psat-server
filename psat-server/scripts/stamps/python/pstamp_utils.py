@@ -3773,7 +3773,12 @@ def writeFITSPostageStampRequestBySkycell(conn, gpc1Conn, outfile, requestName, 
 # ****************** Detectability Request ********************
 
 # 2020-05-01 KWS Added PROJECT card, which must be set to whichever camera is being used.
-def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, diffType = 'WSdiff', email = 'qub2@qub.ac.uk', camera = 'gpc1', limitDays = 100, limitDaysAfter = 0):
+# 2022-10-12 KWS Added coords. The object we are interested in might actually be NEAR but
+#                not exactly the one we want the photometry for. So override the coordinates
+#                and get the forced photometry with position set as the one of interest.
+#                Use the nearby object as a proxy to request and store the forced photometry. 
+#                We found the nearby object by cone searching around the object of interest.
+def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, diffType = 'WSdiff', email = 'qub2@qub.ac.uk', camera = 'gpc1', limitDays = 100, limitDaysAfter = 0, coords = []):
    """writeDetectabilityFITSRequest.
 
    Args:
@@ -3819,7 +3824,10 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
 
    for candidate in candidateList:
       # Find the average RA/DEC for the candidate
-      (ra, dec) = getAverageCoordinates(conn, candidate['id'])
+      if coords:
+          (ra, dec) = (float(coords[0]), float(coords[1]))
+      else:
+          (ra, dec) = getAverageCoordinates(conn, candidate['id'])
 
       # Pick up the detectability info for this candidate
       detectabilityResultSet = getDetectabilityInfo2(conn, candidate['id'], limitDays = limitDays, limitDaysAfter = limitDaysAfter)
@@ -4901,9 +4909,13 @@ def sendPSRequest(filename, requestName, username = None, password = None, realm
    """
    pssServerId = -1
 
+   # TEMPORARY FIX
+   from settings import username, password, postageStampServerURL
+
    if username is None or password is None:
       print("Error: Username and Password must be present in the rquest")
       return
+
    try:
       data = open(filename, 'rb')
    except:
