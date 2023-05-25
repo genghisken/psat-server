@@ -2,7 +2,7 @@
 """Request Pan-STARRS forced photometry
 
 Usage:
-  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--flagdate=<flagdate>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--difftype=<difftype>] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--rbthreshold=<rbthreshold>] [--camera=<camera>]
+  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--flagdate=<flagdate>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--difftype=<difftype>] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--rbthreshold=<rbthreshold>] [--camera=<camera>] [--coords=<coords>]
   %s (-h | --help)
   %s --version
 
@@ -22,6 +22,7 @@ Options:
   --requesthome=<requesthome>         Place to store the FITS request before sending
   --rbthreshold=<rbthreshold>         Only request forced photometry if RB factor above a specified threshold (only applies to lists).
   --camera=<camera>                   Pan-STARRS camera [default: gpc1]
+  --coords=<coords>                   Coordinates to use to override the coordinates of the specified object. Comma separated, no spaces.
 
 Example:
   python %s ../../../../config/config.yaml 1124922100042044700 --requestprefix=yse_det_request --test
@@ -118,6 +119,12 @@ def main(argv = None):
     candidateList = list(candidateList)
     random.shuffle(candidateList)
 
+    coords = []
+    # If we override the coordinates and the array length is 1, substitute the coordinates
+    if arrayLength == 1:
+        if options.coords:
+            coords = [float(options.coords.split(',')[0]), float(options.coords.split(',')[1])]
+
     # Check to see if we need an extra iteration to clean up the end of the array
     if arrayLength%maxNumberOfCandidates != 0:
         numberOfIterations += 1
@@ -141,7 +148,7 @@ def main(argv = None):
  
         fileWritten = False
         for candidate in candidateSubList:
-            fileWritten = writeDetectabilityFITSRequest(conn, requestFileName, requestName, candidateSubList, diffType = options.difftype, limitDays = limitDays, limitDaysAfter = limitDaysAfter, camera = options.camera)
+            fileWritten = writeDetectabilityFITSRequest(conn, requestFileName, requestName, candidateSubList, diffType = options.difftype, limitDays = limitDays, limitDaysAfter = limitDaysAfter, camera = options.camera, coords = coords)
  
         time.sleep(1)
  
@@ -152,7 +159,8 @@ def main(argv = None):
         psRequestId = addRequestToDatabase(conn, requestName, sqlCurrentDate, DETECTABILITY_REQUEST)
  
         pssServerId = sendPSRequest(requestFileName, requestName)
-        if (pssServerId >= 0):
+        print(pssServerId)
+        if pssServerId is not None and (pssServerId >= 0):
             if (updateRequestStatus(conn, requestName, SUBMITTED, pssServerId) > 0):
                 print("Successfully submitted job to Postage Stamp Server and updated database.")
             else:
