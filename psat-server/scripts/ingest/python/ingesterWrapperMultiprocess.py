@@ -122,6 +122,9 @@ def main():
 
     ingester = options.ingester
 
+    # Add tomorrow as well - for STH, CHL and TDO.
+    days += 1
+
     fileList = getFiles(regex, camera, mjdToIngest = mjdToIngest, mjdthreshold = mjdthreshold, days = days, atlasroot=options.atlasroot, options = options)
     ingestedFiles = getFilesIngestedddc2(conn, mjdthreshold = mjdthreshold, camera = camera)
 

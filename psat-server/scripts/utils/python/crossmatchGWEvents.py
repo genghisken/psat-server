@@ -2,7 +2,7 @@
 """Crossmatch GW events using Dave's skytag code.
 
 Usage:
-  %s <configFile> <event> <gwEventMap> <survey> [<candidate>...] [--listid=<listid>] [--customlist=<customlist>] [--datethreshold=<datethreshold>] [--timedeltas] [--update]
+  %s <configFile> <event> <gwEventMap> <survey> [<candidate>...] [--listid=<listid>] [--customlist=<customlist>] [--datethreshold=<datethreshold>] [--timedeltas] [--mapiteration=<mapiteration>] [--update]
   %s (-h | --help)
   %s --version
 
@@ -13,8 +13,9 @@ Options:
   --version                         Show version.
   --listid=<listid>                 List ID [default: 4].
   --customlist=<customlist>         Custom list ID.
-  --datethreshold=<datethreshold>   Only pull out objects with a flag date greater than the datethreshold in YYYMMDD format. Only applied to listid.
+  --datethreshold=<datethreshold>   Only pull out objects with a flag date greater than the datethreshold in YYYMMDD format. Only applied to listid [defaut: 20230101].
   --timedeltas                      Pull out the earliest MJD (if present) for time delta calculations.
+  --mapiteration=<mapiteration>     By default code tries to derive the map iteration from the directory name. Override this.
   --update                          Update the database.
 
 
@@ -37,7 +38,7 @@ from pstamp_utils import getObjectsByCustomList as getPSObjectsByCustomList
 from skytag.commonutils import prob_at_location
 
 
-def deleteObjectGWInfo(conn, options, objectId):
+def deleteObjectGWInfo(conn, options, objectId, mapIteration = None):
     import MySQLdb
 
     try:
@@ -48,7 +49,8 @@ def deleteObjectGWInfo(conn, options, objectId):
              where gravity_event_id = %s
                and map_name = %s
                and transient_object_id = %s
-            """, (options.event, os.path.basename(options.gwEventMap), objectId,))
+               and map_iteration = %s
+            """, (options.event, os.path.basename(options.gwEventMap), objectId, mapIteration,))
 
     except MySQLdb.Error as e:
         sys.stderr.write("Error %d: %s\n" % (e.args[0], e.args[1]))
@@ -58,7 +60,7 @@ def deleteObjectGWInfo(conn, options, objectId):
     return
 
 
-def insertObjectGWInfo(conn, options, objectId, contour, timeDelta = None, probability = None):
+def insertObjectGWInfo(conn, options, objectId, contour, timeDelta = None, probability = None, mapIteration = None):
     import MySQLdb
 
     try:
@@ -68,6 +70,7 @@ def insertObjectGWInfo(conn, options, objectId, contour, timeDelta = None, proba
              insert into tcs_gravity_event_annotations (gravity_event_id,
                                                         gracedb_id,
                                                         map_name,
+                                                        map_iteration,
                                                         transient_object_id,
                                                         enclosing_contour,
                                                         days_since_event,
@@ -75,8 +78,8 @@ def insertObjectGWInfo(conn, options, objectId, contour, timeDelta = None, proba
                                                         dateLastModified,
                                                         updated,
                                                         dateCreated)
-             values (%s, %s, %s, %s, %s, %s, %s, now(), 0, now())
-             """, (options.event, options.event, os.path.basename(options.gwEventMap), objectId, contour, timeDelta, probability))
+             values (%s, %s, %s, %s, %s, %s, %s, %s, now(), 0, now())
+             """, (options.event, options.event, os.path.basename(options.gwEventMap), mapIteration, objectId, contour, timeDelta, probability))
 
     except MySQLdb.Error as e:
         sys.stderr.write("Error %d: %s\n" % (e.args[0], e.args[1]))
@@ -85,12 +88,19 @@ def insertObjectGWInfo(conn, options, objectId, contour, timeDelta = None, proba
     return conn.insert_id()
 
 def writeGWTags(conn, options, objectDict):
+    mapIteration = None
+    if options.mapiteration is not None:
+        mapIteration = options.mapiteration
+    else:
+        # Derive the map iteration from the parent directory.
+        mapIteration = os.path.basename(os.path.dirname(options.gwEventMap))
+
     inserts = []
     for objectId, prob in objectDict.items():
         if prob[0] <= 90.0:
             # Only write the data if the object lies within the 90% region.
-            deleteObjectGWInfo(conn, options, objectId)
-            insertId = insertObjectGWInfo(conn, options, objectId, prob[2], timeDelta = prob[1], probability = prob[0])
+            deleteObjectGWInfo(conn, options, objectId, mapIteration = mapIteration)
+            insertId = insertObjectGWInfo(conn, options, objectId, prob[2], timeDelta = prob[1], probability = prob[0], mapIteration = mapIteration)
             inserts.append(insertId)
     return inserts
 
@@ -115,6 +125,14 @@ def crossmatchGWEvents(options):
     conn.autocommit(True)
 
     objectList = []
+
+    dateThreshold = '2023-01-01'
+
+    if options.datethreshold is not None:
+        try:
+            dateThreshold = '%s-%s-%s' % (options.datethreshold[0:4], options.datethreshold[4:6], options.datethreshold[6:8])
+        except:
+            dateThreshold = '2023-01-01'
 
     if options.candidate is not None and len(options.candidate) > 0:
         for cand in options.candidate:
@@ -144,14 +162,20 @@ def crossmatchGWEvents(options):
                 if int(options.listid) >= 0 and int(options.listid) < 9:
                     detectionList = int(options.listid)
                     if options.survey == 'panstarrs':
-                        objectList = getPSObjectsByList(conn, listId = detectionList, processingFlags = 0)
+                        objectList = getPSObjectsByList(conn, listId = detectionList, processingFlags = 0, dateThreshold = dateThreshold)
+                        #objectList = getPSObjectsByList(conn, listId = detectionList, processingFlags = 0)
                     else:
-                        objectList = getATLASObjectsByList(conn, listId = detectionList, processingFlags = 0)
+                        objectList = getATLASObjectsByList(conn, listId = detectionList, processingFlags = 0, dateThreshold = dateThreshold)
+                        #objectList = getATLASObjectsByList(conn, listId = detectionList, processingFlags = 0)
                 else:
                     print("The list must be between 0 and 9 inclusive.  Exiting.")
                     sys.exit(1)
 
     print("LENGTH OF OBJECTLIST = ", len(objectList))
+    if len(objectList) == 0:
+        print("No objects to check")
+        print(dateThreshold)
+        exit(0)
 
     ids = []
     ras = []

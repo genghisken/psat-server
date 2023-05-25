@@ -281,6 +281,9 @@ def main():
 
     ingester = options.ingester
 
+    # Add tomorrow as well - for STH, CHL and TDO.
+    days += 1
+
     fileList = getFiles(regex, camera, mjdToIngest = mjdToIngest, mjdthreshold = mjdthreshold, days = days, options = options)
     ingestedFiles = getFilesIngestedddc2(conn, mjdthreshold = mjdthreshold, mjdToIngest = mjdToIngest, camera = camera)
 
