@@ -2,29 +2,36 @@
 """Crossmatch GW events using Dave's skytag code.
 
 Usage:
-  %s <configFile> <event> <gwEventMap> <survey> [<candidate>...] [--listid=<listid>] [--customlist=<customlist>] [--datethreshold=<datethreshold>] [--timedeltas] [--mapiteration=<mapiteration>] [--update]
+  %s <configFile> <survey> [<candidate>...] [--listid=<listid>] [--customlist=<customlist>] [--datethreshold=<datethreshold>] [--timedeltas] [--mapiteration=<mapiteration>] [--event=<event>] [--gwEventMap=<gwEventMap>] [--areaThreshold=<areaThreshold>] [--areaContour=<areaContour>] [--distanceTreshold=<distanceThreshold>] [--mapRootLocation=<mapRootLocation>] [--update]
   %s (-h | --help)
   %s --version
 
   Survey must be panstarrs | atlas
 
 Options:
-  -h --help                         Show this screen.
-  --version                         Show version.
-  --listid=<listid>                 List ID [default: 4].
-  --customlist=<customlist>         Custom list ID.
-  --datethreshold=<datethreshold>   Only pull out objects with a flag date greater than the datethreshold in YYYMMDD format. Only applied to listid [defaut: 20230101].
-  --timedeltas                      Pull out the earliest MJD (if present) for time delta calculations.
-  --mapiteration=<mapiteration>     By default code tries to derive the map iteration from the directory name. Override this.
-  --update                          Update the database.
+  -h --help                               Show this screen.
+  --version                               Show version.
+  --listid=<listid>                       List ID [default: 4].
+  --customlist=<customlist>               Custom list ID.
+  --datethreshold=<datethreshold>         Only pull out objects with a flag date greater than the datethreshold in YYYMMDD format. Only applied to listid [defaut: 20230101].
+  --timedeltas                            Pull out the earliest MJD (if present) for time delta calculations.
+  --mapiteration=<mapiteration>           By default code tries to derive the map iteration from the directory name. Override this.
+  --event=<event>                         GW event. Override a database check of events.
+  --gwEventMap=<gwEventMap>               GW event map. Override the map location derived from the database.
+  --areaThreshold=<areaThreshold>         Area threshold before doing the crossmatch, ignored if map provided [default: 2000].
+  --areaContour=<areaContour>             Area contour to which to apply the area check - 90, 50 or 10, ignored if map provided [default: 90].
+  --distanceTreshold=<distanceThreshold>  Distance threshold to apply if present (Mpc).
+  --mapRootLocation=<mapRootLocation>     Root location where the maps are stored [default: /data/psdb3data1/o4_events].
+  --update                                Update the database.
 
 
 Example:
-  %s /tmp/config.yaml MS230506p /data/psdb3data1/o4_events/mockevents/MS230506p/20230506T160233_initial/bayestar.multiorder.fits --list=2
-  %s /tmp/config.yaml MS230506p /data/psdb3data1/o4_events/mockevents/MS230506p/20230506T160233_initial/bayestar.multiorder.fits panstarrs --list=5 --timedeltas
+  %s /tmp/config.yaml --event=MS230506p --gwEventMap=/data/psdb3data1/o4_events/mockevents/MS230506p/20230506T160233_initial/bayestar.multiorder.fits --list=2
+  %s /tmp/config.yaml --event=MS230506p --gwEventMap=/data/psdb3data1/o4_events/mockevents/MS230506p/20230506T160233_initial/bayestar.multiorder.fits panstarrs --list=5 --timedeltas
+  %s ../../../../../atlas/config/config4_db1_readonly.yaml --event=S230518h --gwEventMap=/data/psdb3data1/o4_events/superevents/S230518h/20230526T221627_update/ligo-skymap-from-samples.multiorder.fits atlas --listid=10 --update --timedeltas --datethreshold=20230517
 """
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os
 from gkutils.commonutils import Struct, cleanOptions, dbConnect, splitList, parallelProcess
@@ -36,6 +43,7 @@ from pstamp_utils import getObjectsByList as getPSObjectsByList
 from pstamp_utils import getObjectsByCustomList as getPSObjectsByCustomList
 
 from skytag.commonutils import prob_at_location
+import glob
 
 
 def deleteObjectGWInfo(conn, options, objectId, mapIteration = None):
@@ -99,6 +107,7 @@ def writeGWTags(conn, options, objectDict):
     for objectId, prob in objectDict.items():
         if prob[0] <= 90.0:
             # Only write the data if the object lies within the 90% region.
+            print(objectId, prob)
             deleteObjectGWInfo(conn, options, objectId, mapIteration = mapIteration)
             insertId = insertObjectGWInfo(conn, options, objectId, prob[2], timeDelta = prob[1], probability = prob[0], mapIteration = mapIteration)
             inserts.append(insertId)
@@ -108,6 +117,68 @@ def getContour(prob):
     # Subtract a very small amount so that objects with prob 20.0 appear in the 20 contour bin, not 30.
     contour = (int((prob-0.0000001)/10)+1)*10
     return contour
+
+
+# Get the currently active initial and update events.
+def getActiveEvents(conn):
+    import MySQLdb
+
+    try:
+        cursor = conn.cursor (MySQLdb.cursors.DictCursor)
+
+        cursor.execute ("""
+            select superevent_id,
+                   significant,
+                   far,
+                   mjd_obs,
+                   area90,
+                   area50,
+                   area10,
+                   distmean,
+                   diststd,
+                   map_iteration
+              from tcs_gravity_alerts
+             where alert_time in (select max(alert_time) as latest_alert
+                                    from tcs_gravity_alerts
+                                group by superevent_id)
+               and alert_type in ('INITIAL', 'UPDATE')
+        """)
+        resultSet = cursor.fetchall ()
+
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print("Error %d: %s" % (e.args[0], e.args[1]))
+
+    return resultSet
+
+
+def getFiles(regex, directory, recursive = False):
+
+    directoryRecurse = '/'
+    if recursive:
+        directoryRecurse = '/**/'
+    fileList = glob.glob(directory + directoryRecurse + regex, recursive=recursive)
+
+    fileList.sort()
+
+    return fileList
+
+
+# The event maps are not always named consistently!
+def getEventMap(mapIteration, options):
+    gwMap = None
+
+    maps = getFiles(mapIteration + '/*.fits', options.mapRootLocation, recursive = True)
+
+    if maps and len(maps) == 1:
+        gwMap = maps[0]
+
+    if maps and len(maps) > 1:
+        # What do we do if we get more than one map? Just choose the zeroth map.
+        gwMap = maps[0]
+        
+    return gwMap
 
 def crossmatchGWEvents(options):
 
@@ -159,7 +230,7 @@ def crossmatchGWEvents(options):
                 sys.exit(1)
         else:
             if options.listid is not None:
-                if int(options.listid) >= 0 and int(options.listid) < 9:
+                if int(options.listid) >= 0 and int(options.listid) < 11:
                     detectionList = int(options.listid)
                     if options.survey == 'panstarrs':
                         objectList = getPSObjectsByList(conn, listId = detectionList, processingFlags = 0, dateThreshold = dateThreshold)
@@ -215,8 +286,6 @@ def crossmatchGWEvents(options):
             objectProbs[id] = [prob, delta, contour]
     else:
         print("Probs and input IDs are not the same length. Cannot continue.")
-
-    print(objectProbs)
 
     inserts = []
 
