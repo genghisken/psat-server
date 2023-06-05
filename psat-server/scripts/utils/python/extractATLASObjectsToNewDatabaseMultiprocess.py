@@ -174,6 +174,8 @@ def main():
         insertAllRecords(conn, 'tcs_tns_requests', options.sourceschema, options.database)
         print('Inserting data into tcs_detection_lists...')
         insertAllRecords(conn, 'tcs_detection_lists', options.sourceschema, options.database)
+        print('Inserting data into tcs_gravity_alerts...')
+        insertAllRecords(conn, 'tcs_gravity_alerts', options.sourceschema, options.database)
 
         print('Extracting all the Django relevant tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
         cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site > %s' % (options.username, options.password, options.sourceschema, options.hostname, options.djangofile)

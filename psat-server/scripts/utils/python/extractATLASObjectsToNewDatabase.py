@@ -353,6 +353,7 @@ def truncateAllTables(conn, newSchema):
     truncateTable(conn, 'atlas_diff_logs', newSchema)
     truncateTable(conn, 'atlas_diff_subcells', newSchema)
     truncateTable(conn, 'atlas_diff_subcell_logs', newSchema)
+    truncateTable(conn, 'tcs_gravity_alerts', newSchema)
 
 def insertAllRecords(conn, tableName, sourceReadOnlySchema, newSchema):
     """For meta files we need ALL of them to allow plotting of arrows on lightcurves"""
@@ -614,6 +615,8 @@ def main(argv = None):
         insertAllRecords(conn, 'tcs_tns_requests', options.sourceschema, options.database)
         print('Inserting data into tcs_detection_lists...')
         insertAllRecords(conn, 'tcs_detection_lists', options.sourceschema, options.database)
+        print('Inserting data into tcs_gravity_alerts...')
+        insertAllRecords(conn, 'tcs_gravity_alerts', options.sourceschema, options.database)
 
         print('Extracting all the Django relevant tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
         cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site > %s' % (options.username, options.password, options.sourceschema, options.hostname, options.djangofile)
