@@ -19,7 +19,7 @@ Options:
   --mapiteration=<mapiteration>            By default code tries to derive the map iteration from the directory name. Override this.
   --event=<event>                          GW event. Override a database check of events.
   --gwEventMap=<gwEventMap>                GW event map. Override the map location derived from the database.
-  --areaThreshold=<areaThreshold>          Area threshold before doing the crossmatch, ignored if map provided [default: 2000].
+  --areaThreshold=<areaThreshold>          Area threshold before doing the crossmatch, ignored if map provided [default: 41252.96125].
   --areaContour=<areaContour>              Area contour to which to apply the area check - 90, 50 or 10, ignored if map provided [default: 90].
   --distanceThreshold=<distanceThreshold>  Distance threshold to apply if present (Mpc).
   --mapRootLocation=<mapRootLocation>      Root location where the maps are stored [default: /data/psdb3data1/o4_events].
