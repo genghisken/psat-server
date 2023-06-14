@@ -146,6 +146,7 @@ def getActiveEvents(conn):
                                     from tcs_gravity_alerts
                                 group by superevent_id)
                and alert_type in ('INITIAL', 'UPDATE')
+               and superevent_id not like 'M%'
         """)
         resultSet = cursor.fetchall ()
 
