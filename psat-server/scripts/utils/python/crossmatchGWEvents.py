@@ -140,12 +140,13 @@ def getActiveEvents(conn):
                    distmean,
                    diststd,
                    map_iteration,
-                   map
+                   map,
+                   interesting
               from tcs_gravity_alerts
              where alert_time in (select max(alert_time) as latest_alert
                                     from tcs_gravity_alerts
                                 group by superevent_id)
-               and alert_type in ('INITIAL', 'UPDATE')
+               and (alert_type in ('INITIAL', 'UPDATE') or (alert_type in ('INITIAL', 'UPDATE', 'PRELIMINARY') and interesting = 1))
                and superevent_id not like 'M%'
         """)
         resultSet = cursor.fetchall ()
@@ -191,12 +192,13 @@ def getActiveSupereventInformation(conn, options):
     # Get the active superevents from the database
     events = getActiveEvents(conn)
     for event in events:
-        if event['area' + options.areaContour] < float(options.areaThreshold) \
+        if (event['area' + options.areaContour] < float(options.areaThreshold) \
                 and todayMJD > event['mjd_obs'] - float(options.daysBeforeEvent) \
                 and todayMJD < event['mjd_obs'] + float(options.daysAfterEvent) \
                 and ((options.distanceThreshold is not None and event ['distmean'] < float(options.distanceThreshold)) or options.distanceThreshold is None) \
                 and event['far'] < float(options.far) \
-                and event['significant']:
+                and event['significant']) \
+                 or event['interesting']:
             # get the map, if we can find one.
             if event['map_iteration'] is not None and event['map'] is None:
                 mapLocation = getEventMap(event['map_iteration'], options)
