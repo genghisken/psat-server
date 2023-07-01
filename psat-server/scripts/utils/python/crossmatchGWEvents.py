@@ -25,7 +25,7 @@ Options:
   --mapRootLocation=<mapRootLocation>      Root location where the maps are stored [default: /data/psdb3data1/o4_events].
   --daysBeforeEvent=<daysBeforeEvent>      Days before the event to trigger search [default: 10].
   --daysAfterEvent=<daysAfterEvent>        Days after the event to trigger search [default: 21].
-  --far=<far>                              False alarm rate (e.g. 1 in 6 months) [default: 0.000000015844369].
+  --far=<far>                              False alarm rate (e.g. 1 in 6 months) [default: 0.00000006337747701362287].
   --update                                 Update the database.
 
 
