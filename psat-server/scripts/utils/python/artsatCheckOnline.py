@@ -87,6 +87,13 @@ def main():
             date = getDateFractionMJD(det['mjd'],  decimalPlaces=5)
             print("     %05d     %s %s%s                     %s" % (counter, date, coords[0], coords[1], observatories[det['obs'][0:3]]))
         counter = counter + 1
+    print ("")
+    print ("Copy the above lines and paste into the form (including all preceding spaces) at:")
+    print ("")
+    print ("https://www.projectpluto.com/sat_id2.htm")
+    print ("")
+    print ("Future versions of this code will do this automatically.")
+    print ("")
     conn.close()
 
 
