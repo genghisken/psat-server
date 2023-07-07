@@ -2,7 +2,7 @@
 """Make PS1 Finders for ATLAS objects above -30 degrees declination.
 
 Usage:
-  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--update] [--ddc] [--size=<size>] [--flagdate=<flagdate>] [--filters=<filters>] [--singlefilter=<singlefilter>] [--downloadpath=<downloadpath>]
+  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--update] [--ddc] [--size=<size>] [--flagdate=<flagdate>] [--filters=<filters>] [--singlefilter=<singlefilter>] [--downloadpath=<downloadpath>] [--nsigma=<nsigma>]
   %s (-h | --help)
   %s --version
 
@@ -14,26 +14,30 @@ Options:
   --customlist=<customlist>                   Custom List option
   --ddc                                       Use the DDC schema for queries
   --size=<size>                               Size of the stamp in arcsec [default: 240].
-  --flagdate=<flagdate>                       Flag date before which we will not request finders [default: 20151220].
+  --flagdate=<flagdate>                       Flag date before which we will not request finders [default: 20230101].
   --filters=<filters>                         Filter combination to request [default: gri].
   --singlefilter=<singlefilter>               Single filter to request [default: g].
   --downloadpath=<downloadpath>               Temporary location of image downloads [default: /tmp].
+  --nsigma=<nsigma>                           Specify a multiplier of the standard deviation to adjust the contrast [default: 2.0].
 
 E.g.:
-  %s ~/config.yaml 1130252001002421600 --ddc --update
+  %s ../../../../../atlas/config/config4_db1.yaml 1161549880293940400 --ddc --update
+  %s ../../../../../atlas/config/config4_db1.yaml --detectionlist=2 --ddc --update
+  %s ../../../../../atlas/config/config4_db1.yaml 1133923001510301000 --ddc --update --nsigma=15.0
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 
-from gkutils.commonutils import dbConnect, calculateRMSScatter, truncate, PROCESSING_FLAGS
+from gkutils.commonutils import dbConnect, calculateRMSScatter, truncate, PROCESSING_FLAGS, cleanOptions, Struct
 import sys, os, shutil, errno
 import logging
-from psat_server_web.ps1.psdb.commonqueries import getLightcurvePoints, getNonDetections, LC_POINTS_QUERY_ATLAS_DDC, filterWhereClauseddc, FILTERS
+from psat_server_web.atlas.atlas.commonqueries import getLightcurvePoints, getNonDetections, LC_POINTS_QUERY_ATLAS_DDC, filterWhereClauseddc, FILTERS
 from image_utils import addJpegCrossHairs, fitsToJpegExtension
 from pstamp_utils import createFinderImage, insertPostageStampImageRecord, GROUP_TYPE_FINDER
 from makeATLASStamps import getObjectsByList, getObjectsByCustomList, updateAtlasObjectProcessingFlag
+from getATLASForcedPhotometry import getATLASObject
 #from PIL import Image
 
 
@@ -103,7 +107,7 @@ def getSpecifiedObjects(conn, objectIds, processingFlags = PROCESSING_FLAGS['ref
     return objectList
 
 
-def grabPS1Finder(ra, dec, size, downloadPath, colourFilters='gri', singleFilter='g'):
+def grabPS1Finder(ra, dec, size, downloadPath, colourFilters='gri', singleFilter='g', downloader = None):
     """grabPS1Finder.
 
     Args:
@@ -114,7 +118,10 @@ def grabPS1Finder(ra, dec, size, downloadPath, colourFilters='gri', singleFilter
         colourFilters:
         singleFilter:
     """
-    from panstamps.downloader import downloader
+
+    if downloader is None:
+        from panstamps.downloader import downloader
+
     # Use this for the colour Finder.
 
     colourFinderJPEG = None
@@ -175,7 +182,7 @@ def grabPS1Finder(ra, dec, size, downloadPath, colourFilters='gri', singleFilter
     return finderFiles
 
 
-def generatePS1Finders(conn, hostname, database, objectList, size, downloadPath='/tmp', colourFilters='gri', singleFilter='g', ddc = False):
+def generatePS1Finders(conn, hostname, database, objectList, size, downloadPath='/tmp', colourFilters='gri', singleFilter='g', ddc = False, connSherlock = None, nsigma = 2.0):
     """generatePS1Finders.
 
     Args:
@@ -189,6 +196,13 @@ def generatePS1Finders(conn, hostname, database, objectList, size, downloadPath=
         singleFilter:
         ddc:
     """
+    if connSherlock is None:
+        connSherlock = conn
+
+    # 2023-07-05 KWS Instatiate the downloader
+    from panstamps.downloader import downloader
+
+    counter = 1
     for candidate in objectList:
         if ddc:
             p, recurrences = getLightcurvePoints(candidate['id'], lcQuery=LC_POINTS_QUERY_ATLAS_DDC + filterWhereClauseddc(FILTERS), conn = conn)
@@ -205,7 +219,8 @@ def generatePS1Finders(conn, hostname, database, objectList, size, downloadPath=
             print("Sorry - PS1 finders only available above -30 degrees declination")
             continue
 
-        finderFiles = grabPS1Finder(avgRa, avgDec, size, downloadPath=downloadPath, colourFilters=colourFilters, singleFilter=singleFilter)
+        print("Generating finder for object %d (%d)" % (candidate['id'], counter))
+        finderFiles = grabPS1Finder(avgRa, avgDec, size, downloadPath=downloadPath, colourFilters=colourFilters, singleFilter=singleFilter, downloader = downloader)
         if finderFiles['colourJPEG'] is None:
             print("Something went wrong. Aborting creation of colour finder for this object")
             continue
@@ -231,7 +246,7 @@ def generatePS1Finders(conn, hostname, database, objectList, size, downloadPath=
 
         addJpegCrossHairs(finderFiles['colourJPEG'], finderFiles['colourJPEG'], objectInfo = objectInfo, pixelScale = colourPixelScale, flip = False, negate = False, finder = True)
 
-        imageDetails = createFinderImage(conn, finderFiles['singleFilterFITS'], objectInfo = objectInfo, flip = False)
+        imageDetails = createFinderImage(connSherlock, finderFiles['singleFilterFITS'], objectInfo = objectInfo, flip = False, nsigma = nsigma)
 
         # Relocate the finders and update the database. There is no MJD with the colour
         # jpeg, so use the single filter jpeg to relocate the image to an appropriate directory.
@@ -260,6 +275,7 @@ def generatePS1Finders(conn, hostname, database, objectList, size, downloadPath=
         (imageId, imageGroupId) = insertPostageStampImageRecord(conn, imageGroupNameMono, os.path.basename(finderFiles['singleFilterFITS']), imageDetails['imageMJD'], 0, singleFilter, None,None, groupType = GROUP_TYPE_FINDER)
         # Update processing_flags for this object
         updateAtlasObjectProcessingFlag(conn, candidate, processingFlag = PROCESSING_FLAGS['reffinders'])
+        counter += 1
 
     return
 
@@ -288,6 +304,11 @@ def main(argv = None):
     database = config['databases']['local']['database']
     hostname = config['databases']['local']['hostname']
 
+    susername = config['databases']['sherlock']['username']
+    spassword = config['databases']['sherlock']['password']
+    sdatabase = config['databases']['sherlock']['database']
+    shostname = config['databases']['sherlock']['hostname']
+
     detectionList = 1
     customList = None
 
@@ -295,6 +316,9 @@ def main(argv = None):
     # 2023-03-13 KWS MySQLdb disables autocommit by default. Switch it on globally.
     conn.autocommit(True)
 
+    connSherlock = dbConnect(shostname, susername, spassword, sdatabase)
+
+    objectList = []
 
     update = options.update
     size = int(options.size)
@@ -308,7 +332,9 @@ def main(argv = None):
 
     if options.candidate is not None and len(options.candidate) > 0:
         for cand in options.candidate:
-            objectList.append({'id': int(cand)})
+            obj = getATLASObject(conn, objectId = int(cand))
+            if obj:
+                objectList.append(obj)
     else:
 
         if options.customlist is not None:
@@ -332,9 +358,10 @@ def main(argv = None):
     PSSImageRootLocation = '/' + hostname + '/images/' + database
 
 
-    generatePS1Finders(conn, hostname, database, objectList, int(options.size), downloadPath=options.downloadpath, colourFilters=options.filters, singleFilter=options.singlefilter, ddc = options.ddc)
+    generatePS1Finders(conn, hostname, database, objectList, int(options.size), downloadPath=options.downloadpath, colourFilters=options.filters, singleFilter=options.singlefilter, ddc = options.ddc, connSherlock = connSherlock, nsigma = float(options.nsigma))
 
     conn.close()
+    connSherlock.close()
 
 
 if __name__=='__main__':
