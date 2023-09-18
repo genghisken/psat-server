@@ -16,7 +16,7 @@ import MultipartPostHandler
 import http.cookiejar
 import time
 import datetime
-from gkutils.commonutils import base26, PROCESSING_FLAGS, readPhotpipeDCMPFile
+from gkutils.commonutils import base26, PROCESSING_FLAGS, readPhotpipeDCMPFile, CAT_ID_RA_DEC_COLS
 import re
 
 
@@ -984,7 +984,7 @@ def downloadFinderImage(conn, requestName, fitsRow, dataStoreFileInfo, PSSImageR
        offsetStarMagThreshold:
        dataStoreURL: The location of the data store.
    """
-   from utils import bruteForceCMFConeSearch, calculateRMSScatter
+   from gkutils.commonutils import bruteForceCMFConeSearch, calculateRMSScatter
 
    downloadStatus = False
    errorCode = fitsRow.field('ERROR_CODE')
@@ -1201,7 +1201,7 @@ def downloadFinderImage(conn, requestName, fitsRow, dataStoreFileInfo, PSSImageR
 #                So - I've abstracted the image conversion code into a separate method.
 # 2015-03-18 KWS Override finder filter (e.g. with r-band).
 
-def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = 'green1', flip = False, offsetStarSearchRadius = 120.0, offsetStarMagThreshold = 15.0, pixelScale = 0.25, offsetStarFilter = None):
+def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = 'green1', flip = False, offsetStarSearchRadius = 120.0, offsetStarMagThreshold = 15.0, pixelScale = 0.25, offsetStarFilter = None, nsigma = 2):
    """createFinderImage.
 
    Args:
@@ -1215,7 +1215,7 @@ def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = '
        pixelScale:
        offsetStarFilter:
    """
-   from utils import coneSearch, FULL, sky2xy, getOffset
+   from gkutils.commonutils import coneSearchHTM, FULL, sky2xy, getOffset
 
    # Open image & extract image MJD. Note that the images are NORMALLY compressed,
    # though occasionally they come through uncompressed.  Need to take account of
@@ -1249,14 +1249,14 @@ def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = '
    # bother reporting any.
 
 
-   catalogueName = 'tcs_cat_ps1_ubercal_stars'
+   catalogueName = 'tcs_cat_ps1_dr1'
 
    message = None
    xmObjects = []
 
    if objectInfo:
       objectInfo['filter'] = filterId[0]
-      message, xmObjects = coneSearch(objectInfo['ra'], objectInfo['dec'], offsetStarSearchRadius, catalogueName, queryType = FULL, conn = conn)
+      message, xmObjects = coneSearchHTM(objectInfo['ra'], objectInfo['dec'], offsetStarSearchRadius, catalogueName, queryType = FULL, conn = conn)
 
    searchDone = False
    # Did we search the catalogues correctly?
@@ -1275,7 +1275,7 @@ def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = '
       print("Number of stars = %d" % numberOfMatches)
 
       for row in xmObjects:
-         print(row[0], row[1][offsetStarFilter])
+         print(row[0], row[1][offsetStarFilter + 'PSFMag'])
       # In the first draft of the code, just make the results look
       # like the results from the brute force CMF search.  We can
       # do further fixes later.  We'll also arbitrarily choose the
@@ -1287,7 +1287,7 @@ def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = '
       maxNumberOfStars = 5
 
       for row in xmObjects:
-         if row[1][offsetStarFilter] and float(row[1][offsetStarFilter]) < offsetStarMagThreshold and float(row[0]) > minDistance:
+         if row[1][offsetStarFilter + 'PSFMag'] and row[1]['ps_score'] and float(row[1][offsetStarFilter + 'PSFMag']) < offsetStarMagThreshold and float(row[1]['ps_score']) > 0.9 and float(row[0]) > minDistance:
             refStars.append(row)
             xmObjects.remove(row)
             if len(refStars) >= 5:
@@ -1296,7 +1296,7 @@ def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = '
       if len(refStars) < 5:
          print("No ref stars of mag %s within specified radius %s arcsec. Attempting another search with fainter mag threshold of %s." % (offsetStarMagThreshold, offsetStarSearchRadius, offsetStarMagThreshold + 1.0))
          for row in xmObjects:
-            if row[1][offsetStarFilter] and float(row[1][offsetStarFilter]) < offsetStarMagThreshold + 1.0 and float(row[0]) > minDistance:
+            if row[1][offsetStarFilter + 'PSFMag'] and row[1]['ps_score'] and float(row[1][offsetStarFilter + 'PSFMag']) < offsetStarMagThreshold + 1.0 and float(row[1]['ps_score']) > 0.9 and float(row[0]) > minDistance:
                refStars.append(row)
                xmObjects.remove(row)
             if len(refStars) >= 5:
@@ -1305,7 +1305,7 @@ def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = '
       if len(refStars) < 5:
          print("No ref stars of mag %s within specified radius %s arcsec. Attempting another search with fainter mag threshold of %s." % (offsetStarMagThreshold + 1.0, offsetStarSearchRadius, offsetStarMagThreshold + 2.0))
          for row in xmObjects:
-            if row[1][offsetStarFilter] and float(row[1][offsetStarFilter]) < offsetStarMagThreshold + 2.0 and float(row[0]) > minDistance:
+            if row[1][offsetStarFilter + 'PSFMag'] and row[1]['ps_score'] and float(row[1][offsetStarFilter + 'PSFMag']) < offsetStarMagThreshold + 2.0 and float(row[1]['ps_score']) > 0.9 and float(row[0]) > minDistance:
                refStars.append(row)
                xmObjects.remove(row)
             if len(refStars) >= 5:
@@ -1314,7 +1314,7 @@ def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = '
       if len(refStars) < 5:
          print("No ref stars of mag %s within specified radius %s arcsec. Attempting another search with fainter mag threshold of %s." % (offsetStarMagThreshold + 2.0, offsetStarSearchRadius, offsetStarMagThreshold + 3.0))
          for row in xmObjects:
-            if row[1][offsetStarFilter] and float(row[1][offsetStarFilter]) < offsetStarMagThreshold + 3.0 and float(row[0]) > minDistance:
+            if row[1][offsetStarFilter + 'PSFMag'] and row[1]['ps_score'] and float(row[1][offsetStarFilter + 'PSFMag']) < offsetStarMagThreshold + 3.0 and float(row[1]['ps_score']) > 0.9 and float(row[0]) > minDistance:
                refStars.append(row)
                xmObjects.remove(row)
             if len(refStars) >= 5:
@@ -1331,19 +1331,19 @@ def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = '
       # has the same key value pairs as before
       # 2015-03-18 KWS Add the NE location of the offset stars
       for row in refStars:
-         x, y = sky2xy(absoluteLocalImageName, row[1]['RA'], row[1]['Dec'])
+         x, y = sky2xy(absoluteLocalImageName, row[1]['raAve'], row[1]['decAve'])
          star = {}
-         star['RA_J2000'] = row[1]['RA']
-         star['DEC_J2000'] = row[1]['Dec']
+         star['RA_J2000'] = row[1]['raAve']
+         star['DEC_J2000'] = row[1]['decAve']
          star['X_PSF'] = float(x)
          star['Y_PSF'] = float(y)
-         star['CAL_PSF_MAG'] = row[1][offsetStarFilter]
+         star['CAL_PSF_MAG'] = row[1][offsetStarFilter + 'PSFMag']
          star['filter'] = offsetStarFilter
-         star['offset'] = getOffset(row[1]['RA'], row[1]['Dec'], objectInfo['ra'], objectInfo['dec'])
+         star['offset'] = getOffset(row[1]['raAve'], row[1]['decAve'], objectInfo['ra'], objectInfo['dec'])
 
          convertedRefStars.append(star)
 
-   (maskedPixelRatio, maskedPixelRatioAtCore) = imu.convertFitsToJpegWithCrosshairs2(absoluteLocalImageName, imu.fitsToJpegExtension(absoluteLocalImageName), flip = flip, xhColor = xhColor, negate = True, nsigma = 2, objectInfo = objectInfo, standardStars = convertedRefStars, pixelScale = pixelScale)
+   (maskedPixelRatio, maskedPixelRatioAtCore) = imu.convertFitsToJpegWithCrosshairs2(absoluteLocalImageName, imu.fitsToJpegExtension(absoluteLocalImageName), flip = flip, xhColor = xhColor, negate = True, nsigma = nsigma, objectInfo = objectInfo, standardStars = convertedRefStars, pixelScale = pixelScale)
 
    imageDetails = {}
    imageDetails['maskedPixelRatio'] = maskedPixelRatio
@@ -1369,7 +1369,7 @@ def downloadFinderImage2(conn, requestName, fitsRow, dataStoreFileInfo, PSSImage
        offsetStarFilter:
        dataStoreURL: The location of the data store.
    """
-   from utils import calculateRMSScatter
+   from gkutils.commonutils import calculateRMSScatter
 
    downloadStatus = False
    errorCode = fitsRow.field('ERROR_CODE')
@@ -5257,7 +5257,7 @@ def createFakeCMFFromPhotpipeCat(filename, outputFilename = None, testData = Fal
    import csv, io
    import numpy as n
    from math import log10
-   from utils import xy2sky
+   from gkutils.commonutils import xy2sky
 
    # 2014-08-05 KWS Added Signal/Noise cut when creating the CMF file.
    SNR = 5.0
