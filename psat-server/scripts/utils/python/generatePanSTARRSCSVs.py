@@ -537,7 +537,7 @@ def main():
     conn = dbConnect(hostname, username, password, database)
 
     delimiter = options.delimiter
-    detectionLists = [int(x) for x in options.lists]
+    detectionLists = [int(x) for x in options.lists.split(',')]
 
     # If the list isn't specified assume it's the Good List.
     if options.customlist is not None:
