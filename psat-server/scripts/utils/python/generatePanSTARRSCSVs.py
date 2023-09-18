@@ -555,7 +555,7 @@ def main():
     produceGenericCSV(conn, options, delimiter, detectionLists = detectionLists, summaryCSVFilename = summaryCSVFilename, recurrenceCSVFilename = recurrenceCSVFilename, queryType = EXCLUDE_AGNS)
     #producePESSTOCSV(conn, options, hostname, database, delimiter, customList, summaryCSVFilename = summaryCSVFilename, recurrenceCSVFilename = recurrenceCSVFilename)
 
-    if writeAGNs:
+    if options.writeAGNs:
         summaryCSVFilename = '/' + hostname + '/images/' + database + '/lightcurves/' + options.summaryfileagn
         recurrenceCSVFilename = '/' + hostname + '/images/' + database + '/lightcurves/' + options.recfileagn
 
