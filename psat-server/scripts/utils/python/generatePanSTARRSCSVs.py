@@ -2,7 +2,7 @@
 """Generate CSV summary and recurrence files for (e.g.) PESSTO and YSE.
 
 Usage:
-  %s <configfile> [--lists=<lists>] [--fileroot=<fileroot>] [--delimiter=<delimiter>] [--customlist=<customlist>] [--writeAGNs] [--summaryfile=<summaryfile>] [--recfile=<recfile>] [--agnsummaryfile=<agnsummaryfile>] [--agnrecfile=<agnrecfile>]
+  %s <configfile> [--lists=<lists>] [--delimiter=<delimiter>] [--customlist=<customlist>] [--writeAGNs] [--summaryfile=<summaryfile>] [--recfile=<recfile>] [--agnsummaryfile=<agnsummaryfile>] [--agnrecfile=<agnrecfile>]
   %s (-h | --help)
   %s --version
 
@@ -11,7 +11,6 @@ Options:
   --version                          Show version.
   --lists=<lists>                    Lists to generate information for [default: 1,2,3].
   --listAGN=<listAGN>                AGN list [default: 7].
-  --fileroot=<fileroot>              Where to store the generated files [default: /db0/images].
   --delimiter=<delimiter>            Delimiter [default: |].
   --customlist=<customlist>          Custom list.
   --writeAGNs                        Write the AGNS.
@@ -550,15 +549,15 @@ def main():
 
     conn = dbConnect(hostname, username, password, database)
 
-    summaryCSVFilename = options.fileroot + '/' + database + '/lightcurves/' + options.summaryfile
-    recurrenceCSVFilename = options.fileroot + '/' + database + '/lightcurves/' + options.recfile
+    summaryCSVFilename = '/' + hostname + '/images/' + database + '/lightcurves/' + options.summaryfile
+    recurrenceCSVFilename = '/' + hostname + '/images/' + database + '/lightcurves/' + options.recfile
 
     produceGenericCSV(conn, options, delimiter, detectionLists = detectionLists, summaryCSVFilename = summaryCSVFilename, recurrenceCSVFilename = recurrenceCSVFilename, queryType = EXCLUDE_AGNS)
     #producePESSTOCSV(conn, options, hostname, database, delimiter, customList, summaryCSVFilename = summaryCSVFilename, recurrenceCSVFilename = recurrenceCSVFilename)
 
     if writeAGNs:
-        summaryCSVFilename = options.fileroot + '/' + database + '/lightcurves/' + options.summaryfileagn
-        recurrenceCSVFilename = options.fileroot + '/' + database + '/lightcurves/' + options.recfileagn
+        summaryCSVFilename = '/' + hostname + '/images/' + database + '/lightcurves/' + options.summaryfileagn
+        recurrenceCSVFilename = '/' + hostname + '/images/' + database + '/lightcurves/' + options.recfileagn
 
         produceGenericCSV(conn, options, database, delimiter, detectionLists = [int(options.agnlist)], summaryCSVFilename = summaryCSVFilename, recurrenceCSVFilename = recurrenceCSVFilename, queryType = AGNS_ONLY)
 
