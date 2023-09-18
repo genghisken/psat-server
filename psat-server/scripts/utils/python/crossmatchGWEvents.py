@@ -260,7 +260,7 @@ def crossmatchGWEvents(conn, options, event):
     print("LENGTH OF OBJECTLIST = ", len(objectList))
     if len(objectList) == 0:
         print("No objects to check")
-        print(dateThreshold)
+        print(event['dateThreshold'])
         exit(0)
 
     requestDistance = False
@@ -308,7 +308,8 @@ def crossmatchGWEvents(conn, options, event):
     if options.distances:
         distances = probs[-1]
         for i,d in enumerate(distances):
-            if isinf(d[0]):
+            # 2023-09-18 KWS Burst events have no distances
+            if d[0] is None or (d[0] is not None and isinf(d[0])):
                 distances[i] = (None, None)
 
     contours = [getContour(prob) for prob in probs[0]]
