@@ -20,7 +20,7 @@ Options:
   --agnrecfile=<agnrecfile>          AGN recurrences filename if required [agnrecurrences.csv].
 
 E.g.:
-  %s config.yaml --lists=1,2,3 --writeAGNs
+  %s ../../../../../ps13pi/config/config.yaml --lists=1,2,3 --writeAGNs
 """
 
 import sys
