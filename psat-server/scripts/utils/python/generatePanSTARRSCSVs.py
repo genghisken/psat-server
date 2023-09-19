@@ -14,10 +14,10 @@ Options:
   --delimiter=<delimiter>            Delimiter [default: |].
   --customlist=<customlist>          Custom list.
   --writeAGNs                        Write the AGNS.
-  --summaryfile=<summaryfile>        Summary filename [genericsummary.csv].
-  --recfile=<recfile>                Recurrences filename [genericrecurrences.csv].
-  --agnsummaryfile=<agnsummaryfile>  Summary filename for AGNs if required [agnsummary.csv].
-  --agnrecfile=<agnrecfile>          AGN recurrences filename if required [agnrecurrences.csv].
+  --summaryfile=<summaryfile>        Summary filename [default: genericsummary.csv].
+  --recfile=<recfile>                Recurrences filename [default: genericrecurrences.csv].
+  --agnsummaryfile=<agnsummaryfile>  Summary filename for AGNs if required [default: agnsummary.csv].
+  --agnrecfile=<agnrecfile>          AGN recurrences filename if required [default: agnrecurrences.csv].
 
 E.g.:
   %s ../../../../../ps1yse/config/config.yaml --lists=1,2,3 --writeAGNs
