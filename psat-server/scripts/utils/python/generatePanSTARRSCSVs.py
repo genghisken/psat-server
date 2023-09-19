@@ -2,7 +2,7 @@
 """Generate CSV summary and recurrence files for (e.g.) PESSTO and YSE.
 
 Usage:
-  %s <configfile> [--lists=<lists>] [--delimiter=<delimiter>] [--customlist=<customlist>] [--writeAGNs] [--summaryfile=<summaryfile>] [--recfile=<recfile>] [--agnsummaryfile=<agnsummaryfile>] [--agnrecfile=<agnrecfile>]
+  %s <configfile> [--lists=<lists>] [--listAGN=<listAGN>] [--delimiter=<delimiter>] [--customlist=<customlist>] [--writeAGNs] [--summaryfile=<summaryfile>] [--recfile=<recfile>] [--agnsummaryfile=<agnsummaryfile>] [--agnrecfile=<agnrecfile>]
   %s (-h | --help)
   %s --version
 
