@@ -9,7 +9,7 @@ Usage:
 Options:
   -h --help                          Show this screen.
   --version                          Show version.
-  --lists=<lists>                    Lists to generate information for [default: 1,2,3].
+  --lists=<lists>                    Lists to generate information for [default: 1,2].
   --listAGN=<listAGN>                AGN list [default: 7].
   --delimiter=<delimiter>            Delimiter [default: |].
   --customlist=<customlist>          Custom list.
@@ -20,7 +20,7 @@ Options:
   --agnrecfile=<agnrecfile>          AGN recurrences filename if required [agnrecurrences.csv].
 
 E.g.:
-  %s ../../../../../ps13pi/config/config.yaml --lists=1,2,3 --writeAGNs
+  %s ../../../../../ps1yse/config/config.yaml --lists=1,2,3 --writeAGNs
 """
 
 import sys
