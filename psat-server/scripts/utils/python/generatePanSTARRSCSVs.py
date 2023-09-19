@@ -559,7 +559,7 @@ def main():
         summaryCSVFilename = '/' + hostname + '/images/' + database + '/lightcurves/' + options.agnsummaryfile
         recurrenceCSVFilename = '/' + hostname + '/images/' + database + '/lightcurves/' + options.agnrecfile
 
-        produceGenericCSV(conn, options, database, delimiter, detectionLists = [int(options.listAGN)], summaryCSVFilename = summaryCSVFilename, recurrenceCSVFilename = recurrenceCSVFilename, queryType = AGNS_ONLY)
+        produceGenericCSV(conn, options, delimiter, detectionLists = [int(options.listAGN)], summaryCSVFilename = summaryCSVFilename, recurrenceCSVFilename = recurrenceCSVFilename, queryType = AGNS_ONLY)
 
     conn.close ()
 
