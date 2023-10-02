@@ -1355,7 +1355,7 @@ def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = '
 
 # 2015-02-24 KWS Download finder images, but use PS1 Ubercal Star catalog.
 # 2015-03-18 KWS Override finder filter (e.g. with r-band).
-def downloadFinderImage2(conn, requestName, fitsRow, dataStoreFileInfo, PSSImageRootLocation, offsetStarSearchRadius = 120.0, offsetStarMagThreshold = 15.0, offsetStarFilter = None, dataStoreURL = None):
+def downloadFinderImage2(conn, requestName, fitsRow, dataStoreFileInfo, PSSImageRootLocation, offsetStarSearchRadius = 120.0, offsetStarMagThreshold = 15.0, offsetStarFilter = None, dataStoreURL = None, nsigma = 2.0):
    """downloadFinderImage2.
 
    Args:
@@ -1487,7 +1487,7 @@ def downloadFinderImage2(conn, requestName, fitsRow, dataStoreFileInfo, PSSImage
    objectInfo['ra'] = avgRa
    objectInfo['dec'] = avgDec
 
-   imageDetails = createFinderImage(conn, absoluteLocalImageName, objectInfo, xhColor = xhColor, flip = flip, offsetStarSearchRadius = offsetStarSearchRadius, offsetStarMagThreshold = offsetStarMagThreshold, pixelScale = pixelScale, offsetStarFilter = offsetStarFilter)
+   imageDetails = createFinderImage(conn, absoluteLocalImageName, objectInfo, xhColor = xhColor, flip = flip, offsetStarSearchRadius = offsetStarSearchRadius, offsetStarMagThreshold = offsetStarMagThreshold, pixelScale = pixelScale, offsetStarFilter = offsetStarFilter, nsigma = nsigma)
 
    # Create an image record using IMG_NAME and COMMENT
    # This call also makes the association of the the image group with the
