@@ -19,10 +19,12 @@ E.g.:
 import sys
 __doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
-
-from pstamp_utils import insertPostageStampImageRecord, downloadFinderImage2, findDictInDictList, GROUP_TYPE_FINDER, ERROR_FILE_NOT_IN_DATASTORE_INDEX, BAD_SERVER_ADDRESS, PAGE_NOT_FOUND, HTTP_ERROR, SUBMITTED, COMPLETE, COMMUNICATION_ERROR, TIMEOUT, FINDER_REQUEST_V2
+from gkutils.commonutils import dbConnect, calculateRMSScatter, truncate, PROCESSING_FLAGS, cleanOptions, Struct
+from pstamp_utils import getPSRequestList, insertPostageStampImageRecord, downloadFinderImage2, findDictInDictList, GROUP_TYPE_FINDER, ERROR_FILE_NOT_IN_DATASTORE_INDEX, BAD_SERVER_ADDRESS, PAGE_NOT_FOUND, HTTP_ERROR, SUBMITTED, COMPLETE, COMMUNICATION_ERROR, TIMEOUT, FINDER_REQUEST_V2, DOWNLOADING, updateRequestStatus, getDataStoreIndex, parseIndexList, updateDownloadAttempts
 
 import os
+import requests, urllib
+from astropy.io import fits as pf
 
 # 2014-03-08 KWS New code for Finders
 # Created a copy of pstamp_get_results to get Finder results.
@@ -68,7 +70,7 @@ def downloadAndRenameResultsFile(options, resultsFileInfo, requestName, download
    return localResultsFile
 
 
-def downloadAllFinderImages(conn, options, requestName, PSSImageRootLocation, offsetStarFilter = None, downloadURL = None, nsigma = 2.0):
+def downloadAllFinderImages(conn, options, requestName, PSSImageRootLocation, offsetStarFilter = None, downloadURL = None, nsigma = 2.0, connSherlock = None):
    """downloadAllFinderImages.
 
    Args:
@@ -78,9 +80,13 @@ def downloadAllFinderImages(conn, options, requestName, PSSImageRootLocation, of
        PSSImageRootLocation:
        offsetStarFilter:
        downloadURL:
+       connSherlock:
    """
 
-   (indexFile, errorCode) = getDataStoreIndex(requestName)
+   if connSherlock is None:
+      connSherlock = conn
+
+   (indexFile, errorCode) = getDataStoreIndex(requestName, dataStoreURL = downloadURL)
 
    if (errorCode == BAD_SERVER_ADDRESS):
       # We can't continue.  Might as well give up. Someone has moved the PSS
@@ -107,7 +113,7 @@ def downloadAllFinderImages(conn, options, requestName, PSSImageRootLocation, of
          return (1)
 
       resultsFileInfo = dataStoreFileInfoList[0][0]
-      localResultsFile = downloadAndRenameResultsFile(resultsFileInfo, requestName)
+      localResultsFile = downloadAndRenameResultsFile(options, resultsFileInfo, requestName, downloadURL = downloadURL)
 
       if not localResultsFile:
          print("Results file error. Cannot continue...")
@@ -132,7 +138,7 @@ def downloadAllFinderImages(conn, options, requestName, PSSImageRootLocation, of
                   recordId = insertPostageStampImageRecord(conn, fitsRow.field('COMMENT') + 'finder', None, None, ERROR_FILE_NOT_IN_DATASTORE_INDEX, groupType=GROUP_TYPE_FINDER)
                else:
                   print("Downloading image...")
-                  downloadStatus = downloadFinderImage2(conn, requestName, fitsRow, dataStoreFileInfo, PSSImageRootLocation, offsetStarFilter = offsetStarFilter, downloadURL = downloadURL, nsigma = nsigma)
+                  downloadStatus = downloadFinderImage2(conn, requestName, fitsRow, dataStoreFileInfo, PSSImageRootLocation, offsetStarFilter = offsetStarFilter, dataStoreURL = downloadURL, nsigma = nsigma, connSherlock = connSherlock)
                   if downloadStatus == True:
                      print("Downloaded the image successfully.")
                   else:
@@ -149,7 +155,7 @@ def downloadAllFinderImages(conn, options, requestName, PSSImageRootLocation, of
 
 
 
-def downloadPostageStampResults(conn, options, psRequests, PSSImageRootLocation, offsetStarFilter = None, downloadURL = None, nsigma = 2.0):
+def downloadPostageStampResults(conn, options, psRequests, PSSImageRootLocation, offsetStarFilter = None, downloadURL = None, nsigma = 2.0, connSherlock = None):
    """downloadPostageStampResults.
 
    Args:
@@ -159,6 +165,7 @@ def downloadPostageStampResults(conn, options, psRequests, PSSImageRootLocation,
        PSSImageRootLocation:
        offsetStarFilter:
        downloadURL:
+       connSherlock:
    """
 
    # Update the status to "downloading"
@@ -176,7 +183,7 @@ def downloadPostageStampResults(conn, options, psRequests, PSSImageRootLocation,
       for row in psRequests:
          requestName = row["name"]
          print("Processing Request: %s" % requestName)
-         if downloadAllFinderImages(conn, options, requestName, PSSImageRootLocation, offsetStarFilter = offsetStarFilter, downloadURL = downloadURL, nsigma = nsigma) == 0:
+         if downloadAllFinderImages(conn, options, requestName, PSSImageRootLocation, offsetStarFilter = offsetStarFilter, downloadURL = downloadURL, nsigma = nsigma, connSherlock = connSherlock) == 0:
             # Update the request status
             if (updateRequestStatus(conn, requestName, COMPLETE) > 0):
                print("Successfully downloaded request from Postage Stamp Server and updated database.")
@@ -218,14 +225,20 @@ def main(argv = None):
    database = config['databases']['local']['database']
    hostname = config['databases']['local']['hostname']
 
+   susername = config['databases']['sherlock']['username']
+   spassword = config['databases']['sherlock']['password']
+   sdatabase = config['databases']['sherlock']['database']
+   shostname = config['databases']['sherlock']['hostname']
+
    downloadURL = None
    try:
       downloadURL = config['postage_stamp_parameters']['downloadurl']
    except KeyError as e:
       print("Cannot find the download URL. Exiting.")
-      exit(1)
+      sys.exit(1)
 
    conn = dbConnect(hostname, username, password, database)
+   connSherlock = dbConnect(shostname, susername, spassword, sdatabase)
 
    # The Image Root Location will be dependent on the name of the database.
    PSSImageRootLocation = '/' + hostname + '/images/' + database
@@ -246,7 +259,9 @@ def main(argv = None):
    if communicationErrorRequests:
       psRequests += communicationErrorRequests
 
-   downloadPostageStampResults(conn, options, psRequests, PSSImageRootLocation, offsetStarFilter = 'r', downloadURL = downloadURL, nsigma = float(options.nsigma))
+   downloadPostageStampResults(conn, options, psRequests, PSSImageRootLocation, offsetStarFilter = 'r', downloadURL = downloadURL, nsigma = float(options.nsigma), connSherlock = connSherlock)
+   conn.close()
+   connSherlock.close()
 
 
 

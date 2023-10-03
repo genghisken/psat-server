@@ -22,14 +22,18 @@ E.g.:
   %s ../../../../../ps13pi/config/config.yaml --detectionlist=2 --update
 """
 
-import sys
+import sys, os
 __doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 
-from pstamp_utils import sendPSRequest, writeFinderPostageStampRequestById, getObjectsByList, getObjectsByCustomList
-from gkutils.commonutils import PROCESSING_FLAGS, dbConnect
+from pstamp_utils import sendPSRequest, writeFinderPostageStampRequestById, getObjectsByList, getObjectsByCustomList, getAverageCoordinates, searchRecurrentObjectsForFinder, addRequestToDatabase, FINDER_REQUEST_V2, addRequestIdToTransients, updateRequestStatus, SUBMITTED
+from gkutils.commonutils import dbConnect, calculateRMSScatter, truncate, PROCESSING_FLAGS, cleanOptions, Struct
+import datetime, time
 
 import MySQLdb
+
+requestPrefix = "qub_ps_request"
+requestHome = '/' + os.uname()[1].split('.')[0] + '/ingest/pstamp/requests'
 
 # ###########################################################################################
 #                                         Main program
@@ -71,6 +75,9 @@ def main(argv = None):
    database = config['databases']['local']['database']
    hostname = config['databases']['local']['hostname']
 
+   stampUsername = config['web_credentials']['ps1md']['username']
+   stampPassword = config['web_credentials']['ps1md']['password']
+
    email = 'qub2@qub.ac.uk'
    camera = 'gpc1'
 
@@ -85,6 +92,7 @@ def main(argv = None):
       pass
 
    uploadURL = config['postage_stamp_parameters']['uploadurl']
+   downloadURL = config['postage_stamp_parameters']['downloadurl']
 
    sizeInArcsec = int(options.size)
 
@@ -143,7 +151,7 @@ def main(argv = None):
    # We need to split our requests so that the postage stamp server can handle them efficiently
    arrayLength = len(objectList)
    maxNumberOfCandidates = 20
-   numberOfIterations = arrayLength/maxNumberOfCandidates
+   numberOfIterations = int(arrayLength/maxNumberOfCandidates)
 
    # Check to see if we need an extra iteration to clean up the end of the array
    if arrayLength%maxNumberOfCandidates != 0:
@@ -198,7 +206,7 @@ def main(argv = None):
          print("Just testing...  No requests sent.")
          continue
 
-      writeFinderPostageStampRequestById(conn, gpc1Conn, requestFileName, requestName, results, sizeInArcsec, imageType = imageType, email = email, camera = camera)
+      writeFinderPostageStampRequestById(conn, None, requestFileName, requestName, results, sizeInArcsec, imageType = imageType, email = email, camera = camera)
 
       sqlCurrentDate = "%s-%s-%s %s:%s:%s" % (year, month, day, hour, min, sec)
 
@@ -207,11 +215,11 @@ def main(argv = None):
       psRequestId = addRequestToDatabase(conn, requestName, sqlCurrentDate, requestType=FINDER_REQUEST_V2)
 
       if (psRequestId > 0):
-         pssServerId = sendPSRequest(requestFileName, requestName, uploadURL = uploadURL)
+         pssServerId = sendPSRequest(requestFileName, requestName, username = stampUsername, password = stampPassword, postageStampServerURL = uploadURL)
 
          if (pssServerId >= 0):
             addRequestIdToTransients(conn, psRequestId, [candidate['id'] for candidate in candidateArray], processingFlag = processingFlag)
-            print("Predicted URL is: %s" % dataStoreURL + requestName)
+            print("Predicted URL is: %s" % downloadURL + requestName)
             if (updateRequestStatus(conn, requestName, SUBMITTED, pssServerId) > 0):
                print("Successfully submitted job to Postage Stamp Server and updated database.")
             else:
