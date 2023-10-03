@@ -12,7 +12,7 @@ Options:
   --update                                    Update the database
   --detectionlist=<detectionlist>             List option
   --customlist=<customlist>                   Custom List option
-  --size=<size>                               Size of the stamp in arcsec [default: 240].
+  --size=<size>                               Size of the stamp in arcsec [default: 250].
   --flagdate=<flagdate>                       Flag date before which we will not request finders [default: 20230101].
   --target                                    Request the target image, not the reference image.
   --test                                      Just testing.
