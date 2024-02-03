@@ -89,22 +89,29 @@ IPP_IDET_NON_DETECTION_VALUE = 4300000000
 GROUP_TYPE_FINDER = 1
 
 # MD5 sum program - stolen from the interweb...
-def md5(fileName, excludeLine="", includeLine=""):
-   """Compute md5 hash of the specified file"""
-   m = hashlib.md5()
-   try:
-      fd = open(fileName,"rb")
-   except IOError:
-      print("Unable to open the file in readmode:", fileName)
-      return
-   content = fd.readlines()
-   fd.close()
-   for eachLine in content:
-      if excludeLine and eachLine.startswith(excludeLine):
-         continue
-      m.update(eachLine)
-   m.update(includeLine)
-   return m.hexdigest()
+# def md5(fileName, excludeLine="", includeLine=""):
+#    """Compute md5 hash of the specified file"""
+#    m = hashlib.md5()
+#    try:
+#       fd = open(fileName,"rb")
+#    except IOError:
+#       print("Unable to open the file in readmode:", fileName)
+#       return
+#    content = fd.readlines()
+#    fd.close()
+#    for eachLine in content:
+#       if excludeLine and eachLine.startswith(excludeLine):
+#          continue
+#       m.update(eachLine)
+#    m.update(includeLine)
+#    return m.hexdigest()
+
+def md5(filename, blocksize=65536):
+    hash = hashlib.md5()
+    with open(filename, "rb") as f:
+        for block in iter(lambda: f.read(blocksize), b""):
+            hash.update(block)
+    return hash.hexdigest()
 
 
 def dbConnect(lhost, luser, lpasswd, ldb, quitOnError=True):
@@ -1274,8 +1281,9 @@ def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = '
       numberOfMatches = len(xmObjects)
       print("Number of stars = %d" % numberOfMatches)
 
-      for row in xmObjects:
-         print(row[0], row[1][offsetStarFilter + 'PSFMag'])
+      #for row in xmObjects:
+      #   print(row[0], row[1][offsetStarFilter + 'PSFMag'])
+
       # In the first draft of the code, just make the results look
       # like the results from the brute force CMF search.  We can
       # do further fixes later.  We'll also arbitrarily choose the
@@ -1355,7 +1363,7 @@ def createFinderImage(conn, absoluteLocalImageName, objectInfo = {}, xhColor = '
 
 # 2015-02-24 KWS Download finder images, but use PS1 Ubercal Star catalog.
 # 2015-03-18 KWS Override finder filter (e.g. with r-band).
-def downloadFinderImage2(conn, requestName, fitsRow, dataStoreFileInfo, PSSImageRootLocation, offsetStarSearchRadius = 120.0, offsetStarMagThreshold = 15.0, offsetStarFilter = None, dataStoreURL = None):
+def downloadFinderImage2(conn, requestName, fitsRow, dataStoreFileInfo, PSSImageRootLocation, offsetStarSearchRadius = 120.0, offsetStarMagThreshold = 15.0, offsetStarFilter = None, dataStoreURL = None, nsigma = 2.0, connSherlock = None):
    """downloadFinderImage2.
 
    Args:
@@ -1368,8 +1376,12 @@ def downloadFinderImage2(conn, requestName, fitsRow, dataStoreFileInfo, PSSImage
        offsetStarMagThreshold:
        offsetStarFilter:
        dataStoreURL: The location of the data store.
+       connSherlock:
    """
    from gkutils.commonutils import calculateRMSScatter
+
+   if connSherlock is None:
+      connSherlock = conn
 
    downloadStatus = False
    errorCode = fitsRow.field('ERROR_CODE')
@@ -1487,7 +1499,7 @@ def downloadFinderImage2(conn, requestName, fitsRow, dataStoreFileInfo, PSSImage
    objectInfo['ra'] = avgRa
    objectInfo['dec'] = avgDec
 
-   imageDetails = createFinderImage(conn, absoluteLocalImageName, objectInfo, xhColor = xhColor, flip = flip, offsetStarSearchRadius = offsetStarSearchRadius, offsetStarMagThreshold = offsetStarMagThreshold, pixelScale = pixelScale, offsetStarFilter = offsetStarFilter)
+   imageDetails = createFinderImage(connSherlock, absoluteLocalImageName, objectInfo, xhColor = xhColor, flip = flip, offsetStarSearchRadius = offsetStarSearchRadius, offsetStarMagThreshold = offsetStarMagThreshold, pixelScale = pixelScale, offsetStarFilter = offsetStarFilter, nsigma = nsigma)
 
    # Create an image record using IMG_NAME and COMMENT
    # This call also makes the association of the the image group with the
@@ -1498,6 +1510,9 @@ def downloadFinderImage2(conn, requestName, fitsRow, dataStoreFileInfo, PSSImage
 
    return downloadStatus
 
+
+# 2023-10-03 KWS Will move this eventually to requests. In the meantime for python 3 need
+#                to add .decode('utf-8').
 
 def getDataStoreIndex(requestName, dataStoreURL = None):
    """getDataStoreIndex.
@@ -1512,7 +1527,7 @@ def getDataStoreIndex(requestName, dataStoreURL = None):
 
    try:
       req = urllib.request.Request(url)
-      dsResponsePage = urllib.request.urlopen(req).read()
+      dsResponsePage = urllib.request.urlopen(req).read().decode('utf-8')
 
    except urllib.error.HTTPError as e:
       if e.code == 404:
