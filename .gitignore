@@ -42,6 +42,7 @@ HTMCircleAllIDs
 code/htm/Makefile
 intersect
 lookup
+fits2jpeg
 
 # Symlinks and directories
 data
