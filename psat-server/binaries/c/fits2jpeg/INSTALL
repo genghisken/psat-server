@@ -5,12 +5,12 @@ Locate the CFITSIO libraries - usually in my installations they live in
 So...
 
 export BASE=/usr/local/swtools
-export INCDIR=$(BASE)/include
-export LIBDIR=$(BASE)/lib
+export INCDIR=${BASE}/include
+export LIBDIR=${BASE}/lib
 
 make
 
-mkdir -p $(BASE)/bin
+mkdir -p ${BASE}/bin
 
-cp -p fits2jpeg $(BASE)/bin
+cp -p fits2jpeg ${BASE}/bin
 
