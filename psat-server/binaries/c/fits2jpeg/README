@@ -1,0 +1,90 @@
+                          FITS2jpeg
+-----------------------------------------------------------------------
+  Copyright (C) 1996
+  Associated Universities, Inc. Washington DC, USA.
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  Correspondence concerning this software should be addressed as follows:
+         Internet email: bcotton@nrao.edu.
+         Postal address: William Cotton
+                         National Radio Astronomy Observatory
+                         520 Edgemont Road
+                         Charlottesville, VA 22903-2475 USA
+-----------------------------------------------------------------------
+
+
+   FITS2jpeg is a program to convert a FITS image file to a jpeg image.
+Some control over the range of pixels and mapping function is included.
+
+Unix Installation
+---- ------------
+
+   FITS2jpeg consists of a program that calls the cfitsio package of
+Bill Pence et al. at NASA and the Independent JPEG Group's JPEG
+software.  Before installing FITS2jpeg the cfitsio and JPEG packages
+must first be installed.  cfitsio is obtainable via anonymous ftp
+ftp://legacy.gsfc.nasa.gov/software/fitsio/c/cfitsio104.tar.Z.  
+The jpeg software is available as 
+ftp://ftp.uu.net/graphics/jpeg/jpegsrc.v6a.tar.gz) 
+
+   The Makefile may need to be edited to point to the correct
+directory for the fitsio library (libfitsio.a) and jpeg libraries
+(libjpeg.a) and possibly the name and options for the c compiler.  
+The resulting executable is fits2jpeg.  After suitable modification of
+the Makefile, the command:
+% make
+should build fits2jpeg/
+
+Usage
+-----
+
+   fits2jpeg converts an image in FITS (astronomical) format to a jpeg
+grayscale image.  In this process all astronomical information is
+lost.  Only the first plane of the FITS image is used.
+   Astronomical images frequently have a higher dynamic range (ratio
+of brightest to faintest structure) than can be achieved in linear
+conversion to a picture.  fits2jpeg provides a number of options to
+help select the portion of the range of pixel values to display and
+their mapping to gray levels in the output jpeg file.
+
+
+   The usage of fits2jpeg is as follows:
+
+    Usage: fits2jpeg -fits input_file -jpeg output_file [options]
+         Options:
+           -nonLinear
+           -max max_image_value
+           -min min_image_value
+           -quality image_quality
+
+Translation is done file-to-file and there are no defaults for the
+input and out file names.
+
+Options:
+
+nonLinear  This causes the mapping of FITS pixel values to jpeg
+           grayscale colors to use a nonlinear (square root) function
+           to emphasize the lower levels in the image.  This generally
+           increases the effective dynamic range of the resultant
+           image.  The default is a linear mapping.
+
+max,min    The maximum and minimum values to be displayed can be
+           specified.  Pixels with values greater than the value
+           specified by max are given the same grayscale as the
+           maximum specified and values less that that specified by
+           min are given the same grayscale as the minimum.  The
+           specified values may be adjusted to fall within the range
+           of values actually present.  The default is to display the
+           full range of values in the image. 
+
+quality    This value specifies the desired quality of the image in
+           the range 1 to 100.  The higher the quality the larger the
+           resultant file.  The default is 100
