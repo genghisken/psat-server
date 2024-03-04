@@ -35,7 +35,7 @@ Options:
 
 E.g.:
   %s publicuser publicpass public db1 atlas4 --ddc --list=5 --copyimages
-  %s publicuser publicpass public db1 atlas4 --ddc --list=1,2,3,5,7,8,9,10 --copyimages
+  %s publicuser publicpass public db1 atlas4 --ddc --list=1,2,3,5,7,8,9,10,11 --copyimages
 
 """
 import sys
