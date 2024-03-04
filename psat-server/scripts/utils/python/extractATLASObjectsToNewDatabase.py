@@ -354,6 +354,7 @@ def truncateAllTables(conn, newSchema):
     truncateTable(conn, 'atlas_diff_subcells', newSchema)
     truncateTable(conn, 'atlas_diff_subcell_logs', newSchema)
     truncateTable(conn, 'tcs_gravity_alerts', newSchema)
+    truncateTable(conn, 'tcs_vra_scores', newSchema)
 
 def insertAllRecords(conn, tableName, sourceReadOnlySchema, newSchema):
     """For meta files we need ALL of them to allow plotting of arrows on lightcurves"""
@@ -453,6 +454,7 @@ def copyImages(conn, objectId, sourceReadOnlySchema, newSchema, imageRootSource,
 #                e.g. when we announce a discovery ATel.  Hence allow publishing of the
 #                sublist without trashing the entire database.
 # 2017-05-10 KWS Added the new tcs_object_comments table
+# 2024-03-04 KWS Added the new tcs_vra_scores table
 def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnlySchema, ddc = False, copyimages = False, imageRootSource = None, imageRootDestination = None):
 
     # Now add the objects one-at-a time.  The advantage of doing it this way is
@@ -482,6 +484,7 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
         insertRecordLike(conn, 'tcs_images', object['id'], 'target', sourceReadOnlySchema, newSchema)
         insertRecord(conn, 'tcs_gravity_event_annotations', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
         insertRecord(conn, 'tcs_zooniverse_scores', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
+        insertRecord(conn, 'tcs_vra_scores', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
 
         # Create a dummy recurrence so we can reuse existing code.
         recurrence = EmptyRecurreces()
