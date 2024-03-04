@@ -1,0 +1,6 @@
+version: 1
+
+api:
+    url:    https/<server>/api/
+    token:  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
