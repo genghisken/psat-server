@@ -66,6 +66,10 @@ def main():
 
     data = readGenericDataFile(options.rbscorescsv, fieldnames = ['objectid', 'score'], delimiter = ',')
 
+    if len(data) == 0:
+        print("There are no objects to insert into the VRA table.")
+        return
+
     for row in data:
         #print(row['objectid'], row['score'])
         insertVRAEntry(apiURL, apiToken, row['objectid'], row['score'])
