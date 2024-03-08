@@ -66,52 +66,116 @@ def runUpdates(options):
       - output the list of ATLAS 19 digit IDs and timestamps (in pairs).
     """
 
+    # Find the date from which we want to check for new information
     date_threshold = (datetime.now() - timedelta(days=float(options.ndays))).strftime("%Y-%m-%d %H:%M:%S")
     payload = {'datethreshold': date_threshold}
-    request_vra_scores = atlasapi.RequestVRAScores(api_config_file=api_config,
-                                                   payload = payload,
-                                                   get_response = True
-                                                   )
-    vra_df = pd.DataFrame(request_vra_scores.response)
-    unique_transient_ids = set(vra_df.transient_object_id.values)
-    transient_ids_with_decisions = set(vra_df[~vra_df.username.isnull()].transient_object_id.values)
-    set_to_update = unique_transient_ids - transient_ids_with_decisions
-    print(vra_df[np.isin(vra_df.transient_object_id.values, list(set_to_update))][['transient_object_id','timestamp']].drop_duplicates(subset='transient_object_id', keep='last'))
 
+    # Setup the request VRA scores utility with the VRA token & username.
+    request_vra_scores = atlasapi.RequestVRAScores(api_config_file=api_config,  # Config file defined above
+                                                   payload = payload,           # Payload to API just includes date threshold
+                                                   get_response = True          # Query the server on instantiation.
+                                                   )
+
+    vra_df = pd.DataFrame(request_vra_scores.response)                          # Use Pandas to handle cuts below witht having to use loops.
+
+    # Find the unique transient_object_ids of the objects that need updating.
+    unique_transient_ids = set(vra_df.transient_object_id.values)               # All unique transient IDs in the VRA table for the last N days.
+    transient_ids_with_decisions = set(vra_df[~vra_df.username.isnull()         # Find unique IDs of objects with human decisions (username is not null)
+                                             ].transient_object_id.values)
+    set_to_update = unique_transient_ids - transient_ids_with_decisions         # Object to update are ONLY those WITHOUT a human decision.
+
+    # Find the last time an object was updated in the VRA table.
+    last_vra_timestamps = vra_df[np.isin(vra_df.transient_object_id.values,     # Only select transient_object_ids of objects we want to update. Must be values - returns numpy array.
+                                         list(set_to_update))                   # Can't use a set - must be a list.
+                                ][['transient_object_id','timestamp']
+                                 ].drop_duplicates(subset='transient_object_id',# Remove duplicate rows and only keep the last one
+                                                   keep='last')
+    last_vra_timestamps.set_index('transient_object_id', inplace=True)          # Use transient_object_id as index for convenience.
+
+    # Now go and fetch all the info pertaining to each of the objects above since our date threshold.
+    # Instantiate the object that makes the API call, but don't actually do it yet.
     request_data = atlasapi.RequestMultipleSourceData(api_config_file=api_config,
-                                                     array_ids=np.array(list(set_to_update))[:2],
+                                                     array_ids=np.array(list(set_to_update)),
                                                      mjdthreshold = getMJDFromSqlDate(date_threshold)
                                                      )
-    request_data.chunk_get_response_quiet()
 
-    first_response = request_data.response[0]
-    data_lc = pd.DataFrame(first_response['lc'])
-    data_lcnondets = pd.DataFrame(first_response['lcnondets'])
-    data_lcnondets['magerr'] = 0.0
+    # Chunks the API calls into payloads containing the max number of object that API can handle.
+    #request_data.chunk_get_response_quiet()                                     # Quiet mode doen't print a progress bar.
+    request_data.chunk_get_response()                                     # Quiet mode doen't print a progress bar.
 
-    data_lc = data_lc[['mjd','filter','mag','magerr','date_inserted']]
-    data_lc['det'] = 1
-    data_lcnondets = data_lcnondets[['mjd','filter','mag5sig','magerr','date_inserted']]
-    data_lcnondets.columns=['mjd','filter','mag','magerr','date_inserted']
-    data_lcnondets['det'] = 0
-    data_all = pd.concat([data_lc, data_lcnondets]).sort_values('mjd').reset_index(drop=True)
-    print(data_all.head())
+    # Now iterate over each object we want to update.
 
-    #for 
-    #if no recent data:
-    #   Do nowt.
-    #if recent detection:
-    #   preal = 1
-    #elif recent non-detection and non-detection (mag5sig) fainter than previous detection
-    #   preal = 0
-    #elif recent non-detection and non-detection brighter than previous detection
-    #   new row preal unchanged, new timestamp
+    writeto_vra = atlasapi.WriteToVRAScores(api_config_file=api_config)         # Instantiate the WriteToVRAScores API connector. We only need to do this once.
+
+    for i in range(len(request_data.response)):
+        _response = request_data.response[i]                                                       # the response for one object
+        data_lc = pd.DataFrame(_response['lc'])                                                    # store the det info in a pd dataframe
+        data_lcnondets = pd.DataFrame(_response['lcnondets'])                                      # ditto for nondets
+
+        # If statements to handle cases where there may not be any detections or nondetections
+        if data_lc.shape[0] == 0:
+            data_lc = None
+        else:
+            # do the operations on data_lc
+            data_lc = data_lc[['mjd','filter','mag','magerr','date_inserted']]                         # Only select the columns we need from the det dataframe
+            data_lc['det'] = 1                                                                         # Add new column to indicate that these are detections.
 
 
+        if data_lcnondets.shape[0] == 0:
+            data_nondets = None
+        else:
+            # do the operations on data_lcnondets
+            data_lcnondets['magerr'] = 0.0                                                             # add a magerr column & set to zero for nondets
+            data_lcnondets = data_lcnondets[['mjd','filter','mag5sig','magerr','date_inserted']]       # Select the columns we need for nondets.
+            data_lcnondets.columns=['mjd','filter','mag','magerr','date_inserted']                     # Need to rename the columns so that we can concatenate later on (mag5sig -> mag)
+                                                                                                       # Needed so that we can concatenate dataframes later on
+            data_lcnondets['det'] = 0                                                                  # Add a new column to indicate that these are nondetections.
 
 
-    first_object = request_data.response[0]
-    print(len(first_object['lc']), len(first_object['lcnondets']))
+
+        #print(data_lcnondets.columns)
+        #print(data_lcnondets)
+
+        if data_lc is None:
+            data_all = data_lcnondets
+        elif data_lcnondets is None:
+            data_all = data_lc
+        elif data_lcnondets is not None and data_lc is not None:
+            data_all = pd.concat([data_lc, data_lcnondets]                                             # Concatenate dets and nondets to make full lightcurve
+                                ).sort_values('mjd').reset_index(drop=True)                            # We also sort by mjd and reset the pandas index so that it's sequential and unique
+        else:
+            # There are neither detections nor non detections (both are None).
+            # This shouldn't happen, but could in the situation that database has
+            # been cleansed.
+            continue
+
+        #print(data_all.date_inserted.values)
+        #print(last_vra_timestamps.loc[_response['object']['id']].values)
+
+        # _response['object']['id'] is the unique ATLAS ID for this object.
+        # We use it to locate the last time it was updated in the VRA table using last_vra_timestamps dataframe
+        # We look for all the rows in our lightcurve (data_all) that are more recent than the last update.
+        _transient_object_id = _response['object']['id']
+        data_new = data_all[data_all.date_inserted.values > last_vra_timestamps.loc[_transient_object_id].values]
+
+        if data_new.shape[0] == 0:
+             continue                                                                              # If the dataframe is empty, move on to the next iteration.
+        else:
+             # TODO - possibly be smarter about case where there more than one night of new data available.
+             mask_latest_night = (data_new.mjd.max() - data_new.mjd.values) < 1
+             data_latest_night = data_new[mask_latest_night]
+
+             # First bit of logic - if more than half data is detections, preal = 1, otherwise preal = 0
+             _preal = data_latest_night.det.sum() // data_latest_night.shape[0]
+             # Insert the VRA entry into the table.
+
+             writeto_vra.payload = {'objectid': int(_transient_object_id),
+                                    'preal': float(_preal),
+                                    'debug': 1,
+                                   }
+             writeto_vra.get_response()
+
+
 
 
 def main():
