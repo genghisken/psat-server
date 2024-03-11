@@ -1,0 +1,16 @@
+astropy==5.3.3
+certifi==2023.7.22
+charset-normalizer==3.3.0
+docopt==0.6.2
+gkdbutils==0.0.15
+gkhtm==0.0.8
+gkutils==0.2.25
+idna==3.4
+mysqlclient==2.1.1
+numpy==1.26.0
+packaging==23.2
+Pillow==10.0.1
+pyerfa==2.0.0.3
+PyYAML==6.0.1
+requests==2.31.0
+urllib3==2.0.6
