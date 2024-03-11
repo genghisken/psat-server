@@ -1,34 +1,37 @@
-astropy @ file:///home/conda/feedstock_root/build_artifacts/astropy_1680107869204/work
-astropy-healpix @ file:///home/conda/feedstock_root/build_artifacts/astropy-healpix_1667535428707/work
-Bottleneck @ file:///home/conda/feedstock_root/build_artifacts/bottleneck_1678327113810/work
-brotlipy @ file:///home/conda/feedstock_root/build_artifacts/brotlipy_1666764686339/work
+astropy==5.2.2
+astropy-healpix==0.7
+Bottleneck==1.3.7
+brotlipy==0.7.0
 certifi==2022.12.7
-cffi @ file:///home/conda/feedstock_root/build_artifacts/cffi_1671179355965/work
-charset-normalizer @ file:///home/conda/feedstock_root/build_artifacts/charset-normalizer_1678108872112/work
-coloredlogs @ file:///home/conda/feedstock_root/build_artifacts/coloredlogs_1643220139154/work
-cryptography @ file:///home/conda/feedstock_root/build_artifacts/cryptography_1669592190229/work
+cffi==1.15.1
+charset-normalizer==3.1.0
+coloredlogs==15.0.1
+cryptography==38.0.4
 docopt==0.6.2
-fundamentals @ file:///home/conda/feedstock_root/build_artifacts/fundamentals_1652279572856/work
-future @ file:///home/conda/feedstock_root/build_artifacts/future_1673596611778/work
+fundamentals==2.3.12
+future==0.18.3
 gkutils==0.2.23
-humanfriendly @ file:///home/conda/feedstock_root/build_artifacts/humanfriendly_1667489909450/work
-idna @ file:///home/conda/feedstock_root/build_artifacts/idna_1663625384323/work
-importlib-metadata @ file:///home/conda/feedstock_root/build_artifacts/importlib-metadata_1682176699712/work
+humanfriendly==10.0
+idna==3.4
+importlib-metadata==6.6.0
 mysqlclient==2.1.1
-numexpr @ file:///work/ci_py311_2/numexpr_1679336657660/work
-numpy @ file:///croot/numpy_and_numpy_base_1682520569166/work
-packaging @ file:///home/conda/feedstock_root/build_artifacts/packaging_1681337016113/work
+numexpr==2.8.4
+numpy==1.24.3
+packaging==23.1
 pandas==1.5.3
-psutil @ file:///home/conda/feedstock_root/build_artifacts/psutil_1681775010077/work
-pycparser @ file:///home/conda/feedstock_root/build_artifacts/pycparser_1636257122734/work
-pyerfa @ file:///home/conda/feedstock_root/build_artifacts/pyerfa_1679552581804/work
-pyOpenSSL @ file:///home/conda/feedstock_root/build_artifacts/pyopenssl_1680037383858/work
-PySocks @ file:///work/ci_py311/pysocks_1676822712504/work
-python-dateutil @ file:///home/conda/feedstock_root/build_artifacts/python-dateutil_1626286286081/work
-pytz @ file:///home/conda/feedstock_root/build_artifacts/pytz_1680088766131/work
-PyYAML @ file:///home/conda/feedstock_root/build_artifacts/pyyaml_1666772382226/work
-requests @ file:///home/conda/feedstock_root/build_artifacts/requests_1682535435083/work
-six @ file:///home/conda/feedstock_root/build_artifacts/six_1620240208055/work
+pip==23.0.1
+psutil==5.9.5
+pycparser==2.21
+pyerfa==2.0.0.3
+pyOpenSSL==23.1.1
+PySocks==1.7.1
+python-dateutil==2.8.2
+pytz==2023.3
+PyYAML==6.0
+requests==2.29.0
+setuptools==66.0.0
+six==1.16.0
 skytag==0.3.1
-urllib3 @ file:///home/conda/feedstock_root/build_artifacts/urllib3_1678635778344/work
-zipp @ file:///home/conda/feedstock_root/build_artifacts/zipp_1677313463193/work
+urllib3==1.26.15
+wheel==0.38.4
+zipp==3.15.0

@@ -1,3 +1,4 @@
+numpy==1.18.4
 astrocalc==0.4.1
 certifi==2020.4.5.1
 chardet==3.0.4
@@ -15,7 +16,6 @@ idna==2.9
 monotonic==1.5
 multiprocess==0.70.9
 neddy==0.3.0
-numpy==1.18.4
 pandas==1.0.3
 psutil==5.7.0
 pylibmc==1.6.1
