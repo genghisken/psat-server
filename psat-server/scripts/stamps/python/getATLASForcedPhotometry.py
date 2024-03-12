@@ -59,7 +59,7 @@ def getATLASObject(conn, objectId):
     try:
         cursor = conn.cursor(MySQLdb.cursors.DictCursor)
         cursor.execute ("""
-            select id, followup_id, ra, `dec`, atlas_designation, atlas_designation as 'name', object_classification, followup_flag_date
+            select id, followup_id, ra, `dec`, atlas_designation, atlas_designation as 'name', other_designation, object_classification, followup_flag_date
             from atlas_diff_objects
             where id = %s
         """, (objectId,))
