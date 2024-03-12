@@ -14,7 +14,7 @@ Options:
   --days=<n>                                      Number of days from today [default: 5].
   --mjd=<mjd>                                     Just the specified MJD.
   --camera=<camera>                               Camera [default: 02a].
-  --downloadthreads=<threads>                     The number of threads (processes) to use [default: 5].
+  --downloadthreads=<threads>                     The number of threads (processes) to use [default: 3].
   --loglocationdownloads=<loglocationdownloads>   Downloader log file location [default: /tmp/]
   --logprefixdownloads=<logprefixdownloads>       Downloader log prefix [default: background_exposure_downloads]
 
