@@ -230,7 +230,10 @@ def generatePS1Finders(conn, hostname, database, objectList, size, downloadPath=
 
         objectInfo = {}
         if candidate['atlas_designation']:
-            objectInfo['name'] = candidate['atlas_designation']
+            atlasName = candidate['atlas_designation']
+            if candidate['other_designation']:
+                atlasName += ' (%s)' % candidate['other_designation']
+            objectInfo['name'] = atlasName
         else:
             objectInfo['name'] = candidate['id']
         objectInfo['ra'] = avgRa
