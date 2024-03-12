@@ -124,7 +124,13 @@ def eliminateExistingImages(conn, candidate, detections, detectionsWithImages):
 
 # imageType = 'diff' or 'red'
 #def doRsync(exposureSet, imageType, userId = 'xfer', remoteMachine = 'atlas-base-adm02.ifa.hawaii.edu', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph'):
-def doRsync(exposureSet, imageType, userId = 'xfer', remoteMachine = 'atlas-base-adm02.ifa.hawaii.edu', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph'):
+#def doRsync(exposureSet, imageType, userId = 'xfer', remoteMachine = 'atlas-base-adm02.ifa.hawaii.edu', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph'):
+#def doRsync(exposureSet, imageType, userId = 'ksmith', remoteMachine = 'atlas-base-sc01.ifa.hawaii.edu', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph'):
+#def doRsync(exposureSet, imageType, userId = 'ksmith', remoteMachine = 'atlas-base-sc01.ifa.hawaii.edu', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph'):
+# 2024-02-03 KWS Added ignore existing files option.
+#def doRsync(exposureSet, imageType, userId = 'yoda', remoteMachine = 'sc01', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph', ignoreExistingFiles = False):
+#def doRsync(exposureSet, imageType, userId = 'ksmith', remoteMachine = 'atlas-base-sc01.ifa.hawaii.edu', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph', ignoreExistingFiles = False):
+def doRsync(exposureSet, imageType, userId = 'xfer', remoteMachine = 'atlas-base-adm02.ifa.hawaii.edu', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph', ignoreExistingFiles = False):
     """doRsync.
 
     Args:
@@ -136,6 +142,7 @@ def doRsync(exposureSet, imageType, userId = 'xfer', remoteMachine = 'atlas-base
         localLocation:
         getMetadata:
         metadataExtension:
+        ignoreExistingFiles:
     """
 
     exposureSet.sort()
@@ -177,7 +184,10 @@ def doRsync(exposureSet, imageType, userId = 'xfer', remoteMachine = 'atlas-base
     # 2018-04-16 KWS Removed the 'u' flag. We don't need to update the images.
     #p = subprocess.Popen([rsyncCmd, '-e "ssh -c arcfour -o Compression=no"', '-axKL', '--files-from=%s' % rsyncFile, remote, local], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # 2022-07-21 KWS Added text=True to the Popen command. Ensures that the response comes back as text.
-    p = subprocess.Popen([rsyncCmd, '-avxKL', '--files-from=%s' % rsyncFile, remote, local], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if ignoreExistingFiles:
+        p = subprocess.Popen([rsyncCmd, '-avxKL', '--ignore-existing', '--files-from=%s' % rsyncFile, remote, local], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    else:
+        p = subprocess.Popen([rsyncCmd, '-avxKL', '--files-from=%s' % rsyncFile, remote, local], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     output, errors = p.communicate()
 
     if output.strip():
@@ -307,11 +317,11 @@ def downloadExposures(exposureSet, useMonsta = True):
    # (1.1) Get the diff images.  We no longer download these by default.
 
    print("Fetching Diff Images...")
-   doRsync(exposureSet, 'diff')
+   doRsync(exposureSet, 'diff', ignoreExistingFiles = True)
 
    # (3) Go and get the input exposures
 
-   print("Fetching Input Images...")
+   print("Fetching Input Images...", ignoreExistingFiles = True)
    doRsync(exposureSet, 'red')
 
    # (2) Unpack the diff data (which we already have) to a temporary location
