@@ -35,4 +35,4 @@ grep "^#" $ddcFile | sed '$d' > ${expnameFilePrefix}.ddc.nnc
 ddccolumns=`grep "^#" $ddcFile | tail -1`
 nnccolumns=`head -1 $nncFile | tr '#' ' '`
 echo "$ddccolumns $nnccolumns" >> ${expnameFilePrefix}.ddc.nnc
-#$colmerge 5,6,10 $ddcFile 5,6,10 $nncFile | grep -v ' D ' | tr '|' ' ' >> ${expnameFilePrefix}.ddc.nnc
+$colmerge 5,6,10 $ddcFile 5,6,10 $nncFile | grep -v ' D ' | tr '|' ' ' >> ${expnameFilePrefix}.ddc.nnc
