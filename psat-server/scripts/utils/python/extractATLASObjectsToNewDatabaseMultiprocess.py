@@ -35,7 +35,7 @@ Options:
 
 E.g.:
   %s publicuser publicpass public db1 atlas4 --ddc --list=5 --copyimages
-  %s publicuser publicpass public db1 atlas4 --ddc --list=1,2,3,5,7,8,9,10,11 --copyimages
+  %s atlas4migrateduser xxxxxxxxxxxxxxx atlas4migrated db1 atlas4 --ddc --list=1,2,3,5,7,8,9,10,11 --copyimages --loglocation=/db4/tc_logs/atlas4/
 
 """
 import sys
@@ -96,8 +96,8 @@ def main():
     if options.list is not None:
         try:
             detectionList = [int(x) for x in options.list.split(',')]
-            if min(detectionList) < 1 or max(detectionList) > 10:
-                print("Detection list must be between 1 and 10")
+            if min(detectionList) < 1 or max(detectionList) > 12:
+                print("Detection list must be between 1 and 12")
                 return 1
         except ValueError as e:
             sys.exit("Detection list must be an integer")
