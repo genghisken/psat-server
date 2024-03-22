@@ -152,12 +152,12 @@ def main():
         removeAllImagesAndLocationMaps(options.database, options.imagesdest)
 
         # First of all insert the complete tables we definitely want to keep. Must be done single threaded.
-        print('Inserting data into tcs_cmf_metadata...')
-        insertAllRecords(conn, 'tcs_cmf_metadata', options.sourceschema, options.database)
-        print('Inserting data into atlas_metadata...')
-        insertAllRecords(conn, 'atlas_metadata', options.sourceschema, options.database)
-        print('Inserting data into atlas_metadataddc...')
-        insertAllRecords(conn, 'atlas_metadataddc', options.sourceschema, options.database)
+        #print('Inserting data into tcs_cmf_metadata...')
+        #insertAllRecords(conn, 'tcs_cmf_metadata', options.sourceschema, options.database)
+        #print('Inserting data into atlas_metadata...')
+        #insertAllRecords(conn, 'atlas_metadata', options.sourceschema, options.database)
+        #print('Inserting data into atlas_metadataddc...')
+        #insertAllRecords(conn, 'atlas_metadataddc', options.sourceschema, options.database)
         print('Inserting data into tcs_gravity_events...')
         insertAllRecords(conn, 'tcs_gravity_events', options.sourceschema, options.database)
         print('Inserting data into atlas_heatmaps...')
@@ -177,28 +177,30 @@ def main():
         print('Inserting data into tcs_gravity_alerts...')
         insertAllRecords(conn, 'tcs_gravity_alerts', options.sourceschema, options.database)
 
+        # 2024-03-14 KWS Added authtoken_token. 
         print('Extracting all the Django relevant tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
-        cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site > %s' % (options.username, options.password, options.sourceschema, options.hostname, options.djangofile)
+        cmd = 'mysqldump -u%s --password=%s %s -h %s auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions authtoken_token django_admin_log django_content_type django_migrations django_session django_site > %s' % (options.username, options.password, options.sourceschema, options.hostname, options.djangofile)
         os.system(cmd)
 
         print('Importing the Django tables from the %s schema.' % options.sourceschema)
         cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.djangofile)
         os.system(cmd)
 
+        # 2024-03-14 KWS Added tcs_cmf_metadata, atlas_metadata, atlas_metadataddc.
         print('Extracting the very large tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
         noCreateInfo = ''
         if options.nocreateinfo is not None:
             noCreateInfo = '--no-create-info'
-        cmd = 'mysqldump -u%s --password=%s %s -h %s %s --no-tablespaces atlas_diff_subcells atlas_diff_subcell_logs > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, options.dumpfile)
+        cmd = 'mysqldump -u%s --password=%s %s -h %s %s --no-tablespaces tcs_cmf_metadata atlas_metadata atlas_metadataddc atlas_diff_subcells atlas_diff_subcell_logs > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, options.dumpfile)
         os.system(cmd)
 
-        print('Importing the Django tables from the %s schema.' % options.sourceschema)
+        print('Importing the giant tables from the %s schema.' % options.sourceschema)
         cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.dumpfile)
         os.system(cmd)
 
-        # The following tables contain over 100 million rows each. Doing a standard
-        # replace into won't work.  Best to do a dump of the two tables and import
-        # just before going live.
+    # The following tables contain over 100 million rows each. Doing a standard
+    # replace into won't work.  Best to do a dump of the two tables and import
+    # just before going live.
 #        print('Inserting data into atlas_diff_subcells...')
 #        insertAllRecords(conn, 'atlas_diff_subcells', options.sourceschema, options.database)
 #        print('Inserting data into atlas_diff_subcell_logs...')
