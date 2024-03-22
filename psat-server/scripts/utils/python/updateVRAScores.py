@@ -2,15 +2,16 @@
 """Periodically update VRA scores as new data arrives and decision are made.
 
 Usage:
-  %s [--debug] [--ndays=<ndays>]
+  %s [--debug] [--ndays=<ndays>] [--quiet]
   %s (-h | --help)
-  %s --version
+  %s --version [--quiet]
 
 Options:
   -h --help                         Show this screen.
   --version                         Show version.
   --debug                           Debug mode.
   --ndays=<ndays>                   Search VRA Scores this number of days before current date [default: 3].
+  --quiet                           Use quiet mode (for writing into logs).
 
 E.g.:
   %s ../../../../../atlas/config/api_config_file.yaml /tmp/ml_scores.csv
@@ -100,8 +101,10 @@ def runUpdates(options):
                                                      )
 
     # Chunks the API calls into payloads containing the max number of object that API can handle.
-    #request_data.chunk_get_response_quiet()                                     # Quiet mode doen't print a progress bar.
-    request_data.chunk_get_response()                                     # Quiet mode doen't print a progress bar.
+    if options.quiet:
+        request_data.chunk_get_response_quiet()                                  # Quiet mode doen't print a progress bar.
+    else:
+        request_data.chunk_get_response()
 
     # Now iterate over each object we want to update.
 
@@ -122,7 +125,7 @@ def runUpdates(options):
 
 
         if data_lcnondets.shape[0] == 0:
-            data_nondets = None
+            data_lcnondets = None
         else:
             # do the operations on data_lcnondets
             data_lcnondets['magerr'] = 0.0                                                             # add a magerr column & set to zero for nondets
@@ -136,9 +139,9 @@ def runUpdates(options):
         #print(data_lcnondets.columns)
         #print(data_lcnondets)
 
-        if data_lc is None:
+        if data_lc is None and data_lcnondets is not None:
             data_all = data_lcnondets
-        elif data_lcnondets is None:
+        elif data_lcnondets is None and data_lc is not None:
             data_all = data_lc
         elif data_lcnondets is not None and data_lc is not None:
             data_all = pd.concat([data_lc, data_lcnondets]                                             # Concatenate dets and nondets to make full lightcurve
