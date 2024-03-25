@@ -321,8 +321,8 @@ def downloadExposures(exposureSet, useMonsta = True):
 
    # (3) Go and get the input exposures
 
-   print("Fetching Input Images...", ignoreExistingFiles = True)
-   doRsync(exposureSet, 'red')
+   print("Fetching Input Images...")
+   doRsync(exposureSet, 'red', ignoreExistingFiles = True)
 
    # (2) Unpack the diff data (which we already have) to a temporary location
 

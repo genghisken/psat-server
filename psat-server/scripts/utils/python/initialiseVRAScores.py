@@ -2,7 +2,7 @@
 """Insert newly calculated RB scores into the tcs_vra_scores table via the API.
 
 Usage:
-  %s <apiConfigFile> <rbscorescsv> [--debug]
+  %s <apiConfigFile> <rbscorescsv> [--debug] [--rbthreshold=<rbthreshold>]
   %s (-h | --help)
   %s --version
 
@@ -10,6 +10,7 @@ Options:
   -h --help                         Show this screen.
   --version                         Show version.
   --debug                           Debug mode.
+  --rbthreshold=<rbthreshold>       RB Threshold (if not set will be ignored).
 
 E.g.:
   %s ../../../../../atlas/config/api_config_file.yaml /tmp/ml_scores.csv
@@ -25,6 +26,7 @@ import requests
 import json
 import random
 import yaml
+import pandas as pd
 
     
 def insertVRAEntry(apiURL, apiToken, objectId, rbScore, debug = False):
@@ -61,6 +63,9 @@ def main():
 
     configFile = options.apiConfigFile
 
+    rbThreshold = None
+    if options.rbthreshold is not None:
+        rbThreshold = float(options.rbthreshold)
 
     assert os.path.exists(options.rbscorescsv), f"File does not exist: {options.rbscorescsv}"
 
@@ -70,17 +75,26 @@ def main():
     apiURL = config['api']['url']
     apiToken = config['api']['token']
 
-    data = readGenericDataFile(options.rbscorescsv, fieldnames = ['objectid', 'score'], delimiter = ',')
+    data = pd.read_csv(options.rbscorescsv, names=['objectid', 'score'])
+    if options.rbthreshold:
+        data = data[data.score > float(options.rbthreshold)]
 
-    if len(data) == 0:
+    #data = readGenericDataFile(options.rbscorescsv, fieldnames = ['objectid', 'score'], delimiter = ',')
+
+    if data.shape[0] == 0:
         print("There are no objects to insert into the VRA table.")
         return 1
 
-    for row in data:
-        #print(row['objectid'], row['score'])
-        insertVRAEntry(apiURL, apiToken, row['objectid'], row['score'], debug = debug)
+    i = 0
+    for i in range(data.shape[0]):
+        insertVRAEntry(apiURL, apiToken, int(data.iloc[i]['objectid']), float(data.iloc[i]['score']), debug = debug)
 
-    print("%s objects inserted into the VRA Scores table." % len(data))
+
+    #for row in data:
+    #    #print(row['objectid'], row['score'])
+    #    insertVRAEntry(apiURL, apiToken, row['objectid'], row['score'], debug = debug)
+
+    print("%d objects inserted into the VRA Scores table." % i)
     return 0
     
 
