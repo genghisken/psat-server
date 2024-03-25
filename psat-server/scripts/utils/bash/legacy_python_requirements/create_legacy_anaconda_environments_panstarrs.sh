@@ -25,30 +25,30 @@ conda create -n sherlock_panstarrs37 python=3.7 pip
 
 conda activate gocart
 sleep 2
-pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/gocart_20240213.txt --no-cache-dir
+pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/requirements_gocart_20240213.txt --no-cache-dir
 sleep 2
 
 conda activate dew_old_ml_psdb3
 sleep 2
-pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/dew_old_ml_psdb3_20240213.txt --no-cache-dir
+pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/requirements_dew_old_ml_psdb3_20240213.txt --no-cache-dir
 sleep 2
 
 conda activate panstarrs
 sleep 2
-pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/panstarrs_20240213_no_dill.txt --no-cache-dir
+pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/requirements_panstarrs_20240213_no_dill.txt --no-cache-dir
 sleep 2
 
 conda activate panstarrs3.6
 sleep 2
-pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/panstarrs3.6_20240213.txt --no-cache-dir
+pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/requirements_panstarrs3.6_20240213.txt --no-cache-dir
 sleep 2
 
 conda activate panstarrs39
 sleep 2
-pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/panstarrs39_20240213.txt --no-cache-dir
+pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/requirements_panstarrs39_20240213.txt --no-cache-dir
 sleep 2
 
 conda activate sherlock_panstarrs37
 sleep 2
-pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/sherlock_panstarrs37_20240213.txt --no-cache-dir
+pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/requirements_sherlock_panstarrs37_20240213.txt --no-cache-dir
 
