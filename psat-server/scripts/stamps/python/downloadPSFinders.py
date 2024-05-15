@@ -238,6 +238,7 @@ def main(argv = None):
       sys.exit(1)
 
    conn = dbConnect(hostname, username, password, database)
+   conn.autocommit(True)
    connSherlock = dbConnect(shostname, susername, spassword, sdatabase)
 
    # The Image Root Location will be dependent on the name of the database.
