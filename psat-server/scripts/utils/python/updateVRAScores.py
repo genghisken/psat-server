@@ -10,7 +10,7 @@ Options:
   -h --help                         Show this screen.
   --version                         Show version.
   --debug                           Debug mode.
-  --ndays=<ndays>                   Search VRA Scores this number of days before current date [default: 3].
+  --ndays=<ndays>                   Search VRA Scores this number of days before current date [default: 30].
   --quiet                           Use quiet mode (for writing into logs).
 
 E.g.:
@@ -67,9 +67,28 @@ def runUpdates(options):
       - output the list of ATLAS 19 digit IDs and timestamps (in pairs).
     """
 
+    # NEW LOGIC: Get the VRA todo list, NOT use a date threshold anymore.
+    #            NOTE: We may need to chunk the response we get when making up the payload below.
+    #            OR: Put in a date threshold below of (e.g.) 1 month of data from VRA Todo. Then
+    #            use the dataframe to make any further cuts.
+    #            TODO: Decide what to set the date threshold to use.
+    #            NOTE: Needs a change in the st3ph3n code which doesn't yet recognise the new VRATodoList.
+
     # Find the date from which we want to check for new information
     date_threshold = (datetime.now() - timedelta(days=float(options.ndays))).strftime("%Y-%m-%d %H:%M:%S")
     payload = {'datethreshold': date_threshold}
+
+    request_vra_todolist = atlasapi.RequestVRAToDoList(api_config_file=api_config,  # Config file defined above
+                                                       payload = payload,           # Payload to API just includes date threshold
+                                                       get_response = True          # Query the server on instantiation.
+                                                       )
+
+    vratodo_df = pd.DataFrame(request_vra_todolist.response)                        # Use Pandas to handle cuts below witht having to use loops.
+    #print(vratodo_df)
+
+
+    # NEW LOGIC: Make the payload with the ATLAS IDs in the VRA todo.
+    #            New API call to read the tcs_vra_todo list.
 
     # Setup the request VRA scores utility with the VRA token & username.
     request_vra_scores = atlasapi.RequestVRAScores(api_config_file=api_config,  # Config file defined above
@@ -79,15 +98,22 @@ def runUpdates(options):
 
     vra_df = pd.DataFrame(request_vra_scores.response)                          # Use Pandas to handle cuts below witht having to use loops.
 
+    # NEW LOGIC: Make a sub-dataframe that only contains ATLAS IDs in the todo list.
+
+    list_to_update = vratodo_df.transient_object_id.values
+
     # Find the unique transient_object_ids of the objects that need updating.
-    unique_transient_ids = set(vra_df.transient_object_id.values)               # All unique transient IDs in the VRA table for the last N days.
-    transient_ids_with_decisions = set(vra_df[~vra_df.username.isnull()         # Find unique IDs of objects with human decisions (username is not null)
-                                             ].transient_object_id.values)
-    set_to_update = unique_transient_ids - transient_ids_with_decisions         # Object to update are ONLY those WITHOUT a human decision.
+    # NEW LOGIC: We already have a unique list of object IDs from the todo list.
+    #            The following lines may cease to exist because human decisions
+    #            already remove the ID from the todo list.
+#    unique_transient_ids = set(vra_df.transient_object_id.values)               # All unique transient IDs in the VRA table for the last N days.
+#    transient_ids_with_decisions = set(vra_df[~vra_df.username.isnull()         # Find unique IDs of objects with human decisions (username is not null)
+#                                             ].transient_object_id.values)
+#    set_to_update = unique_transient_ids - transient_ids_with_decisions         # Object to update are ONLY those WITHOUT a human decision.
 
     # Find the last time an object was updated in the VRA table.
     last_vra_timestamps = vra_df[np.isin(vra_df.transient_object_id.values,     # Only select transient_object_ids of objects we want to update. Must be values - returns numpy array.
-                                         list(set_to_update))                   # Can't use a set - must be a list.
+                                              list_to_update) 
                                 ][['transient_object_id','timestamp']
                                  ].drop_duplicates(subset='transient_object_id',# Remove duplicate rows and only keep the last one
                                                    keep='last')
@@ -96,7 +122,7 @@ def runUpdates(options):
     # Now go and fetch all the info pertaining to each of the objects above since our date threshold.
     # Instantiate the object that makes the API call, but don't actually do it yet.
     request_data = atlasapi.RequestMultipleSourceData(api_config_file=api_config,
-                                                     array_ids=np.array(list(set_to_update)),
+                                                     array_ids=np.array(list_to_update),
                                                      mjdthreshold = getMJDFromSqlDate(date_threshold)
                                                      )
 
