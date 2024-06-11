@@ -75,7 +75,8 @@ def main():
     apiURL = config['api']['url']
     apiToken = config['api']['token']
 
-    data = pd.read_csv(options.rbscorescsv, names=['objectid', 'score'])
+    # 2024-03-28 KWS Pandas will assume float if the data types are not specified.
+    data = pd.read_csv(options.rbscorescsv, names=['objectid', 'score'], dtype={'objectid': str, 'score': float})
     if options.rbthreshold:
         data = data[data.score > float(options.rbthreshold)]
 
