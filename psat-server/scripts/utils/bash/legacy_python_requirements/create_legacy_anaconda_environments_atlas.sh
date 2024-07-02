@@ -53,7 +53,7 @@ sleep 2
 
 conda activate ligo
 sleep 2
-pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/requirements_ligo20240325.txt --no-cache-dir
+pip install -r ${CODEBASE}/scripts/utils/bash/legacy_python_requirements/requirements_ligo_20240325.txt --no-cache-dir
 sleep 2
 
 conda activate sherlock37

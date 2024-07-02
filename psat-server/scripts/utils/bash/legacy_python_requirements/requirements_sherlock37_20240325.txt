@@ -14,7 +14,7 @@ fundamentals==2.3.5
 future==0.18.2
 gkutils==0.0.3
 greenlet==0.4.15
-HMpTy==1.5.3
+HMpTy
 humanfriendly==9.2
 idna==2.9
 Jinja2==2.11.2
