@@ -23,10 +23,11 @@ Options:
 
 E.g.:
   %s ~/config_fakers.yaml *.ddc --mjd=58940 --camera=01a --difflocation=/atlas/diff/CAMERA/fake/MJD.fake
+  %s ../../../../../atlas/config/config4_db5_readonly.yaml *.dnc --camera=01a --days=2 --loglocation=/db5/tc_logs/atlas4/ --ingester=/usr/local/ps1code/gitrelease/atlas/code/ingesters/tphot/cpp/IngesterMainddcnnc
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, shutil, re, csv, subprocess
 

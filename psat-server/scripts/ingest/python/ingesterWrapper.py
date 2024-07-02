@@ -73,7 +73,7 @@ def getFilesIngested(conn, mjdthreshold, camera = '02a'):
     return fileList
 
 
-def getFilesIngestedddc2(conn, mjdthreshold, mjdToIngest = None, camera = '02a'):
+def getFilesIngestedddc2(conn, mjdthreshold, mjdToIngest = None, camera = '02a', suffix = '.ddc'):
     """
     Get all ingested ddc files
     """
@@ -85,21 +85,21 @@ def getFilesIngestedddc2(conn, mjdthreshold, mjdToIngest = None, camera = '02a')
 
         if mjdToIngest:
             cursor.execute ("""
-                select concat(obs,'.ddc') ddcfile
+                select concat(obs,%s) ddcfile
                   from atlas_metadataddc
                  where truncate(mjd,0) > %s
                    and truncate(mjd,0) <= %s
                    and substr(obs,1,3) = %s
               order by obs
-            """,(mjdthreshold, mjdToIngest, camera))
+            """,(suffix, mjdthreshold, mjdToIngest, camera))
         else:
             cursor.execute ("""
-                select concat(obs,'.ddc') ddcfile
+                select concat(obs,%s) ddcfile
                   from atlas_metadataddc
                  where truncate(mjd,0) > %s
                    and substr(obs,1,3) = %s
               order by obs
-            """,(mjdthreshold,camera))
+            """,(suffix, mjdthreshold,camera))
         result_set = cursor.fetchall ()
 
         cursor.close ()
@@ -117,7 +117,7 @@ def getFilesIngestedddc2(conn, mjdthreshold, mjdToIngest = None, camera = '02a')
 
 
 
-def getFilesIngestedddc(conn, mjdthreshold, mjdToIngest = None, camera = '02a'):
+def getFilesIngestedddc(conn, mjdthreshold, mjdToIngest = None, camera = '02a', suffix = '.ddc'):
     """
     Get all ingested ddc files
     """
@@ -129,21 +129,21 @@ def getFilesIngestedddc(conn, mjdthreshold, mjdToIngest = None, camera = '02a'):
 
         if mjdToIngest:
             cursor.execute ("""
-                select concat('/atlas/diff/',substr(obs,1,3),'/',truncate(mjd,0),'/',obs,'.ddc') ddcfile
+                select concat('/atlas/diff/',substr(obs,1,3),'/',truncate(mjd,0),'/',obs,'%s') ddcfile
                   from atlas_metadataddc
                  where truncate(mjd,0) > %s
                    and truncate(mjd,0) <= %s
                    and substr(obs,1,3) = %s
               order by obs
-            """,(mjdthreshold, mjdToIngest, camera))
+            """,(suffix, mjdthreshold, mjdToIngest, camera))
         else:
             cursor.execute ("""
-                select concat('/atlas/diff/',substr(obs,1,3),'/',truncate(mjd,0),'/',obs,'.ddc') ddcfile
+                select concat('/atlas/diff/',substr(obs,1,3),'/',truncate(mjd,0),'/',obs,'%s') ddcfile
                   from atlas_metadataddc
                  where truncate(mjd,0) > %s
                    and substr(obs,1,3) = %s
               order by obs
-            """,(mjdthreshold,camera))
+            """,(suffix, mjdthreshold,camera))
         result_set = cursor.fetchall ()
 
         cursor.close ()
@@ -285,7 +285,7 @@ def main():
     days += 1
 
     fileList = getFiles(regex, camera, mjdToIngest = mjdToIngest, mjdthreshold = mjdthreshold, days = days, options = options)
-    ingestedFiles = getFilesIngestedddc2(conn, mjdthreshold = mjdthreshold, mjdToIngest = mjdToIngest, camera = camera)
+    ingestedFiles = getFilesIngestedddc2(conn, mjdthreshold = mjdthreshold, mjdToIngest = mjdToIngest, camera = camera, suffix = regex.replace('*',''))
 
     fileListDict = OrderedDict()
 
