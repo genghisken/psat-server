@@ -4,7 +4,7 @@
    OR both!
 
 Usage:
-  %s [<exposureSet>...] [--days=<n>] [--ddc] [--camera=<camera>] [--mjd=<mjd>] [--downloadthreads=<threads>] [--loglocationdownloads=<loglocationdownloads>] [--logprefixdownloads=<logprefixdownloads>]
+  %s [<exposureSet>...] [--days=<n>] [--ddc] [--camera=<camera>] [--mjd=<mjd>] [--downloadthreads=<threads>] [--loglocationdownloads=<loglocationdownloads>] [--logprefixdownloads=<logprefixdownloads>] [--timeout=<timeout>]
   %s (-h | --help)
   %s --version
 
@@ -17,6 +17,7 @@ Options:
   --downloadthreads=<threads>                     The number of threads (processes) to use [default: 3].
   --loglocationdownloads=<loglocationdownloads>   Downloader log file location [default: /tmp/]
   --logprefixdownloads=<logprefixdownloads>       Downloader log prefix [default: background_exposure_downloads]
+  --timeout=<timeout>                             Timeout for the rsync process. Added to prevent processes waiting forever.
 
 """
 import sys
@@ -38,8 +39,12 @@ def workerImageDownloader(num, db, listFragment, dateAndTime, firstPass, miscPar
     imageType = miscParameters[1]
     sys.stdout = open('%s%s_%s_%d.log' % (options.loglocationdownloads, options.logprefixdownloads, dateAndTime, num), "w")
 
+    timeout = None
+    if options.timeout is not None:
+        timeout = int(options.timeout)
+
     # Call the postage stamp downloader
-    objectsForUpdate = doRsync(listFragment, imageType, ignoreExistingFiles = True)
+    objectsForUpdate = doRsync(listFragment, imageType, ignoreExistingFiles = True, timeout = timeout)
     #q.put(objectsForUpdate)
     print("Process complete.")
     return 0
@@ -57,6 +62,10 @@ def main(argv = None):
     currentMJD = int(getCurrentMJD())
 
     lockfile = "/tmp/rsync_images_lockfiles_%s" % options.camera
+
+    if options.exposureSet:
+        lockfile = "/tmp/rsync_images_lockfiles_customdownload"
+
     if os.path.exists(lockfile):
         print("Rsync in progress. Remove lockfile to restart.")
         return

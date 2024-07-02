@@ -130,7 +130,8 @@ def eliminateExistingImages(conn, candidate, detections, detectionsWithImages):
 # 2024-02-03 KWS Added ignore existing files option.
 #def doRsync(exposureSet, imageType, userId = 'yoda', remoteMachine = 'sc01', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph', ignoreExistingFiles = False):
 #def doRsync(exposureSet, imageType, userId = 'ksmith', remoteMachine = 'atlas-base-sc01.ifa.hawaii.edu', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph', ignoreExistingFiles = False):
-def doRsync(exposureSet, imageType, userId = 'xfer', remoteMachine = 'atlas-base-adm02.ifa.hawaii.edu', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph', ignoreExistingFiles = False):
+#def doRsync(exposureSet, imageType, userId = 'xfer', remoteMachine = 'atlas-base-adm02.ifa.hawaii.edu', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph', ignoreExistingFiles = False):
+def doRsync(exposureSet, imageType, userId = 'ksmith', remoteMachine = 'atlas-base-sc01.ifa.hawaii.edu', remoteLocation = '/atlas', localLocation = '/atlas', getMetadata = False, metadataExtension = '.tph', ignoreExistingFiles = False, timeout = None):
     """doRsync.
 
     Args:
@@ -188,7 +189,12 @@ def doRsync(exposureSet, imageType, userId = 'xfer', remoteMachine = 'atlas-base
         p = subprocess.Popen([rsyncCmd, '-avxKL', '--ignore-existing', '--files-from=%s' % rsyncFile, remote, local], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     else:
         p = subprocess.Popen([rsyncCmd, '-avxKL', '--files-from=%s' % rsyncFile, remote, local], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    output, errors = p.communicate()
+
+    try:
+        output, errors = p.communicate(timeout = timeout)
+    except subprocess.TimeoutExpired as e:
+        print("The rsync has timed out after %d seconds. We probably have network connectivity problems." % timeout)
+        return 0
 
     if output.strip():
         print(output)
