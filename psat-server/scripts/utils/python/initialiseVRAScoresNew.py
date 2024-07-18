@@ -102,7 +102,7 @@ def main():
 
     # 4. instantiate score and rank object with the features dataframe
     #    This calculates pReal and pGal
-    s_a_r = ScoreAndRank(features_df)
+    s_a_r = ScoreAndRank(features_df, model_name='bmo')
 
     # 5. Make the payload to write pReal, pGal into the tcs_vra_scores table
     # list of real scores and gal scores
