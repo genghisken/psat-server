@@ -32,63 +32,26 @@ import numpy as np
 # 2024-05-23 KWS New VRA code for calculating features.
 from st3ph3n.vra.dataprocessing import MakeFeatures
 from st3ph3n.vra.scoring import ScoreAndRank
+
+# 2024-06-24 KWS Use the st3ph3n API code to write the results.
+from st3ph3n.utils import api as vraapi
+
 import os
     
-def insertVRAEntry(apiURL, apiToken, objectId, pReal, pGal, debug = False):
-    headers = { 'Authorization': 'Token %s' % apiToken }
-    
-    
-    data = {'objectid': objectId, 'preal': pReal, 'pgal': pGal, 'debug': debug}
-    url = apiURL + 'vrascores/'
-    r = requests.post(url, data, headers=headers)
-    objectListResponse = None
-    if r.status_code == 201:
-        objectListResponse = r.json()
-        #print (json.dumps(objectListResponse, indent = 2))
-    else:
-        print('Oops, status code is', r.status_code)
-        print(r.text)
-    
-    if objectListResponse is None:
-        print("Bad response from the objectlist API")
-        exit(1)
+def insertVRAEntry(API_CONFIG_FILE, objectId, pReal, pGal, debug = False):
+    payload = {'objectid': objectId, 'preal': pReal, 'pgal': pGal, 'debug': debug}
+    writeto_vra = vraapi.WriteToVRAScores(api_config_file = API_CONFIG_FILE, payload=payload)
+    writeto_vra.get_response()
 
+def insertVRATodo(API_CONFIG_FILE, objectId):
+    payload = {'objectid': objectId}
+    writeto_todo = vraapi.WriteToToDo(api_config_file = API_CONFIG_FILE, payload=payload)
+    writeto_todo.get_response()
 
-def insertVRATodo(apiURL, apiToken, objectId):
-    headers = { 'Authorization': 'Token %s' % apiToken }
-
-    data = {'objectid': objectId}
-    url = apiURL + 'vratodo/'
-    r = requests.post(url, data, headers=headers)
-    objectListResponse = None
-    if r.status_code == 201:
-        objectListResponse = r.json()
-        #print (json.dumps(objectListResponse, indent = 2))
-    else:
-        print('Oops, status code is', r.status_code)
-        print(r.text)
-    
-    if objectListResponse is None:
-        print("Bad response from the objectlist API")
-        exit(1)
-
-def insertVRARank(apiURL, apiToken, objectId, rank):
-    headers = { 'Authorization': 'Token %s' % apiToken }
-
-    data = {'objectid': objectId, 'rank': rank}
-    url = apiURL + 'vrarank/'
-    r = requests.post(url, data, headers=headers)
-    objectListResponse = None
-    if r.status_code == 201:
-        objectListResponse = r.json()
-        #print (json.dumps(objectListResponse, indent = 2))
-    else:
-        print('Oops, status code is', r.status_code)
-        print(r.text)
-
-    if objectListResponse is None:
-        print("Bad response from the objectlist API")
-        exit(1)
+def insertVRARank(API_CONFIG_FILE, objectId, rank):
+    payload = {'objectid': objectId, 'rank': rank}
+    writeto_rank = vraapi.WriteToVRARank(api_config_file = API_CONFIG_FILE, payload=payload)
+    writeto_rank.get_response()
 
 
 def main():
@@ -109,12 +72,6 @@ def main():
         rbThreshold = float(options.rbthreshold)
 
     assert os.path.exists(options.rbscorescsv), f"File does not exist: {options.rbscorescsv}"
-
-    with open(configFile) as yaml_file:
-        config = yaml.safe_load(yaml_file)
-
-    apiURL = config['api']['url']
-    apiToken = config['api']['token']
 
     # 2024-03-28 KWS Pandas will assume float if the data types are not specified.
     # 1. Read the CSV for the RB scores. This gives us the atlas_object_id. Allows us to crop things that don't make it to the eyeball list.
@@ -159,8 +116,8 @@ def main():
     for atlas_id, pReal, pGal in zip(data.objectid.values,
                                      s_a_r.real_scores.T[1],
                                      s_a_r.gal_scores.T[1]):
-        insertVRAEntry(apiURL, apiToken, atlas_id, pReal, pGal, debug = debug)
-        insertVRATodo(apiURL, apiToken, atlas_id)
+        insertVRAEntry(configFile, atlas_id, pReal, pGal, debug = debug)
+        insertVRATodo(configFile, atlas_id)
         i += 1
 
 
@@ -169,7 +126,7 @@ def main():
     s_a_r.calculate_rank()
 
     for atlas_id, rank in zip(data.objectid.values,s_a_r.ranks):
-        insertVRARank(apiURL, apiToken, atlas_id, rank)
+        insertVRARank(configFile, atlas_id, rank)
 
 
 
