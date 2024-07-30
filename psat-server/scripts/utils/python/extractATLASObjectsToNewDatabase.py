@@ -458,7 +458,7 @@ def copyImages(conn, objectId, sourceReadOnlySchema, newSchema, imageRootSource,
 # 2017-05-10 KWS Added the new tcs_object_comments table
 # 2024-03-04 KWS Added the new tcs_vra_scores table
 # 2024-07-30 KWS Added tcs_vra_rank and tcs_vra_todo tables
-def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnlySchema, ddc = False, copyimages = False, imageRootSource = None, imageRootDestination = None):
+def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnlySchema, ddc = False, copyimages = False, imageRootSource = None, imageRootDestination = None, getmetadata = False):
 
     # Now add the objects one-at-a time.  The advantage of doing it this way is
     # that we can veto publication of individual objects if necessary.
@@ -494,6 +494,8 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
         # 2024-07-30 KWS Added tcs_vra_todo and tcs_vra_rank.
         insertRecord(conn, 'tcs_vra_todo', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
         insertRecord(conn, 'tcs_vra_rank', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
+        # 2024-07-30 KWS Added atlas_detectionsnnc.
+        insertRecord(conn, 'atlas_detectionsnnc', object['id'], 'atlas_object_id', sourceReadOnlySchema, newSchema)
 
         # Create a dummy recurrence so we can reuse existing code.
         recurrence = EmptyRecurreces()
@@ -503,14 +505,16 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
         recurrence.atlas_metadata_id = 0
         recurrences = [recurrence]
 
-#        if ddc:
-#            b, blanks, lastNonDetection = getNonDetectionsUsingATLASFootprint(recurrences, conn = connPrivateReadonly, ndQuery=ATLAS_METADATADDC, filterWhereClause = filterWhereClauseddc, catalogueName = 'atlas_metadataddc')
-#        else:
-#            b, blanks, lastNonDetection = getNonDetectionsUsingATLASFootprint(recurrences, conn = connPrivateReadonly)
-#
-#        for row in blanks:
-#            exposures.append(row.expname)
-#
+        # Only do the following if we don't insert the entire metadata table.
+        if getmetadata:
+            if ddc:
+                b, blanks, lastNonDetection = getNonDetectionsUsingATLASFootprint(recurrences, conn = connPrivateReadonly, ndQuery=ATLAS_METADATADDC, filterWhereClause = filterWhereClauseddc, catalogueName = 'atlas_metadataddc')
+            else:
+                b, blanks, lastNonDetection = getNonDetectionsUsingATLASFootprint(recurrences, conn = connPrivateReadonly)
+
+            for row in blanks:
+                exposures.append(row.expname)
+
         if not ddc:
             # Need to grab the detection ids for the moments insert
             objectInfo = getObjectInfo(conn, object['id'])

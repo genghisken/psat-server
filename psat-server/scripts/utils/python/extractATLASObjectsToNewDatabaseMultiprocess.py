@@ -12,7 +12,7 @@ Assumes:
   2. The databases are in the SAME MySQL server instance.
 
 Usage:
-  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>]
+  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>] [--getmetadata] [--insertdiffisubcelllogs] [--includeauthtoken]
   %s (-h | --help)
   %s --version
 
@@ -31,11 +31,14 @@ Options:
   --djangofile=<djangofile>       Filename of dumped Django data [default: /home/atls/django_schema.sql].
   --imagessource=<imagessource>   Source root location of the images [default: /db4/images/].
   --imagesdest=<imagesdest>       Destination location for extracted images [default: /db4/images/].
+  --getmetadata                   Get metadata associated with objects, otherwise insert ALL metadata.
+  --insertdiffsubcelllogs         Insert diff subcell logs (very large amount of data).
+  --includeauthtoken              Include authtoken_token in the Django export.
 
 
 E.g.:
   %s publicuser publicpass public db1 atlas4 --ddc --list=5 --copyimages
-  %s atlas4migrateduser xxxxxxxxxxxxxxx atlas4migrated db1 atlas4 --ddc --list=1,2,3,5,7,8,9,10,11 --copyimages --loglocation=/db4/tc_logs/atlas4/
+  %s atlas4migrateduser xxxxxxxxxxxxxxx atlas4migrated db1 atlas4 --ddc --list=1,2,3,5,7,8,9,10,11 --copyimages --loglocation=/db4/tc_logs/atlas4/ --includeauthtoken
 
 """
 import sys
@@ -70,7 +73,7 @@ def worker(num, db, listFragment, dateAndTime, firstPass, miscParameters):
         print("Cannot connect to the private database")
         return 1
 
-    migrateData(conn, connPrivateReadonly, listFragment, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages, imageRootSource = options.imagessource, imageRootDestination = options.imagesdest)
+    migrateData(conn, connPrivateReadonly, listFragment, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages, imageRootSource = options.imagessource, imageRootDestination = options.imagesdest, getmetadata = options.getmetadata)
 
     print("Process complete.")
     conn.close()
@@ -179,7 +182,10 @@ def main():
 
         # 2024-03-14 KWS Added authtoken_token. 
         print('Extracting all the Django relevant tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
-        cmd = 'mysqldump -u%s --password=%s %s -h %s auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions authtoken_token django_admin_log django_content_type django_migrations django_session django_site > %s' % (options.username, options.password, options.sourceschema, options.hostname, options.djangofile)
+        djangoTables = 'auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site'
+        if options.includeauthtoken:
+            djangoTables += ' authtoken_token'
+        cmd = 'mysqldump -u%s --password=%s %s -h %s %s > %s' % (options.username, options.password, options.sourceschema, options.hostname, djangoTables, options.djangofile)
         os.system(cmd)
 
         print('Importing the Django tables from the %s schema.' % options.sourceschema)
@@ -191,12 +197,20 @@ def main():
         noCreateInfo = ''
         if options.nocreateinfo is not None:
             noCreateInfo = '--no-create-info'
-        cmd = 'mysqldump -u%s --password=%s %s -h %s %s --no-tablespaces tcs_cmf_metadata atlas_metadata atlas_metadataddc atlas_diff_subcells atlas_diff_subcell_logs > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, options.dumpfile)
-        os.system(cmd)
 
-        print('Importing the giant tables from the %s schema.' % options.sourceschema)
-        cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.dumpfile)
-        os.system(cmd)
+        metatables = ''
+        if not options.getmetadata:
+            metatables = 'tcs_cmf_metadata atlas_metadata atlas_metadataddc'
+        if insertdiffsubcelllogs:
+            metatables += ' atlas_diff_subcells atlas_diff_subcell_logs'
+        
+        if metatables:
+            cmd = 'mysqldump -u%s --password=%s %s -h %s %s --no-tablespaces %s > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, metatables, options.dumpfile)
+            os.system(cmd)
+
+            print('Importing the giant tables from the %s schema.' % options.sourceschema)
+            cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.dumpfile)
+            os.system(cmd)
 
     # The following tables contain over 100 million rows each. Doing a standard
     # replace into won't work.  Best to do a dump of the two tables and import
