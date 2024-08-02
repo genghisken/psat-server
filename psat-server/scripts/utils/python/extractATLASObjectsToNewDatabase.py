@@ -729,9 +729,9 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
  
 
     # 2024-08-02 KWS Only the *relevant* cmf files - only relevant for Pan-STARRS. Avoids having to ingest all meta files.
-    if metadata:
+    if getmetadata:
         # Now insert only the *relevant* cmf files
-        print "Copying CMF Info..."
+        print ("Copying CMF Info...")
         for filename in set(cmfFiles):
             print filename
             insertRecord(conn, 'tcs_cmf_metadata', "'%s'" % filename, 'filename', sourceReadOnlySchema, newSchema)
