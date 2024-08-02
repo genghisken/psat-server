@@ -104,6 +104,34 @@ def getATLASObjects(conn, listId = 4, objectType = -1, dateThreshold = '2013-06-
     return resultSet
 
 
+def getPanSTARRSObjects(conn, listId = 2, dateThreshold = '2013-06-01', objectId = None):
+    
+    try:
+        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+        if objectId is None:
+            query = """ select id, followup_id, ra_psf as ra, dec_psf as `dec`, ps1_designation 'name', object_classification, followup_flag_date
+                        from %s.tcs_transient_objects
+                        where detection_list_id = %s
+                        order by id
+                    """ % (schemaName, listId)
+            cursor.execute(query)
+        else:
+            cursor.execute ("""
+                select id, followup_id, ra_psf as ra, dec_psf as `dec`, ps1_designation 'name', object_classification, followup_flag_date
+                from tcs_transient_objects
+                where id = %s
+            """, (objectId,))
+        
+        resultSet = cursor.fetchall ()
+        cursor.close ()
+    
+    except MySQLdb.Error as e:
+        print ("Error %d: %s" % (e.args[0], e.args[1]))
+        sys.exit (1)
+            
+    return resultSet
+
+
 
 # We need all the object recurrences for the object.
 
@@ -245,6 +273,118 @@ def getObjectInfoddc(conn, objectId, negativeFlux = False):
     return resultSet
 
 
+# 2024-08-02 KWS Added Pan-STARRS specific utilities.
+def getObjectInfoPanSTARRS(conn, objectId, schemaName):
+   """
+   Get all object occurrences.
+   """
+
+   try:
+      cursor = conn.cursor (MySQLdb.cursors.DictCursor)
+
+      # Note that DEC is a MySQL reserved word, so need quotes around it
+
+      # 2011-10-12 KWS Addded imageid to order by clause to make sure that the results
+      #                are ordered consistently
+      query = """
+            SELECT d.ra_psf RA,d.dec_psf 'DEC', m.imageid,
+            substr(m.fpa_filter,1,1) Filter ,m.mjd_obs MJD,m.filename Filename,d.quality_threshold_pass QTP
+            FROM %s.tcs_transient_objects d, %s.tcs_cmf_metadata m
+            where d.id=%s
+            and d.tcs_cmf_metadata_id = m.id
+            UNION ALL
+            SELECT d.ra_psf RA,d.dec_psf 'DEC', m.imageid,
+            substr(m.fpa_filter,1,1) Filter ,m.mjd_obs MJD,m.filename Filename,d.quality_threshold_pass QTP
+            FROM %s.tcs_transient_reobservations d, %s.tcs_cmf_metadata m
+            where d.transient_object_id=%s
+            and d.tcs_cmf_metadata_id = m.id
+            ORDER by MJD, imageid
+      """ % (schemaName, schemaName, objectId, schemaName, schemaName, objectId)
+
+      cursor.execute(query)
+      result_set = cursor.fetchall ()
+
+      cursor.close ()
+
+   except MySQLdb.Error as e:
+      print ("Error %d: %s" % (e.args[0], e.args[1]))
+      sys.exit (1)
+
+
+   return result_set
+
+def getUniqueFieldsAndSkycells(objectInfo):
+    """
+    Get the unique fields and skycells for this object database row
+    """
+    # Overlapping skycells issue.  How many skycells are there?
+    # Let's not hit the database again.  Try using a hash.
+    skycellDict = {}
+    fieldDict = {}
+    skycell = None
+    field = None
+    for row in objectInfo:
+        #print row["Filename"]
+        fieldSearch = COMPILED_FIELD_REGEX.search(row["Filename"])
+        if fieldSearch:
+            field = fieldSearch.group(1)
+        skycellSearch = COMPILED_SKYCELL_REGEX.search(row["Filename"])
+        if skycellSearch:
+            skycell = skycellSearch.group(1)
+        if skycell:
+            #print skycell
+            skycellDict[skycell] = 1
+        if field:
+            fieldDict[field] = 1
+ 
+    skycellList = []
+    fieldList = []
+ 
+    if skycellDict:
+        skycellList = list(skycellDict.keys())
+    if fieldDict:
+        fieldList = list(fieldDict.keys())
+ 
+    return (fieldList, skycellList)
+
+
+def getObjectCMFFiles(conn, field, skycells, schemaName):
+    """Only get RELEVANT CMF files"""
+
+    try:
+        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+
+        sqlSelect = '''
+             select filename
+               from %s.tcs_cmf_metadata
+        ''' % (schemaName)
+
+        sqlWhere = '''
+              where (skycell = '%s' and tessellation like '%s%%')
+        ''' % (skycells[0], field)
+
+        if len(skycells) > 1:
+            for skycell in skycells[1:]:
+                sqlWhere += """or (skycell = '%s' and tessellation like '%s%%')
+                            """ % (skycell, field)
+
+        sql = sqlSelect + sqlWhere
+
+        cursor.execute(sql)
+
+        resultSet = cursor.fetchall ()
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print ("Error %d: %s" % (e.args[0], e.args[1]))
+        sys.exit (1)
+
+    return resultSet
+
+
+
+
+
 def getSpecifiedObjects(conn, objectIds):
     """
 
@@ -262,6 +402,40 @@ def getSpecifiedObjects(conn, objectIds):
             cursor.execute ("""
                 select id, ra, `dec`, followup_flag_date, atlas_designation
                 from atlas_diff_objects
+                where id = %s
+            """ , (id,))
+
+            resultSet = cursor.fetchone ()
+
+            if resultSet is not None and len(resultSet) > 0:
+                objectList.append(resultSet)
+
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        sys.stderr.write("Error %d: %s\n" % (e.args[0], e.args[1]))
+        sys.exit (1)
+
+    return objectList
+
+
+def getSpecifiedObjectsPanSTARRS(conn, objectIds):
+    """
+
+    :param conn: database connection
+    :param objectIds: 
+    :return resultSet: The tuple of object dicts
+
+    """
+    import MySQLdb
+
+    try:
+        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+        objectList = []
+        for id in objectIds:
+            cursor.execute ("""
+                select id, ra_psf as ra, dec_psf as `dec`, followup_flag_date, ps1_designation
+                from tcs_transient_objects
                 where id = %s
             """ , (id,))
 
@@ -465,6 +639,7 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
 
     counter = 1
     exposures = []
+    cmfFiles = []
     listLength = len(objectList)
     for object in objectList:
         print("Migrating object %d (%d of %d)" % (object['id'], counter, listLength))
@@ -515,11 +690,21 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
             for row in blanks:
                 exposures.append(row.expname)
 
+
+
         if not ddc:
             # Need to grab the detection ids for the moments insert
             objectInfo = getObjectInfo(conn, object['id'])
             for info in objectInfo:
                 detectionIds.append(info['id'])
+
+            # Pan-STARRS information. Doesn't work for ATLAS
+            objectInfo = getObjectInfoPanSTARRS(conn, object['id'])
+            fields, skycells = getUniqueFieldsAndSkycells(objectInfo)
+            cmfFilenames = getObjectCMFFiles(conn, fields[0], skycells, sourceReadOnlySchema)
+            for filename in cmfFilenames:
+                cmfFiles.append(filename['filename'])
+
 
         if copyimages and imageRootSource is not None and imageRootDestination is not None:
             print("Copying images...")
@@ -538,6 +723,18 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
         # Insert the moments entries.
         for detId in set(detectionIds):
             insertRecord(conn, 'atlas_diff_moments', detId, 'detection_id', sourceReadOnlySchema, newSchema)
+
+
+
+ 
+
+    # 2024-08-02 KWS Only the *relevant* cmf files - only relevant for Pan-STARRS. Avoids having to ingest all meta files.
+    if metadata:
+        # Now insert only the *relevant* cmf files
+        print "Copying CMF Info..."
+        for filename in set(cmfFiles):
+            print filename
+            insertRecord(conn, 'tcs_cmf_metadata', "'%s'" % filename, 'filename', sourceReadOnlySchema, newSchema)
 
 
 

@@ -12,7 +12,7 @@ Assumes:
   2. The databases are in the SAME MySQL server instance.
 
 Usage:
-  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>] [--getmetadata] [--insertdiffisubcelllogs] [--includeauthtoken]
+  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>] [--getmetadata] [--insertdiffisubcelllogs] [--includeauthtoken] [--survey=<survey>]
   %s (-h | --help)
   %s --version
 
@@ -34,6 +34,7 @@ Options:
   --getmetadata                   Get metadata associated with objects, otherwise insert ALL metadata.
   --insertdiffsubcelllogs         Insert diff subcell logs (very large amount of data).
   --includeauthtoken              Include authtoken_token in the Django export.
+  --survey=<survey>               Which transient database are we migrating? atlas or panstarrs? [default: atlas]
 
 
 E.g.:
@@ -136,12 +137,18 @@ def main():
     if options.candidates:
         for candidate in options.candidates:
             candidateList.append(int(candidate))
-        candidateList = getSpecifiedObjects(connPrivateReadonly, candidateList)
+        if options.survey == 'panstarrs':
+            candidateList = getSpecifiedObjectsPanSTARRS(connPrivateReadonly, candidateList)
+        else:
+            candidateList = getSpecifiedObjects(connPrivateReadonly, candidateList)
 
     else:
         candidateList = []
         for l in detectionList:
-            specifiedList = getATLASObjects(connPrivateReadonly, listId = l)
+            if options.survey == 'panstarrs':
+                specifiedList = getPanSTARRSObjects(connPrivateReadonly, listId = l)
+            else:
+                specifiedList = getATLASObjects(connPrivateReadonly, listId = l)
             if specifiedList:
                 candidateList = candidateList + list(specifiedList)
 
