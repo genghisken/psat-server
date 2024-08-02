@@ -733,7 +733,7 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
         # Now insert only the *relevant* cmf files
         print ("Copying CMF Info...")
         for filename in set(cmfFiles):
-            print filename
+            #print (filename)
             insertRecord(conn, 'tcs_cmf_metadata', "'%s'" % filename, 'filename', sourceReadOnlySchema, newSchema)
 
 
