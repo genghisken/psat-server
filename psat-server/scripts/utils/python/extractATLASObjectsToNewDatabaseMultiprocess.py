@@ -193,7 +193,7 @@ def main():
         djangoTables = 'auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site'
         if options.includeauthtoken:
             djangoTables += ' authtoken_token'
-        cmd = 'mysqldump -u%s --password=%s %s -h %s %s > %s' % (options.username, options.password, options.sourceschema, options.hostname, djangoTables, options.djangofile)
+        cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces %s > %s' % (options.username, options.password, options.sourceschema, options.hostname, djangoTables, options.djangofile)
         os.system(cmd)
 
         print('Importing the Django tables from the %s schema.' % options.sourceschema)
@@ -209,7 +209,7 @@ def main():
         metatables = ''
         if not options.getmetadata:
             metatables = 'tcs_cmf_metadata atlas_metadata atlas_metadataddc'
-        if insertdiffsubcelllogs:
+        if options.insertdiffsubcelllogs:
             metatables += ' atlas_diff_subcells atlas_diff_subcell_logs'
         
         if metatables:
