@@ -274,7 +274,7 @@ def getObjectInfoddc(conn, objectId, negativeFlux = False):
 
 
 # 2024-08-02 KWS Added Pan-STARRS specific utilities.
-def getObjectInfoPanSTARRS(conn, objectId, schemaName):
+def getObjectInfoPanSTARRS(conn, objectId):
    """
    Get all object occurrences.
    """
@@ -289,17 +289,17 @@ def getObjectInfoPanSTARRS(conn, objectId, schemaName):
       query = """
             SELECT d.ra_psf RA,d.dec_psf 'DEC', m.imageid,
             substr(m.fpa_filter,1,1) Filter ,m.mjd_obs MJD,m.filename Filename,d.quality_threshold_pass QTP
-            FROM %s.tcs_transient_objects d, %s.tcs_cmf_metadata m
+            FROM tcs_transient_objects d, tcs_cmf_metadata m
             where d.id=%s
             and d.tcs_cmf_metadata_id = m.id
             UNION ALL
             SELECT d.ra_psf RA,d.dec_psf 'DEC', m.imageid,
             substr(m.fpa_filter,1,1) Filter ,m.mjd_obs MJD,m.filename Filename,d.quality_threshold_pass QTP
-            FROM %s.tcs_transient_reobservations d, %s.tcs_cmf_metadata m
+            FROM tcs_transient_reobservations d, tcs_cmf_metadata m
             where d.transient_object_id=%s
             and d.tcs_cmf_metadata_id = m.id
             ORDER by MJD, imageid
-      """ % (schemaName, schemaName, objectId, schemaName, schemaName, objectId)
+      """ % (objectId, objectId)
 
       cursor.execute(query)
       result_set = cursor.fetchall ()
@@ -694,12 +694,12 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
 
         if not ddc:
             # Need to grab the detection ids for the moments insert
-            objectInfo = getObjectInfo(conn, object['id'])
+            objectInfo = getObjectInfo(conn = connPrivateReadonly, object['id'])
             for info in objectInfo:
                 detectionIds.append(info['id'])
 
             # Pan-STARRS information. Doesn't work for ATLAS
-            objectInfo = getObjectInfoPanSTARRS(conn, object['id'])
+            objectInfo = getObjectInfoPanSTARRS(conn = connPrivateReadonly, object['id'])
             fields, skycells = getUniqueFieldsAndSkycells(objectInfo)
             cmfFilenames = getObjectCMFFiles(conn, fields[0], skycells, sourceReadOnlySchema)
             for filename in cmfFilenames:
