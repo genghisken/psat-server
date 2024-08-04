@@ -693,7 +693,7 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
 
 
 
-        if not ddc and survey != panstarrs:
+        if not ddc and survey == 'atlas':
             # Need to grab the detection ids for the moments insert
             objectInfo = getObjectInfo(object['id'], conn = connPrivateReadonly)
             for info in objectInfo:
@@ -706,7 +706,7 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
             for filename in cmfFilenames:
                 cmfFiles.append(filename['filename'])
 
-        if not ddc and survey != panstarrs:
+        if not ddc and survey == 'atlas':
             # Insert the moments entries.
             for detId in set(detectionIds):
                 insertRecord(conn, 'atlas_diff_moments', detId, 'detection_id', sourceReadOnlySchema, newSchema)
