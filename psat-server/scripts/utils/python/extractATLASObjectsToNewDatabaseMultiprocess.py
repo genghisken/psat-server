@@ -12,7 +12,7 @@ Assumes:
   2. The databases are in the SAME MySQL server instance.
 
 Usage:
-  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>] [--getmetadata] [--insertdiffisubcelllogs] [--includeauthtoken] [--survey=<survey>]
+  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>] [--getmetadata] [--insertdiffsubcelllogs] [--includeauthtoken] [--survey=<survey>]
   %s (-h | --help)
   %s --version
 
