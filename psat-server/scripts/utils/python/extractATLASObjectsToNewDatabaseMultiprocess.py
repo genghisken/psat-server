@@ -40,15 +40,16 @@ Options:
 E.g.:
   %s publicuser publicpass public db1 atlas4 --ddc --list=5 --copyimages
   %s atlas4migrateduser xxxxxxxxxxxxxxx atlas4migrated db1 atlas4 --ddc --list=1,2,3,5,7,8,9,10,11 --copyimages --loglocation=/db4/tc_logs/atlas4/ --includeauthtoken
+  %s ps13pi_extracteduser xxxxxxxxxxxxxx ps13pi_extracted db0 ps13pi 1111822080325015100 --copyimages --loglocation=/db0/tc_logs/ps13pi/ --nocreateinfo --dumpfile=/home/pstc/ps13pi/ps13pi_extracted.sql --djangofile=/home/pstc/ps13pi/ps13pi_extracted_django.sql --imagessource=/db0/images/ --imagesdest=/db0/images/ --getmetadata --survey=panstarrs
 
 """
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, MySQLdb, shutil, re
 from gkutils.commonutils import dbConnect, find, Struct, cleanOptions
 from psat_server_web.atlas.atlas.commonqueries import getNonDetectionsUsingATLASFootprint, LC_POINTS_QUERY_ATLAS_DDC, ATLAS_METADATADDC, filterWhereClauseddc, FILTERS
-from extractATLASObjectsToNewDatabase import getATLASObjects, getSpecifiedObjects, migrateData, truncateAllTables, removeAllImagesAndLocationMaps, insertAllRecords
+from extractATLASObjectsToNewDatabase import getATLASObjects, getSpecifiedObjects, migrateData, truncateAllTables, removeAllImagesAndLocationMaps, insertAllRecords, getSpecifiedObjectsPanSTARRS
 import gc
 from gkutils.commonutils import splitList, parallelProcess
 import queue
