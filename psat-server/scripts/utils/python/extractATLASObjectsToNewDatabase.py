@@ -632,7 +632,7 @@ def copyImages(conn, objectId, sourceReadOnlySchema, newSchema, imageRootSource,
 # 2017-05-10 KWS Added the new tcs_object_comments table
 # 2024-03-04 KWS Added the new tcs_vra_scores table
 # 2024-07-30 KWS Added tcs_vra_rank and tcs_vra_todo tables
-def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnlySchema, ddc = False, copyimages = False, imageRootSource = None, imageRootDestination = None, getmetadata = False):
+def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnlySchema, ddc = False, copyimages = False, imageRootSource = None, imageRootDestination = None, getmetadata = False, survey = 'atlas'):
 
     # Now add the objects one-at-a time.  The advantage of doing it this way is
     # that we can veto publication of individual objects if necessary.
@@ -642,6 +642,7 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
     cmfFiles = []
     listLength = len(objectList)
     for object in objectList:
+        detectionIds = []
         print("Migrating object %d (%d of %d)" % (object['id'], counter, listLength))
         insertRecord(conn, 'tcs_transient_objects', object['id'], 'id', sourceReadOnlySchema, newSchema)
         insertRecord(conn, 'tcs_transient_reobservations', object['id'], 'transient_object_id', sourceReadOnlySchema, newSchema)
@@ -692,7 +693,7 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
 
 
 
-        if not ddc:
+        if not ddc and survey != panstarrs:
             # Need to grab the detection ids for the moments insert
             objectInfo = getObjectInfo(object['id'], conn = connPrivateReadonly)
             for info in objectInfo:
@@ -704,6 +705,11 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
             cmfFilenames = getObjectCMFFiles(conn, fields[0], skycells, sourceReadOnlySchema)
             for filename in cmfFilenames:
                 cmfFiles.append(filename['filename'])
+
+        if not ddc and survey != panstarrs:
+            # Insert the moments entries.
+            for detId in set(detectionIds):
+                insertRecord(conn, 'atlas_diff_moments', detId, 'detection_id', sourceReadOnlySchema, newSchema)
 
 
         if copyimages and imageRootSource is not None and imageRootDestination is not None:
@@ -718,11 +724,6 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
 #            insertRecord(conn, 'atlas_metadataddc', '\'%s\'' % (exp), 'obs', sourceReadOnlySchema, newSchema)
 #        else:
 #            insertRecord(conn, 'atlas_metadata', '\'%s\'' % (exp), 'expname', sourceReadOnlySchema, newSchema)
-
-    if not ddc:
-        # Insert the moments entries.
-        for detId in set(detectionIds):
-            insertRecord(conn, 'atlas_diff_moments', detId, 'detection_id', sourceReadOnlySchema, newSchema)
 
 
 

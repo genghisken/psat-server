@@ -75,7 +75,7 @@ def worker(num, db, listFragment, dateAndTime, firstPass, miscParameters):
         print("Cannot connect to the private database")
         return 1
 
-    migrateData(conn, connPrivateReadonly, listFragment, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages, imageRootSource = options.imagessource, imageRootDestination = options.imagesdest, getmetadata = options.getmetadata)
+    migrateData(conn, connPrivateReadonly, listFragment, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages, imageRootSource = options.imagessource, imageRootDestination = options.imagesdest, getmetadata = options.getmetadata, survey = options.survey)
 
     print("Process complete.")
     conn.close()
