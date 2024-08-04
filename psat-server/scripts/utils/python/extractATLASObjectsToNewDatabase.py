@@ -135,7 +135,7 @@ def getPanSTARRSObjects(conn, listId = 2, dateThreshold = '2013-06-01', objectId
 
 # We need all the object recurrences for the object.
 
-def getObjectInfo(conn, objectId):
+def getObjectInfo(objectId, conn = None):
     """getObjectInfo.
 
     Args:
@@ -184,7 +184,7 @@ def getObjectInfo(conn, objectId):
 # 2018-05-03 KWS Include an option to pick up the negative flux detections (e.g.
 #                for calculating average RA and Dec). This will also get all the
 #                deprecated detections.
-def getObjectInfoddc(conn, objectId, negativeFlux = False):
+def getObjectInfoddc(objectId, conn = None, negativeFlux = False):
     """getObjectInfoddc.
 
     Args:
@@ -274,7 +274,7 @@ def getObjectInfoddc(conn, objectId, negativeFlux = False):
 
 
 # 2024-08-02 KWS Added Pan-STARRS specific utilities.
-def getObjectInfoPanSTARRS(conn, objectId):
+def getObjectInfoPanSTARRS(objectId, conn = None):
    """
    Get all object occurrences.
    """
@@ -694,12 +694,12 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
 
         if not ddc:
             # Need to grab the detection ids for the moments insert
-            objectInfo = getObjectInfo(conn = connPrivateReadonly, object['id'])
+            objectInfo = getObjectInfo(object['id'], conn = connPrivateReadonly)
             for info in objectInfo:
                 detectionIds.append(info['id'])
 
             # Pan-STARRS information. Doesn't work for ATLAS
-            objectInfo = getObjectInfoPanSTARRS(conn = connPrivateReadonly, object['id'])
+            objectInfo = getObjectInfoPanSTARRS(object['id'], conn = connPrivateReadonly)
             fields, skycells = getUniqueFieldsAndSkycells(objectInfo)
             cmfFilenames = getObjectCMFFiles(conn, fields[0], skycells, sourceReadOnlySchema)
             for filename in cmfFilenames:
