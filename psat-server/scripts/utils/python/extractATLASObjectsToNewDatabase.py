@@ -699,7 +699,8 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
             for info in objectInfo:
                 detectionIds.append(info['id'])
 
-            # Pan-STARRS information. Doesn't work for ATLAS
+        # Pan-STARRS information. Doesn't work for ATLAS
+        if survey == 'panstarrs':
             objectInfo = getObjectInfoPanSTARRS(object['id'], conn = connPrivateReadonly)
             fields, skycells = getUniqueFieldsAndSkycells(objectInfo)
             cmfFilenames = getObjectCMFFiles(conn, fields[0], skycells, sourceReadOnlySchema)
