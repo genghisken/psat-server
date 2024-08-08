@@ -689,9 +689,7 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
             else:
                 b, blanks, lastNonDetection = getNonDetectionsUsingATLASFootprint(recurrences, conn = connPrivateReadonly)
 
-            print("Copying exposures")
             for row in blanks:
-                print(row.expname)
                 exposures.append(row.expname)
 
 
@@ -721,20 +719,18 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
             copyImages(conn, object['id'], sourceReadOnlySchema, newSchema, imageRootSource, imageRootDestination)
         counter += 1
 
-#    uniqueExposures = sorted(list(set(exposures)))
-#    for exp in uniqueExposures:
-#        # Now grab all the exposure information.
-#        if ddc:
-#            insertRecord(conn, 'atlas_metadataddc', '\'%s\'' % (exp), 'obs', sourceReadOnlySchema, newSchema)
-#        else:
-#            insertRecord(conn, 'atlas_metadata', '\'%s\'' % (exp), 'expname', sourceReadOnlySchema, newSchema)
-
-
-
+    if getmetadata and survey == 'atlas':
+        uniqueExposures = sorted(list(set(exposures)))
+        for exp in uniqueExposures:
+            # Now grab all the exposure information.
+            if ddc:
+                insertRecord(conn, 'atlas_metadataddc', '\'%s\'' % (exp), 'obs', sourceReadOnlySchema, newSchema)
+            else:
+                insertRecord(conn, 'atlas_metadata', '\'%s\'' % (exp), 'expname', sourceReadOnlySchema, newSchema)
  
 
     # 2024-08-02 KWS Only the *relevant* cmf files - only relevant for Pan-STARRS. Avoids having to ingest all meta files.
-    if getmetadata:
+    if getmetadata and survey == 'panstarrs':
         # Now insert only the *relevant* cmf files
         print ("Copying CMF Info...")
         for filename in set(cmfFiles):
