@@ -674,6 +674,7 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
         insertRecord(conn, 'atlas_detectionsnnc', object['id'], 'atlas_object_id', sourceReadOnlySchema, newSchema)
 
         # Create a dummy recurrence so we can reuse existing code.
+        # By having a dummy recurrence, we actually return all the exosures containing detections too.
         recurrence = EmptyRecurreces()
         recurrence.ra = object['ra']
         recurrence.dec = object['dec']
@@ -682,13 +683,15 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
         recurrences = [recurrence]
 
         # Only do the following if we don't insert the entire metadata table.
-        if getmetadata:
+        if getmetadata and survey == 'atlas':
             if ddc:
                 b, blanks, lastNonDetection = getNonDetectionsUsingATLASFootprint(recurrences, conn = connPrivateReadonly, ndQuery=ATLAS_METADATADDC, filterWhereClause = filterWhereClauseddc, catalogueName = 'atlas_metadataddc')
             else:
                 b, blanks, lastNonDetection = getNonDetectionsUsingATLASFootprint(recurrences, conn = connPrivateReadonly)
 
+            print("Copying exposures")
             for row in blanks:
+                print(row.expname)
                 exposures.append(row.expname)
 
 
