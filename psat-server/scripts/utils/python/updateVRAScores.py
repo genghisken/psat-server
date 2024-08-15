@@ -2,7 +2,7 @@
 """Periodically update VRA scores as new data arrives and decision are made.
 
 Usage:
-  %s [--debug] [--ndays=<ndays>] [--quiet]
+  %s <apiConfigFile> [--debug] [--ndays=<ndays>] [--quiet]
   %s (-h | --help)
   %s --version [--quiet]
 
@@ -44,8 +44,11 @@ import os, shutil, re, csv, subprocess
 from gkutils.commonutils import Struct, cleanOptions, dbConnect, coords_dec_to_sex, getDateFractionMJD, readGenericDataFile, getMJDFromSqlDate
 
 # 2024-03-05 KWS Need to add Heloise's code into the pythonpath.
-from st3ph3n.api_utils import atlas as atlasapi
-
+#from st3ph3n.api_utils import atlas as atlasapi
+import st3ph3n.utils.api as vraapi
+from atlasapiclient import client as atlasapi
+from st3ph3n.vra.dataprocessing import FeaturesSingleSource, LightCurvePipes
+from st3ph3n.vra.scoring import ScoreAndRank
 import requests
 import json
 import random
@@ -54,10 +57,29 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import pkg_resources
+from datetime import datetime, timedelta
+from astropy.time import Time
 
 
-data_path = pkg_resources.resource_filename('st3ph3n', 'data')
-api_config = data_path + '/api_config_MINE.yaml'
+
+#data_path = pkg_resources.resource_filename('st3ph3n', 'data')
+#api_config = data_path + '/api_config_MINE.yaml'
+
+def insertVRAEntry(API_CONFIG_FILE, objectId, pReal, pGal, rank, debug = False):
+    payload = {'objectid': objectId, 'preal': pReal, 'pgal': pGal, 'rank': rank, 'debug': debug}
+    writeto_vra = vraapi.WriteToVRAScores(api_config_file = API_CONFIG_FILE, payload=payload)
+    writeto_vra.get_response()
+
+def insertVRATodo(API_CONFIG_FILE, objectId):
+    payload = {'objectid': objectId}
+    writeto_todo = vraapi.WriteToToDo(api_config_file = API_CONFIG_FILE, payload=payload)
+    writeto_todo.get_response()
+
+def insertVRARank(API_CONFIG_FILE, objectId, rank):
+    payload = {'objectid': objectId, 'rank': rank}
+    writeto_rank = vraapi.WriteToVRARank(api_config_file = API_CONFIG_FILE, payload=payload)
+    writeto_rank.get_response()
+
 
 def runUpdates(options):
     """
@@ -67,6 +89,7 @@ def runUpdates(options):
       - output the list of ATLAS 19 digit IDs and timestamps (in pairs).
     """
 
+    api_config = options.apiConfigFile
     # NEW LOGIC: Get the VRA todo list, NOT use a date threshold anymore.
     #            NOTE: We may need to chunk the response we get when making up the payload below.
     #            OR: Put in a date threshold below of (e.g.) 1 month of data from VRA Todo. Then
@@ -99,125 +122,76 @@ def runUpdates(options):
     vra_df = pd.DataFrame(request_vra_scores.response)                          # Use Pandas to handle cuts below witht having to use loops.
 
     # NEW LOGIC: Make a sub-dataframe that only contains ATLAS IDs in the todo list.
-
-    list_to_update = vratodo_df.transient_object_id.values
-
-    # Find the unique transient_object_ids of the objects that need updating.
-    # NEW LOGIC: We already have a unique list of object IDs from the todo list.
-    #            The following lines may cease to exist because human decisions
-    #            already remove the ID from the todo list.
-#    unique_transient_ids = set(vra_df.transient_object_id.values)               # All unique transient IDs in the VRA table for the last N days.
-#    transient_ids_with_decisions = set(vra_df[~vra_df.username.isnull()         # Find unique IDs of objects with human decisions (username is not null)
-#                                             ].transient_object_id.values)
-#    set_to_update = unique_transient_ids - transient_ids_with_decisions         # Object to update are ONLY those WITHOUT a human decision.
-
-    # Find the last time an object was updated in the VRA table.
     last_vra_timestamps = vra_df[np.isin(vra_df.transient_object_id.values,     # Only select transient_object_ids of objects we want to update. Must be values - returns numpy array.
-                                              list_to_update) 
+                                              vratodo_df.transient_object_id.values) 
                                 ][['transient_object_id','timestamp']
                                  ].drop_duplicates(subset='transient_object_id',# Remove duplicate rows and only keep the last one
                                                    keep='last')
     last_vra_timestamps.set_index('transient_object_id', inplace=True)          # Use transient_object_id as index for convenience.
 
-    # Now go and fetch all the info pertaining to each of the objects above since our date threshold.
-    # Instantiate the object that makes the API call, but don't actually do it yet.
-    request_data = atlasapi.RequestMultipleSourceData(api_config_file=api_config,
-                                                     array_ids=np.array(list_to_update),
-                                                     mjdthreshold = getMJDFromSqlDate(date_threshold)
-                                                     )
+    ### NEW CODE HFS: 2024-08-12: ADDING THE BRAIN TO OUR UPDATE SCORES
+    # HFS: add the mjd so can compare to the last observation in the lightcurve
+    last_vra_timestamps['mjd'] = Time(pd.to_datetime(last_vra_timestamps.timestamp.values)).mjd
 
-    # Chunks the API calls into payloads containing the max number of object that API can handle.
-    if options.quiet:
-        request_data.chunk_get_response_quiet()                                  # Quiet mode doen't print a progress bar.
-    else:
-        request_data.chunk_get_response()
+    feature_list = []
+    atlas_ids_to_update = []
+    for _atlas_id in vratodo_df.transient_object_id.values:
+        lcp = LightCurvePipes(str(_atlas_id), phase_bounds=(-5, 15))
 
-    # Now iterate over each object we want to update.
+        # IF LAST OBSERVATION WAS MORE THAN 1 DAY AGO WE RERUN THE FEATURES
+        if abs(lcp.lightcurve.iloc[-1].mjd-last_vra_timestamps.loc[_atlas_id].mjd)>=1:
 
-    writeto_vra = atlasapi.WriteToVRAScores(api_config_file=api_config)         # Instantiate the WriteToVRAScores API connector. We only need to do this once.
+            feature_maker = FeaturesSingleSource(_atlas_id)
+            feature_maker.make_update_features(lcpipes=lcp)
 
-    for i in range(len(request_data.response)):
-        _response = request_data.response[i]                                                       # the response for one object
-        data_lc = pd.DataFrame(_response['lc'])                                                    # store the det info in a pd dataframe
-        data_lcnondets = pd.DataFrame(_response['lcnondets'])                                      # ditto for nondets
+            feature_list.append(feature_maker.features)
+            atlas_ids_to_update.append(_atlas_id)
 
-        # If statements to handle cases where there may not be any detections or nondetections
-        if data_lc.shape[0] == 0:
-            data_lc = None
         else:
-            # do the operations on data_lc
-            data_lc = data_lc[['mjd','filter','mag','magerr','date_inserted']]                         # Only select the columns we need from the det dataframe
-            data_lc['det'] = 1                                                                         # Add new column to indicate that these are detections.
-
-
-        if data_lcnondets.shape[0] == 0:
-            data_lcnondets = None
-        else:
-            # do the operations on data_lcnondets
-            data_lcnondets['magerr'] = 0.0                                                             # add a magerr column & set to zero for nondets
-            data_lcnondets = data_lcnondets[['mjd','filter','mag5sig','magerr','date_inserted']]       # Select the columns we need for nondets.
-            data_lcnondets.columns=['mjd','filter','mag','magerr','date_inserted']                     # Need to rename the columns so that we can concatenate later on (mag5sig -> mag)
-                                                                                                       # Needed so that we can concatenate dataframes later on
-            data_lcnondets['det'] = 0                                                                  # Add a new column to indicate that these are nondetections.
-
-
-
-        #print(data_lcnondets.columns)
-        #print(data_lcnondets)
-
-        if data_lc is None and data_lcnondets is not None:
-            data_all = data_lcnondets
-        elif data_lcnondets is None and data_lc is not None:
-            data_all = data_lc
-        elif data_lcnondets is not None and data_lc is not None:
-            data_all = pd.concat([data_lc, data_lcnondets]                                             # Concatenate dets and nondets to make full lightcurve
-                                ).sort_values('mjd').reset_index(drop=True)                            # We also sort by mjd and reset the pandas index so that it's sequential and unique
-        else:
-            # There are neither detections nor non detections (both are None).
-            # This shouldn't happen, but could in the situation that database has
-            # been cleansed.
             continue
 
-        #print(data_all.date_inserted.values)
-        #print(last_vra_timestamps.loc[_response['object']['id']].values)
+    features_df = pd.DataFrame(np.array(feature_list), columns = feature_maker.feature_names)
+    s_a_r = ScoreAndRank(features_df,model_type='update', model_name='bmo')
+    s_a_r.calculate_rank()
+ 
+    i = 0
+    for atlas_id, pReal, pGal, rank in zip(atlas_ids_to_update,
+                                     s_a_r.real_scores.T[1],
+                                     s_a_r.gal_scores.T[1],
+                                     s_a_r.ranks):
 
-        # _response['object']['id'] is the unique ATLAS ID for this object.
-        # We use it to locate the last time it was updated in the VRA table using last_vra_timestamps dataframe
-        # We look for all the rows in our lightcurve (data_all) that are more recent than the last update.
-        _transient_object_id = _response['object']['id']
-        data_new = data_all[data_all.date_inserted.values > last_vra_timestamps.loc[_transient_object_id].values]
-
-        if data_new.shape[0] == 0:
-             continue                                                                              # If the dataframe is empty, move on to the next iteration.
+        insertVRAEntry(api_config, atlas_id, pReal, pGal, rank, debug = options.debug)
+        insertVRATodo(api_config, atlas_id)
+        i += 1
+        if options.debug:
+            continue
         else:
-             # TODO - possibly be smarter about case where there more than one night of new data available.
-             mask_latest_night = (data_new.mjd.max() - data_new.mjd.values) < 1
-             data_latest_night = data_new[mask_latest_night]
+            insertVRARank(configFile, atlas_id, rank)
 
-             # First bit of logic - if more than half data is detections, preal = 1, otherwise preal = 0
-             _preal = data_latest_night.det.sum() // data_latest_night.shape[0]
-             # Insert the VRA entry into the table.
+    # 6. Calculate ranks and for each atlas ID, rank pair write to the tcs_vra_rank table.
 
-             writeto_vra.payload = {'objectid': int(_transient_object_id),
-                                    'preal': float(_preal),
-                                    'debug': 1,
-                                   }
-             writeto_vra.get_response()
+
+    #for row in data:
+    #    #print(row['objectid'], row['score'])
+    #    insertVRAEntry(apiURL, apiToken, row['objectid'], row['score'], debug = debug)
+
+    print("%d objects inserted into the VRA Scores and Todo tables." % i)
+    return 0
 
 
 
 
 def main():
 
-    opts = docopt(__doc__, version='0.1')
-    opts = cleanOptions(opts)
-    options = Struct(**opts)
+   opts = docopt(__doc__, version='0.1')
+   opts = cleanOptions(opts)
+   options = Struct(**opts)
 
-    debug = options.debug
-    if debug is None:
-        debug = False
+   debug = options.debug
+   if debug is None:
+       debug = False
 
-    runUpdates(options)
+   runUpdates(options)
 
 
 
