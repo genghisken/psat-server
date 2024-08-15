@@ -133,13 +133,18 @@ def runUpdates(options):
     # HFS: add the mjd so can compare to the last observation in the lightcurve
     last_vra_timestamps['mjd'] = Time(pd.to_datetime(last_vra_timestamps.timestamp.values)).mjd
 
+    atlas_id_tns_xm = []
     feature_list = []
     atlas_ids_to_update = []
     for _atlas_id in vratodo_df.transient_object_id.values:
         lcp = LightCurvePipes(str(_atlas_id), phase_bounds=(-5, 15))
 
+        # Keep a record of transients with TNS crossmatches.
+        if len(lcp.data.data['tns_crossmatches']) > 0:
+            atlas_id_tns_xm.append(_atlas_id)
+
         # IF LAST OBSERVATION WAS MORE THAN 1 DAY AGO WE RERUN THE FEATURES
-        if abs(lcp.lightcurve.iloc[-1].mjd-last_vra_timestamps.loc[_atlas_id].mjd)>=1:
+        if (lcp.lightcurve.iloc[-1].mjd-last_vra_timestamps.loc[_atlas_id].mjd)>0:
 
             feature_maker = FeaturesSingleSource(_atlas_id)
             feature_maker.make_update_features(lcpipes=lcp)
@@ -166,7 +171,16 @@ def runUpdates(options):
         if options.debug:
             continue
         else:
-            insertVRARank(configFile, atlas_id, rank)
+            insertVRARank(api_config, atlas_id, rank)
+
+    # Set the rank to 10 for objects with a TNS crossmatch.
+    for atlas_id in atlas_id_tns_xm:
+        rank = 10
+        insertVRAEntry(api_config, atlas_id, None, None, rank, debug = options.debug)
+        if options.debug:
+            continue
+        else:
+            insertVRARank(api_config, atlas_id, rank)
 
     # 6. Calculate ranks and for each atlas ID, rank pair write to the tcs_vra_rank table.
 
