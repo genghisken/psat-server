@@ -365,9 +365,9 @@ def downloadFPExposures(exposureSet):
     Args:
         exposureSet:
     """
-    doRsync(exposureSet, 'diff')
+    doRsync(exposureSet, 'diff', ignoreExistingFiles = True)
     # Grab the tphot photometry files
-    doRsync(exposureSet, 'red', getMetadata = True, metadataExtension = '.tph')
+    doRsync(exposureSet, 'red', getMetadata = True, metadataExtension = '.tph', ignoreExistingFiles = True)
     return exposureSet
 
 
@@ -440,8 +440,8 @@ def main(argv = None):
         return 0
 
     if not options.skipdownload:
-        doRsync(allExps, 'diff')
-        doRsync(allExps, 'red', getMetadata = True, metadataExtension = '.tph')
+        doRsync(allExps, 'diff', ignoreExistingFiles = True)
+        doRsync(allExps, 'red', getMetadata = True, metadataExtension = '.tph', ignoreExistingFiles = True)
 
     fphot = doForcedPhotometry(options, objectList, perObjectExps)
 
