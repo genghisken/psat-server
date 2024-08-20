@@ -52,3 +52,6 @@ recurrence_plots
 images/reports
 admin/
 django_tables2/
+
+# API tokens
+*slack_token.txt*

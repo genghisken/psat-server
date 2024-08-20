@@ -8,7 +8,7 @@ export CONFIG_ATLASAPI=/usr/local/ps1code/gitrelease/atlasapiclient/atlasapiclie
 
 echo "Starting to update the VRA scores."
 t_start=$(date +%s)
-/usr/local/swtools/python/atls/anaconda3/envs/vra/bin/python /usr/local/ps1code/gitrelease/psat-server/psat-server/scripts/utils/python/test_vra/updateVRAScoresTest.py $CONFIG_ATLASAPI --quiet
+/usr/local/swtools/python/atls/anaconda3/envs/vra/bin/python /usr/local/ps1code/gitrelease/psat-server/psat-server/scripts/utils/python/updateVRAScores.py $CONFIG_ATLASAPI --quiet
 t_end=$(date +%s)
 
 echo "Finished updating VRA scores."

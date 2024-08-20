@@ -47,7 +47,7 @@ from gkutils.commonutils import Struct, cleanOptions, dbConnect, coords_dec_to_s
 #from st3ph3n.api_utils import atlas as atlasapi
 import st3ph3n.utils.api as vraapi
 from atlasapiclient import client as atlasapi
-from st3ph3n.vra.dataprocessing import FeaturesSingleSource, LightCurvePipes
+from st3ph3n.vra.dataprocessing import FeaturesSingleSource, LightCurvePipes, Day1LCFeatures
 from st3ph3n.vra.scoring import ScoreAndRank
 import requests
 import json
@@ -137,25 +137,66 @@ def runUpdates(options):
     feature_list = []
     atlas_ids_to_update = []
     for _atlas_id in vratodo_df.transient_object_id.values:
-        lcp = LightCurvePipes(str(_atlas_id), phase_bounds=(-5, 15))
-
+        ## HFS: 2024-08-17 -- Adding Features to the Update Scorer
+        lcp = LightCurvePipes(str(_atlas_id), phase_bounds=(-100, 15))
+        ##
+        
         # Keep a record of transients with TNS crossmatches.
         if len(lcp.data.data['tns_crossmatches']) > 0:
             atlas_id_tns_xm.append(_atlas_id)
 
         # IF LAST OBSERVATION WAS MORE THAN 1 DAY AGO WE RERUN THE FEATURES
         if (lcp.lightcurve.iloc[-1].mjd-last_vra_timestamps.loc[_atlas_id].mjd)>0:
+            ## HFS: 2024-08-17 -- Adding Features to the Update Scorer
+            lcp.make_history()
 
+            if lcp.history.shape[0] == 0:
+                print(f'https://star.pst.qub.ac.uk/sne/atlas4/candidate/{_atlas_id}/')
+                continue
+
+            day1_features = Day1LCFeatures(lcp.history)
+
+            lcp.detections=lcp.detections[(lcp.detections.phase_init>-5)
+                                          &(lcp.detections.phase_init<=15)
+                                         ]
+            lcp.non_detections=lcp.non_detections[(lcp.non_detections.phase_init>-5)
+                                          &(lcp.non_detections.phase_init<=15)
+                                         ]
+            lcp.lightcurve = lcp.lightcurve[(lcp.lightcurve.phase_init>-5)
+                                          &(lcp.lightcurve.phase_init<=15)
+                                         ]
             feature_maker = FeaturesSingleSource(_atlas_id)
             feature_maker.make_update_features(lcpipes=lcp)
+            features = feature_maker.features + day1_features.lc_features
 
-            feature_list.append(feature_maker.features)
+            feature_list.append(feature_maker.features + day1_features.lc_features)
+            ##
             atlas_ids_to_update.append(_atlas_id)
 
         else:
             continue
 
-    features_df = pd.DataFrame(np.array(feature_list), columns = feature_maker.feature_names)
+    ## HFS: 2024-08-17 -- Adding Features to the Update Scorer
+    try:
+        feature_names = feature_maker.feature_names+['Nnondet_std', 'Nnondet_mean', 'magdet_std']
+    except UnboundLocalError as e:
+        if len(atlas_id_tns_xm) == 0:
+            # We have nothing to do. No updates and nothing found by TNS.
+            return 0
+        else:
+            # Set the rank to 10 for objects with a TNS crossmatch.
+            for atlas_id in atlas_id_tns_xm:
+                rank = 10
+                insertVRAEntry(api_config, atlas_id, None, None, rank, debug = options.debug)
+                if options.debug:
+                    continue
+                else:
+                    insertVRARank(api_config, atlas_id, rank)
+            return 0
+
+
+    features_df = pd.DataFrame(np.array(feature_list), columns = feature_names)
+    ##
     s_a_r = ScoreAndRank(features_df,model_type='update', model_name='bmo')
     s_a_r.calculate_rank()
  
