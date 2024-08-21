@@ -43,7 +43,7 @@ export CONFIG_ATLASAPI=/usr/local/ps1code/gitrelease/atlasapiclient/atlasapiclie
 
 export OUTPUT_FILE=/$DBHOST/$LOGLOCATION/garbage_`date +%Y%m%d_%H%M`_vra.log
 
-$PYTHONVRA /usr/local/ps1code/gitrelease/psat-server/psat-server/scripts/utils/python/VRAGarbageCollector.py $CONFIG_ATLASAPI $OUTPUT_FILE --debug
+$PYTHONVRA /usr/local/ps1code/gitrelease/psat-server/psat-server/scripts/utils/python/VRAGarbageCollector.py $CONFIG_ATLASAPI $OUTPUT_FILE
 
 #export OUTPUT_FILE=/$DBHOST/$LOGLOCATION/garbage_20240821_1517_vra.log
 
