@@ -2,7 +2,7 @@
 """Do ATLAS forced photometry.
 
 Usage:
-  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--limitafter=<limitafter>] [--update] [--ddc] [--skipdownload] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--loglocationdownloads=<loglocationdownloads>] [--logprefixdownloads=<logprefixdownloads>] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>] [--tphorce=<tphorcelocation>] [--flagdate=<flagdate>] [--downloadthreads=<downloadthreads>] [--mlscore=<mlscore>] [--useflagdate] [--test]
+  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--limitafter=<limitafter>] [--update] [--ddc] [--skipdownload] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--loglocationdownloads=<loglocationdownloads>] [--logprefixdownloads=<logprefixdownloads>] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>] [--tphorce=<tphorcelocation>] [--flagdate=<flagdate>] [--downloadthreads=<downloadthreads>] [--mlscore=<mlscore>] [--vrascore=<vrascore>] [--useflagdate] [--test]
   %s (-h | --help)
   %s --version
 
@@ -28,17 +28,19 @@ Options:
   --flagdate=<flagdate>                           Date threshold - no hyphens [default: 20151220].
   --downloadthreads=<downloadthreads>             Number of threads to use for image downloads [default: 10].
   --mlscore=<mlscore>                             ML score below which we will NOT request forced photometry.
+  --vrascore=<vrascore>                           Virtual Research Assistant score below which we will NOT request forced photometry.
   --useflagdate                                   Use the flag date as the threshold for the number of days instead of the first detection (which might be rogue).
   --test                                          Just list the exposures for which we will do forced photometry.
 
 E.g.:
-  %s ../../../../../atlas/config/config4_db1.yaml --detectionlist=2 --limit=30 --limitafter=150 --ddc --update --useflagdate --loglocation=/tmp/ --loglocationdownloads=/tmp/ --flagdate=20220101
-  %s ../../../../../atlas/config/config4_db1.yaml 1192751580350243700 --limit=30 --limitafter=150 --ddc --update --useflagdate --loglocation=/tmp/ --loglocationdownloads=/tmp/
+  %s ../../../../../atlas/config/config4_db5.yaml --detectionlist=2 --limit=30 --limitafter=150 --ddc --update --useflagdate --loglocation=/tmp/ --loglocationdownloads=/tmp/ --flagdate=20220101
+  %s ../../../../../atlas/config/config4_db5.yaml 1192751580350243700 --limit=30 --limitafter=150 --ddc --update --useflagdate --loglocation=/tmp/ --loglocationdownloads=/tmp/
+  %s ../../../../../atlas/config/config4_db5.yaml --detectionlist=4 --limit=30 --limitafter=150 --ddc --update --useflagdate --mlscore=0.9 --vrascore=4.0 --loglocation=/tmp/ --loglocationdownloads=/tmp/
 
 """
 
 import sys, os
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, shutil, re, csv, subprocess
 
@@ -139,6 +141,10 @@ def main(argv = None):
     if options.mlscore is not None:
         mlscore = float(options.mlscore)
 
+    vrascore = None
+    if options.vrascore is not None:
+        vrascore = float(options.vrascore)
+
 
     objectList = []
 
@@ -175,14 +181,23 @@ def main(argv = None):
 
     print("LENGTH OF OBJECTLIST = ", len(objectList))
 
+    updatedList = []
     if mlscore is not None and not (options.candidate): # Only do this filter if the IDs are not provided explicitly.
-        updatedList = []
         for row in objectList:
             if row['zooniverse_score'] is not None and row['zooniverse_score'] >= mlscore:
                 updatedList.append(row)
-        if len(updatedList) > 0:
-            objectList = updatedList
-            print("LENGTH OF CLIPPED OBJECTLIST = ", len(objectList))
+
+    # 2024-08-22 KWS Also added vrascore. If both conditions used the total list is additive.
+    if vrascore is not None and not (options.candidate): # Only do this filter if the IDs are not provided explicitly.
+        for row in objectList:
+            if row['realbogus_factor'] is not None and row['realbogus_factor'] >= vrascore:
+                updatedList.append(row)
+
+    if len(updatedList) > 0:
+        # Equivalent of set, assuming 'id' is unique - which it is! Can't use set
+        # because dicts are not hashable.
+        objectList = list({v['id']:v for v in updatedList}.values())
+        print("LENGTH OF CLIPPED OBJECTLIST = ", len(objectList))
 
     currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
     (year, month, day, hour, min, sec) = currentDate.split(':')

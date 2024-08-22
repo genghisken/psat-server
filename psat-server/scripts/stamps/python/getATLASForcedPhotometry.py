@@ -2,7 +2,7 @@
 """Do ATLAS forced photometry.
 
 Usage:
-  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--limitafter=<limitafter>] [--update] [--ddc] [--skipdownload] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>] [--tphorce=<tphorcelocation>] [--useflagdate] [--test]
+  %s <configfile> [<candidate>...] [--detectionlist=<detectionlist>] [--customlist=<customlist>] [--limit=<limit>] [--limitafter=<limitafter>] [--update] [--ddc] [--skipdownload] [--redregex=<redregex>] [--diffregex=<diffregex>] [--redlocation=<redlocation>] [--difflocation=<difflocation>] [--tphorce=<tphorcelocation>] [--mlscore=<mlscore>] [--vrascore=<vrascore>] [--useflagdate] [--test]
   %s (-h | --help)
   %s --version
 
@@ -21,17 +21,20 @@ Options:
   --redlocation=<redlocation>                 Reduced image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable).  Null value means use standard ATLAS archive location.
   --difflocation=<difflocation>               Diff image location. E.g. /atlas/diff/CAMERA/fake/MJD.fake (caps = special variable). Null value means use standard ATLAS archive location.
   --tphorce=<tphorcelocation>                 Location of the tphorce shell script [default: /usr/local/ps1code/gitrelease/tphorce/tphorce].
+  --mlscore=<mlscore>                         ML score below which we will NOT request forced photometry.
+  --vrascore=<vrascore>                       Virtual Research Assistant score below which we will NOT request forced photometry.
   --useflagdate                               Use the flag date as the threshold for the number of days instead of the first detection (which might be rogue).
   --test                                      Just list the exposures for which we will do forced photometry.
 
 
 E.g.:
-  %s ../../../../../atlas/config/config4_db1.yaml --detectionlist=2 --limit=30 --limitafter=150 --ddc --update --useflagdate --flagdate=20220101
-  %s ../../../../../atlas/config/config4_db1.yaml 1192751580350243700 --limit=30 --limitafter=150 --ddc --update --useflagdate
+  %s ../../../../../atlas/config/config4_db5.yaml --detectionlist=2 --limit=30 --limitafter=150 --ddc --update --useflagdate --flagdate=20220101
+  %s ../../../../../atlas/config/config4_db5.yaml 1192751580350243700 --limit=30 --limitafter=150 --ddc --update --useflagdate
+  %s ../../../../../atlas/config/config4_db5.yaml --detectionlist=8 --limit=30 --limitafter=150 --ddc --update --useflagdate --mlscore=0.9 --vrascore=4.0
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, shutil, re, csv, subprocess, io
 
@@ -397,6 +400,13 @@ def main(argv = None):
     # 2023-03-13 KWS MySQLdb disables autocommit by default. Switch it on globally.
     conn.autocommit(True)
 
+    mlscore = None
+    if options.mlscore is not None:
+        mlscore = float(options.mlscore)
+
+    vrascore = None
+    if options.vrascore is not None:
+        vrascore = float(options.vrascore)
 
     update = options.update
     limit = int(options.limit)
@@ -429,6 +439,24 @@ def main(argv = None):
                     sys.exit(1)
 
     print("LENGTH OF OBJECTLIST = ", len(objectList))
+
+    # 2024-08-22 KWS We never included the mlscore cut in the single process code. Also added vrascore.
+    updatedList = []
+    if mlscore is not None and not (options.candidate): # Only do this filter if the IDs are not provided explicitly.
+        for row in objectList:
+            if row['zooniverse_score'] is not None and row['zooniverse_score'] >= mlscore:
+                updatedList.append(row)
+
+    if vrascore is not None and not (options.candidate): # Only do this filter if the IDs are not provided explicitly.
+        for row in objectList:
+            if row['realbogus_factor'] is not None and row['realbogus_factor'] >= vrascore:
+                updatedList.append(row)
+
+    if len(updatedList) > 0:
+        # Equivalent of set, assuming 'id' is unique - which it is! Can't use set
+        # because dicts are not hashable.
+        objectList = list({v['id']:v for v in updatedList}.values())
+        print("LENGTH OF CLIPPED OBJECTLIST = ", len(objectList))
 
     perObjectExps, allExps = getForcedPhotometryUniqueExposures(conn, objectList, discoveryLimit = limit, cutoffLimit = limitafter, incremental = True, ddc = options.ddc, useFlagDate = options.useflagdate)
     if options.test:
