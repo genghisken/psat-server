@@ -64,27 +64,33 @@ def main():
     vra_df_eyeball= vra_eyeball_allrows.reset_index().drop_duplicates('transient_object_id', keep='last')
 
 
-
-    # The delete conditions are based on the maximum VRA rank an object has received
-    # and how many updates an object has received
+    # The delete conditions are based on the maximum VRA rank, mean VRA rank 
+    # and how many visits an object has received
     max_ranks = vra_eyeball_allrows.reset_index().groupby('transient_object_id')['rank'].max()
+    mean_ranks = vra_eyeball_allrows.reset_index().groupby('transient_object_id')['rank'].mean()
     counts = vra_eyeball_allrows.reset_index().groupby('transient_object_id').count().id.rename('counts')
-    counts_n_ranks = pd.concat((max_ranks, counts), axis=1)
-
+    counts_n_ranks = pd.concat((max_ranks, mean_ranks, counts), axis=1)
+    counts_n_ranks.columns = ['max_rank', 'mean_rank', 'counts']
 
     # The first condition is:
-    # If an object has had at eadt one update and it's rasnk never rose asbove 3
-    ids_to_del_1 = counts_n_ranks[ (counts_n_ranks.counts>1)
-                   &(counts_n_ranks['rank']<3)
-                  ].index.values
-
+    # If an object has had at eadt one update and it's ranks never rose asbove 3
+    ids_to_del_1 = set(counts_n_ranks[ (counts_n_ranks.counts>1)
+                   &(counts_n_ranks['max_rank']<3)
+                  ].index)
     # The second condition is 
     # If an oject was given a rank less than 1.5 delete (even if seen only once)
     ids_to_del_2 = set(counts_n_ranks[ (counts_n_ranks.counts>=1)
-                   &(counts_n_ranks['rank']<1.5)
-                  ].index.values) 
+                   &(counts_n_ranks['max_rank']<1.5)
+                  ].index) 
+    # The third condition is
+    # If an object has been camping for 3 days or more in the eyeball list but mean rank < 3: delete
+    ids_to_del_3 = set(counts_n_ranks[ (counts_n_ranks.counts>=2)
+                   &(counts_n_ranks['mean_rank']<3)
+                  ].index) 
 
-    list_to_delete = list(set(ids_to_del_1).union(set(ids_to_del_2)))
+
+    list_to_delete = list(ids_to_del_1.union(ids_to_del_2).union(ids_to_del_3))
+
     delete_df = pd.DataFrame([list_to_delete]).T
     # save the atlas ids to delete to a text file
     delete_df.to_csv(outputFile, header=False, index=False)
