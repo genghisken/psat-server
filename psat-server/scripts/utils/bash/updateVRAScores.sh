@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # 2024-03-28 KWS Removed --days since the default is 3.
-#export PYTHONPATH=/usr/local/ps1code/gitrelease/st3ph3n_test:/usr/local/ps1code/gitrelease/atlasapiclient
 export PYTHONPATH=/usr/local/ps1code/gitrelease/stephen/st3ph3n:/usr/local/ps1code/gitrelease/atlasapiclient
 export CONFIG_ATLASAPI=/usr/local/ps1code/gitrelease/atlasapiclient/atlasapiclient/config_files/api_config_MINE.yaml
 
