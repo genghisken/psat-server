@@ -80,6 +80,10 @@ def insertVRARank(API_CONFIG_FILE, objectId, rank):
     writeto_rank = vraapi.WriteToVRARank(api_config_file = API_CONFIG_FILE, payload=payload)
     writeto_rank.get_response()
 
+def updateObjectDetectionList(API_CONFIG_FILE, objectId, objectList = 4):
+    payload = {'objectid': objectId, 'objectlist': objectList}
+    update_list = vraapi.WriteObjectDetectionListNumber(api_config_file = API_CONFIG_FILE, payload=payload)
+    update_list.get_response()
 
 def runUpdates(options):
     """
@@ -207,12 +211,15 @@ def runUpdates(options):
                                      s_a_r.ranks):
 
         insertVRAEntry(api_config, atlas_id, pReal, pGal, rank, debug = options.debug)
-        insertVRATodo(api_config, atlas_id)
+                                       
         i += 1
         if options.debug:
             continue
         else:
             insertVRARank(api_config, atlas_id, rank)
+            # HFS 2024-09-25: 
+            # when not in debug mode we make sure that the updated objects list is reset to eyeball list = 4
+            updateObjectDetectionList(api_config, atlas_id, 4)
 
     # Set the rank to 10 for objects with a TNS crossmatch.
     for atlas_id in atlas_id_tns_xm:
