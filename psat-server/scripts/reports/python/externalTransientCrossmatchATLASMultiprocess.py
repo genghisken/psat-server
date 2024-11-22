@@ -23,9 +23,10 @@ Options:
 
   Example:
     %s ../../../../../atlas/config/config4_db5_readonly.yaml 1063629090302540900 --ddc --update --updateSNType --numberOfThreads=8
+    %s ../../../../../atlas/config/config4_db5.yaml --list=0 --date=20240901 --ddc --update --updateSNType --numberOfThreads=32 --tnsOnly
 """
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 
 import os, MySQLdb, shutil, re
