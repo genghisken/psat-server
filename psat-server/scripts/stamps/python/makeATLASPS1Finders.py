@@ -215,8 +215,8 @@ def generatePS1Finders(conn, hostname, database, objectList, size, downloadPath=
 
         avgRa, avgDec, rms = calculateRMSScatter(objectCoords)
 
-        if avgDec < -30.0:
-            print("Sorry - PS1 finders only available above -30 degrees declination")
+        if avgDec < -31.0:
+            print("Sorry - PS1 finders only available above -31 degrees declination")
             continue
 
         print("Generating finder for object %d (%d)" % (candidate['id'], counter))
