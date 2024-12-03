@@ -34,23 +34,24 @@ from st3ph3n.vra.dataprocessing import FeaturesSingleSource
 from st3ph3n.vra.scoring import ScoreAndRank
 
 # 2024-06-24 KWS Use the st3ph3n API code to write the results.
-from st3ph3n.utils import api as vraapi
+#from st3ph3n.utils import api as vraapi
+from atlasapiclient import client as atlasapiclient
 
 import os
     
 def insertVRAEntry(API_CONFIG_FILE, objectId, pReal, pGal, rank, debug = False):
     payload = {'objectid': objectId, 'preal': pReal, 'pgal': pGal, 'rank': rank, 'debug': debug}
-    writeto_vra = vraapi.WriteToVRAScores(api_config_file = API_CONFIG_FILE, payload=payload)
+    writeto_vra = atlasapiclient.WriteToVRAScores(api_config_file = API_CONFIG_FILE, payload=payload)
     writeto_vra.get_response()
 
 def insertVRATodo(API_CONFIG_FILE, objectId):
     payload = {'objectid': objectId}
-    writeto_todo = vraapi.WriteToToDo(api_config_file = API_CONFIG_FILE, payload=payload)
+    writeto_todo = atlasapiclient.WriteToToDo(api_config_file = API_CONFIG_FILE, payload=payload)
     writeto_todo.get_response()
 
 def insertVRARank(API_CONFIG_FILE, objectId, rank):
     payload = {'objectid': objectId, 'rank': rank}
-    writeto_rank = vraapi.WriteToVRARank(api_config_file = API_CONFIG_FILE, payload=payload)
+    writeto_rank = atlasapiclient.WriteToVRARank(api_config_file = API_CONFIG_FILE, payload=payload)
     writeto_rank.get_response()
 
 

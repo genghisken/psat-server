@@ -45,8 +45,9 @@ from gkutils.commonutils import Struct, cleanOptions, dbConnect, coords_dec_to_s
 
 # 2024-03-05 KWS Need to add Heloise's code into the pythonpath.
 #from st3ph3n.api_utils import atlas as atlasapi
-import st3ph3n.utils.api as vraapi
-from atlasapiclient import client as atlasapi
+#import st3ph3n.utils.api as vraapi
+
+from atlasapiclient import client as atlasapiclient
 from st3ph3n.vra.dataprocessing import FeaturesSingleSource, LightCurvePipes, Day1LCFeatures
 from st3ph3n.vra.scoring import ScoreAndRank
 import requests
@@ -67,22 +68,22 @@ from astropy.time import Time
 
 def insertVRAEntry(API_CONFIG_FILE, objectId, pReal, pGal, rank, debug = False):
     payload = {'objectid': objectId, 'preal': pReal, 'pgal': pGal, 'rank': rank, 'debug': debug}
-    writeto_vra = vraapi.WriteToVRAScores(api_config_file = API_CONFIG_FILE, payload=payload)
+    writeto_vra = atlasapiclient.WriteToVRAScores(api_config_file = API_CONFIG_FILE, payload=payload)
     writeto_vra.get_response()
 
 def insertVRATodo(API_CONFIG_FILE, objectId):
     payload = {'objectid': objectId}
-    writeto_todo = vraapi.WriteToToDo(api_config_file = API_CONFIG_FILE, payload=payload)
+    writeto_todo = atlasapiclient.WriteToToDo(api_config_file = API_CONFIG_FILE, payload=payload)
     writeto_todo.get_response()
 
 def insertVRARank(API_CONFIG_FILE, objectId, rank):
     payload = {'objectid': objectId, 'rank': rank}
-    writeto_rank = vraapi.WriteToVRARank(api_config_file = API_CONFIG_FILE, payload=payload)
+    writeto_rank = atlasapiclient.WriteToVRARank(api_config_file = API_CONFIG_FILE, payload=payload)
     writeto_rank.get_response()
 
 def updateObjectDetectionList(API_CONFIG_FILE, objectId, objectList = 4):
     payload = {'objectid': objectId, 'objectlist': objectList}
-    update_list = vraapi.WriteObjectDetectionListNumber(api_config_file = API_CONFIG_FILE, payload=payload)
+    update_list = atlasapiclient.WriteObjectDetectionListNumber(api_config_file = API_CONFIG_FILE, payload=payload)
     update_list.get_response()
 
 def runUpdates(options):
@@ -105,7 +106,7 @@ def runUpdates(options):
     date_threshold = (datetime.now() - timedelta(days=float(options.ndays))).strftime("%Y-%m-%d %H:%M:%S")
     payload = {'datethreshold': date_threshold}
 
-    request_vra_todolist = atlasapi.RequestVRAToDoList(api_config_file=api_config,  # Config file defined above
+    request_vra_todolist = atlasapiclient.RequestVRAToDoList(api_config_file=api_config,  # Config file defined above
                                                        payload = payload,           # Payload to API just includes date threshold
                                                        get_response = True          # Query the server on instantiation.
                                                        )
@@ -118,7 +119,7 @@ def runUpdates(options):
     #            New API call to read the tcs_vra_todo list.
 
     # Setup the request VRA scores utility with the VRA token & username.
-    request_vra_scores = atlasapi.RequestVRAScores(api_config_file=api_config,  # Config file defined above
+    request_vra_scores = atlasapiclient.RequestVRAScores(api_config_file=api_config,  # Config file defined above
                                                    payload = payload,           # Payload to API just includes date threshold
                                                    get_response = True          # Query the server on instantiation.
                                                    )
