@@ -30,8 +30,8 @@ import numpy as np
 
 
 # 2024-06-24 KWS Use the st3ph3n API code to write the results.
-from st3ph3n.utils import api as vraapi
 from atlasapiclient import client as atlasapiclient
+from atlasvras.utils.misc import fetch_vra_dataframe
 
 def insertVRAEntry(API_CONFIG_FILE, objectId, pReal, pGal, rank, debug = False):
     payload = {'objectid': objectId, 'preal': pReal, 'pgal': pGal, 'rank': rank, 'debug': debug}
@@ -42,8 +42,7 @@ def insertVRAEntry(API_CONFIG_FILE, objectId, pReal, pGal, rank, debug = False):
 def get_vra_eyeball():
     todo_list = atlasapiclient.RequestVRAToDoList(payload = {'datethreshold': "2024-02-22"}, get_response=True)
     todo_df=pd.DataFrame(todo_list.response)
-    # TODO 2024-12-03 from atlasvras.utils.misc import fetch_vra_dataframe
-    vra_df = vraapi.fetch_vra_dataframe(datethreshold=todo_df.timestamp.min()).set_index('transient_object_id')
+    vra_df = fetch_vra_dataframe(datethreshold=todo_df.timestamp.min()).set_index('transient_object_id')
     return vra_df.loc[todo_df.transient_object_id.values]
 
 

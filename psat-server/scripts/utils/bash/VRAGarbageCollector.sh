@@ -38,7 +38,7 @@ fi
 
 # equivalent to conda activate vra
 export PYTHONVRA=/usr/local/swtools/python/atls/anaconda3/envs/vra/bin/python
-export PYTHONPATH=/usr/local/ps1code/gitrelease/stephen/st3ph3n:/usr/local/ps1code/gitrelease/atlasapiclient
+export PYTHONPATH=/usr/local/ps1code/gitrelease/atlasvras:/usr/local/ps1code/gitrelease/atlasapiclient
 export CONFIG_ATLASAPI=/usr/local/ps1code/gitrelease/atlasapiclient/atlasapiclient/config_files/api_config_MINE.yaml
 
 export OUTPUT_FILE=/$DBHOST/$LOGLOCATION/garbage_`date +%Y%m%d_%H%M`_vra.log

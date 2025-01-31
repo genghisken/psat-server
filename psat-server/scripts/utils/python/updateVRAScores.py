@@ -2,13 +2,14 @@
 """Periodically update VRA scores as new data arrives and decision are made.
 
 Usage:
-  %s <apiConfigFile> [--debug] [--ndays=<ndays>] [--quiet]
+  %s <apiConfigFile> [--rankcolumn=<rankcolumn>] [--debug] [--ndays=<ndays>] [--quiet]
   %s (-h | --help)
   %s --version [--quiet]
 
 Options:
   -h --help                         Show this screen.
   --version                         Show version.
+  --rankcolumn=<rankcolumn>         Rank column in which to write the rank [default: rank].
   --debug                           Debug mode.
   --ndays=<ndays>                   Search VRA Scores this number of days before current date [default: 30].
   --quiet                           Use quiet mode (for writing into logs).
@@ -43,13 +44,10 @@ from docopt import docopt
 import os, shutil, re, csv, subprocess
 from gkutils.commonutils import Struct, cleanOptions, dbConnect, coords_dec_to_sex, getDateFractionMJD, readGenericDataFile, getMJDFromSqlDate
 
-# 2024-03-05 KWS Need to add Heloise's code into the pythonpath.
-#from st3ph3n.api_utils import atlas as atlasapi
-#import st3ph3n.utils.api as vraapi
-
 from atlasapiclient import client as atlasapiclient
-from st3ph3n.vra.dataprocessing import FeaturesSingleSource, LightCurvePipes, Day1LCFeatures
-from st3ph3n.vra.scoring import ScoreAndRank
+from atlasvras.st3ph3n.dataprocessing import FeaturesSingleSource
+from atlasvras.st3ph3n.scoreandrank import ScoreAndRank
+from atlasvras.utils.exceptions import VRASaysNo
 import requests
 import json
 import random
@@ -58,16 +56,18 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import pkg_resources
-from datetime import datetime, timedelta
 from astropy.time import Time
-
 
 
 #data_path = pkg_resources.resource_filename('st3ph3n', 'data')
 #api_config = data_path + '/api_config_MINE.yaml'
 
-def insertVRAEntry(API_CONFIG_FILE, objectId, pReal, pGal, rank, debug = False):
-    payload = {'objectid': objectId, 'preal': pReal, 'pgal': pGal, 'rank': rank, 'debug': debug}
+EYEBALL_THRESHOLD = 7.0
+
+def insertVRAEntry(API_CONFIG_FILE, objectId, pReal, pGal, rank, rank_column, is_gal_cand, debug = False):
+    if rank_column not in ['rank', 'rank_alt1']:
+        raise VRASaysNo('The rank column must be rank or rank_alt1.')
+    payload = {'objectid': objectId, 'preal': pReal, 'pgal': pGal, rank_column: rank, 'is_gal_cand': is_gal_cand, 'debug': debug}
     writeto_vra = atlasapiclient.WriteToVRAScores(api_config_file = API_CONFIG_FILE, payload=payload)
     writeto_vra.get_response()
 
@@ -76,8 +76,8 @@ def insertVRATodo(API_CONFIG_FILE, objectId):
     writeto_todo = atlasapiclient.WriteToToDo(api_config_file = API_CONFIG_FILE, payload=payload)
     writeto_todo.get_response()
 
-def insertVRARank(API_CONFIG_FILE, objectId, rank):
-    payload = {'objectid': objectId, 'rank': rank}
+def insertVRARank(API_CONFIG_FILE, objectId, rank, is_gal_cand):
+    payload = {'objectid': objectId, 'rank': rank, 'is_gal_cand': is_gal_cand}
     writeto_rank = atlasapiclient.WriteToVRARank(api_config_file = API_CONFIG_FILE, payload=payload)
     writeto_rank.get_response()
 
@@ -94,7 +94,12 @@ def runUpdates(options):
       - output the list of ATLAS 19 digit IDs and timestamps (in pairs).
     """
 
+    debug = options.debug
+    if debug is None:
+        debug = False
+
     api_config = options.apiConfigFile
+    rank_column = options.rankcolumn
     # NEW LOGIC: Get the VRA todo list, NOT use a date threshold anymore.
     #            NOTE: We may need to chunk the response we get when making up the payload below.
     #            OR: Put in a date threshold below of (e.g.) 1 month of data from VRA Todo. Then
@@ -111,7 +116,7 @@ def runUpdates(options):
                                                        get_response = True          # Query the server on instantiation.
                                                        )
 
-    vratodo_df = pd.DataFrame(request_vra_todolist.response)                        # Use Pandas to handle cuts below witht having to use loops.
+    vratodo_df = pd.DataFrame(request_vra_todolist.response_data)                   # Use Pandas to handle cuts below witht having to use loops.
     #print(vratodo_df)
 
 
@@ -124,7 +129,7 @@ def runUpdates(options):
                                                    get_response = True          # Query the server on instantiation.
                                                    )
 
-    vra_df = pd.DataFrame(request_vra_scores.response)                          # Use Pandas to handle cuts below witht having to use loops.
+    vra_df = pd.DataFrame(request_vra_scores.response_data)                          # Use Pandas to handle cuts below witht having to use loops.
 
     # NEW LOGIC: Make a sub-dataframe that only contains ATLAS IDs in the todo list.
     last_vra_timestamps = vra_df[np.isin(vra_df.transient_object_id.values,     # Only select transient_object_ids of objects we want to update. Must be values - returns numpy array.
@@ -141,95 +146,95 @@ def runUpdates(options):
     atlas_id_tns_xm = []
     feature_list = []
     atlas_ids_to_update = []
+
     for _atlas_id in vratodo_df.transient_object_id.values:
         ## HFS: 2024-08-17 -- Adding Features to the Update Scorer
-        lcp = LightCurvePipes(str(_atlas_id), phase_bounds=(-100, 15))
-        ##
-        
+        feature_maker = FeaturesSingleSource(atlas_id=str(_atlas_id),
+                                             api_config_file = api_config ,
+                                             )
+    
+    
         # Keep a record of transients with TNS crossmatches.
-        if len(lcp.data.data['tns_crossmatches']) > 0:
+        if len(feature_maker.json_data.data['tns_crossmatches']) > 0:
             atlas_id_tns_xm.append(_atlas_id)
-
+    
         # IF LAST OBSERVATION WAS MORE THAN 1 DAY AGO WE RERUN THE FEATURES
-        if (lcp.lightcurve.iloc[-1].mjd-last_vra_timestamps.loc[_atlas_id].mjd)>0:
-            ## HFS: 2024-08-17 -- Adding Features to the Update Scorer
-            lcp.make_history()
-
-            if lcp.history.shape[0] == 0:
-                print(f'https://star.pst.qub.ac.uk/sne/atlas4/candidate/{_atlas_id}/')
-                continue
-
-            day1_features = Day1LCFeatures(lcp.history)
-
-            lcp.detections=lcp.detections[(lcp.detections.phase_init>-5)
-                                          &(lcp.detections.phase_init<=15)
-                                         ]
-            lcp.non_detections=lcp.non_detections[(lcp.non_detections.phase_init>-5)
-                                          &(lcp.non_detections.phase_init<=15)
-                                         ]
-            lcp.lightcurve = lcp.lightcurve[(lcp.lightcurve.phase_init>-5)
-                                          &(lcp.lightcurve.phase_init<=15)
-                                         ]
-            feature_maker = FeaturesSingleSource(_atlas_id)
-            feature_maker.make_update_features(lcpipes=lcp)
-            features = feature_maker.features + day1_features.lc_features
-
-            feature_list.append(feature_maker.features + day1_features.lc_features)
+        if (feature_maker.last_visit_mjd-last_vra_timestamps.loc[_atlas_id].mjd)>0:
+    
+            feature_maker.make_dayN_features()
+            feature_list.append(feature_maker.dayN_features)
             ##
             atlas_ids_to_update.append(_atlas_id)
-
+    
         else:
             continue
 
+
     ## HFS: 2024-08-17 -- Adding Features to the Update Scorer
-    try:
-        feature_names = feature_maker.feature_names+['Nnondet_std', 'Nnondet_mean', 'magdet_std']
-    except UnboundLocalError as e:
+    if not atlas_ids_to_update:
         if len(atlas_id_tns_xm) == 0:
             # We have nothing to do. No updates and nothing found by TNS.
             return 0
         else:
             # Set the rank to 10 for objects with a TNS crossmatch.
             for atlas_id in atlas_id_tns_xm:
+                if rank_column != 'rank':
+                    # If we are filling an alternative rank column we don't want
+                    # to add the TNS crossmatch override row to the tcs_vra_scores
+                    # table, as this will already be done by the scripts filling
+                    # the main rank column. (We don't want duplicates.)
+                    break
                 rank = 10
-                insertVRAEntry(api_config, atlas_id, None, None, rank, debug = options.debug)
+                insertVRAEntry(api_config, atlas_id, None, None, rank, rank_column=rank_column, is_gal_cand = None, debug = debug)
                 if options.debug:
                     continue
                 else:
-                    insertVRARank(api_config, atlas_id, rank)
+                    insertVRARank(api_config, atlas_id, rank, None)
             return 0
 
 
-    features_df = pd.DataFrame(np.array(feature_list), columns = feature_names)
+    features_df = pd.DataFrame(np.array(feature_list), columns = feature_maker.feature_names_dayN)
     ##
-    s_a_r = ScoreAndRank(features_df,model_type='update', model_name='bmo')
+    s_a_r = ScoreAndRank(features_df,model_type='dayN', model_name='crabby')
     s_a_r.calculate_rank()
- 
+
+    gal_flags = np.array( ( s_a_r.is_gal_cand & (s_a_r.ranks<EYEBALL_THRESHOLD) ) ).astype(int) 
+
     i = 0
-    for atlas_id, pReal, pGal, rank in zip(atlas_ids_to_update,
+    for atlas_id, pReal, pGal, rank, gal_flag in zip(atlas_ids_to_update,
                                      s_a_r.real_scores.T[1],
                                      s_a_r.gal_scores.T[1],
-                                     s_a_r.ranks):
+                                     s_a_r.ranks,
+                                     gal_flags):
 
-        insertVRAEntry(api_config, atlas_id, pReal, pGal, rank, debug = options.debug)
+        insertVRAEntry(api_config, atlas_id, pReal, pGal, rank, rank_column=rank_column, is_gal_cand = gal_flag, debug = debug)
                                        
         i += 1
         if options.debug:
             continue
         else:
-            insertVRARank(api_config, atlas_id, rank)
-            # HFS 2024-09-25: 
-            # when not in debug mode we make sure that the updated objects list is reset to eyeball list = 4
-            updateObjectDetectionList(api_config, atlas_id, 4)
+            insertVRARank(api_config, atlas_id, rank, gal_flag)
+            if gal_flag:
+                updateObjectDetectionList(api_config, atlas_id, 12)
+            else:
+                # HFS 2024-09-25: 
+                # when not in debug mode we make sure that the updated objects list is reset to eyeball list = 4
+                updateObjectDetectionList(api_config, atlas_id, 4)
 
     # Set the rank to 10 for objects with a TNS crossmatch.
     for atlas_id in atlas_id_tns_xm:
+        if rank_column != 'rank':
+            # If we are filling an alternative rank column we don't want
+            # to add the TNS crossmatch override row to the tcs_vra_scores
+            # table, as this will already be done by the scripts filling
+            # the main rank column. (We don't want duplicates.)
+            break
         rank = 10
-        insertVRAEntry(api_config, atlas_id, None, None, rank, debug = options.debug)
+        insertVRAEntry(api_config, atlas_id, None, None, rank, rank_column=rank_column, is_gal_cand = gal_flag, debug = debug)
         if options.debug:
             continue
         else:
-            insertVRARank(api_config, atlas_id, rank)
+            insertVRARank(api_config, atlas_id, rank, gal_flag)
 
     # 6. Calculate ranks and for each atlas ID, rank pair write to the tcs_vra_rank table.
 
