@@ -1,6 +1,6 @@
 import MySQLdb
 #from utils import *
-from gkutils.commonutils import enum, coneSearchHTM, QUICK, FULL, CAT_ID_RA_DEC_COLS
+from gkutils.commonutils import enum, coneSearchHTM, QUICK, FULL, CAT_ID_RA_DEC_COLS, redshiftToDistance
 import math
 
 ALGORITHMS = enum(THREEPI='THREEPI', MD01='MD01', MD02='MD02', MD03='MD03', MD04='MD04', MD05='MD05', MD06='MD06', MD07='MD07', MD08='MD08', MD09='MD09', MD10='MD10', PESSTO='PESSTO', NEARBYBRIGHT='NEARBYBRIGHT', KEPLERGALAXIES='KEPLERGALAXIES', ATLAS='ATLAS')
