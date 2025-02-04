@@ -2,7 +2,7 @@
 """Refactored External Crossmatch code for ATLAS.
 
 Usage:
-  %s <configfile> [<candidate>...] [--list=<listid>] [--searchRadius=<radius>] [--update] [--date=<date>] [--ddc] [--updateSNType] [--tnsOnly]
+  %s <configfile> [<candidate>...] [--list=<listid>] [--searchRadius=<radius>] [--update] [--date=<date>] [--ddc] [--updateSNType] [--tnsOnly] [--rbthreshold=<rbthreshold>]
   %s (-h | --help)
   %s --version
 
@@ -17,6 +17,7 @@ Options:
   --date=<date>                 Date threshold - no hyphens. If date is a small number assume number of days before NOW [default: 20160601]
   --ddc                         Use the ddc schema
   --tnsOnly                     Only search the TNS database.
+  --rbthreshold=<rbthreshold>   Only check objects if they have a set RB Threshold (i.e. they have pixels).
 
   Example:
     %s ../../../../../atlas/config/config4_db5_readonly.yaml 1063629090302540900 --ddc --update --updateSNType
@@ -486,7 +487,7 @@ class ExternalCrossmatchesFactory(object):
 # 2016-02-15 KWS Altered the query to extract the AVERAGE ra and dec if they
 #                exist, OR the first detection ra and dec if they don't.
 
-def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = None):
+def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = None, rbThreshold = None):
     """getAtlasObjects.
 
     Args:
@@ -494,22 +495,37 @@ def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = N
         listId:
         dateThreshold:
         objectId:
+        rbThreshold:
     """
 
     try:
         cursor = conn.cursor(MySQLdb.cursors.DictCursor)
         if objectId is None:
-            cursor.execute ("""
-                select id, followup_id, ifnull(ra_avg, ra) ra, ifnull(dec_avg, `dec`) `dec`, name, object_classification, detection_list_id from (
-                    select o.id, followup_id, ra, `dec`, s.ra_avg, s.dec_avg, atlas_designation 'name', object_classification, detection_list_id
-                      from atlas_diff_objects o
-                 left join tcs_latest_object_stats s
-                        on s.id = o.id
-                     where detection_list_id = %s
-                       and followup_flag_date >= %s
-                  order by followup_id
-                ) temp
-            """, (listId, dateThreshold))
+            if rbThreshold is not None:
+                cursor.execute ("""
+                    select id, followup_id, ifnull(ra_avg, ra) ra, ifnull(dec_avg, `dec`) `dec`, name, object_classification, detection_list_id from (
+                        select o.id, followup_id, ra, `dec`, s.ra_avg, s.dec_avg, atlas_designation 'name', object_classification, detection_list_id
+                          from atlas_diff_objects o
+                     left join tcs_latest_object_stats s
+                            on s.id = o.id
+                         where detection_list_id = %s
+                           and followup_flag_date >= %s
+                           and zooniverse_score > %s
+                      order by followup_id
+                    ) temp
+                """, (listId, dateThreshold, rbThreshold))
+            else:
+                cursor.execute ("""
+                    select id, followup_id, ifnull(ra_avg, ra) ra, ifnull(dec_avg, `dec`) `dec`, name, object_classification, detection_list_id from (
+                        select o.id, followup_id, ra, `dec`, s.ra_avg, s.dec_avg, atlas_designation 'name', object_classification, detection_list_id
+                          from atlas_diff_objects o
+                     left join tcs_latest_object_stats s
+                            on s.id = o.id
+                         where detection_list_id = %s
+                           and followup_flag_date >= %s
+                      order by followup_id
+                    ) temp
+                """, (listId, dateThreshold))
             resultSet = cursor.fetchall ()
         else:
             cursor.execute ("""

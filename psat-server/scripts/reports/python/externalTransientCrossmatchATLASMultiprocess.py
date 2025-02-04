@@ -2,7 +2,7 @@
 """Refactored External Crossmatch code for ATLAS.
 
 Usage:
-  %s <configfile> [<candidate>...] [--list=<listid>] [--customlist=<customlistid>] [--searchRadius=<radius>] [--update] [--date=<date>] [--ddc] [--updateSNType] [--numberOfThreads=<n>] [--tnsOnly] [--loglocation=<loglocation>] [--logprefix=<logprefix>]
+  %s <configfile> [<candidate>...] [--list=<listid>] [--customlist=<customlistid>] [--searchRadius=<radius>] [--update] [--date=<date>] [--ddc] [--updateSNType] [--numberOfThreads=<n>] [--tnsOnly] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--tnscsvfile=<tnscsvfile>] [--rbthreshold=<rbthreshold>]
   %s (-h | --help)
   %s --version
 
@@ -20,6 +20,8 @@ Options:
   --tnsOnly                     Only search the TNS database.
   --loglocation=<loglocation>   Log file location [default: /tmp/]
   --logprefix=<logprefix>       Log prefix [default: external_crossmatches]
+  --tnscsvfile=<tnscsvfile>     Write a TNS CSV file of the results.
+  --rbthreshold=<rbthreshold>   Only check objects if they have a set RB Threshold (i.e. they have pixels).
 
   Example:
     %s ../../../../../atlas/config/config4_db5_readonly.yaml 1063629090302540900 --ddc --update --updateSNType --numberOfThreads=8
@@ -28,6 +30,7 @@ Options:
 import sys
 __doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
+import csv
 
 import os, MySQLdb, shutil, re
 from gkutils.commonutils import find, Struct, cleanOptions, dbConnect, calculateRMSScatter, getAngularSeparation, coneSearchHTM, QUICK, FULL, CAT_ID_RA_DEC_COLS, PROCESSING_FLAGS, splitList, parallelProcess
@@ -205,7 +208,10 @@ def main(argv = None):
 
     else:
         # Get only the ATLAS objects that don't have the 'moons' flag set.
-        candidateList = getAtlasObjects(conn, listId = detectionList, dateThreshold = dateThreshold)
+        rbThreshold = None
+        if options.rbthreshold is not None:
+            rbThreshold = float(options.rbthreshold)
+        candidateList = getAtlasObjects(conn, listId = detectionList, dateThreshold = dateThreshold, rbThreshold = rbThreshold)
 
     tables = getCatalogueTables(conn)
 
@@ -220,20 +226,31 @@ def main(argv = None):
 
         print("TOTAL OBJECTS TO UPDATE = %d" % len(objectsForUpdate))
 
+    tnscsvlist=[]
     if options.update and len(objectsForUpdate) > 0:
         for result in objectsForUpdate:
             deleteExternalCrossmatches(conn, result['id'])
             for matchrow in result['matches']:
                 if not ((matchrow['matched_list'] == 'The PESSTO Transient Objects - primary object') and matchrow['ps1_designation'] == matchrow['external_designation']):
                     # Don't bother ingesting ourself from the PESSTO Marshall
-                    print(matchrow['matched_list'], matchrow['ps1_designation'],  matchrow['external_designation'])
+                    print(matchrow['matched_list'], matchrow['ps1_designation'], matchrow['external_designation'])
                     insertId = insertExternalCrossmatches(conn, matchrow)
                 if options.updateSNType and matchrow['matched_list'] == 'Transient Name Server':
                     # Update the observation_status (spectral type) of the object according to
                     # what is in the TNS.
                     updateObjectSpecType(conn, result['id'], matchrow['type'])
 
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                if options.tnscsvfile is not None and matchrow['matched_list'] == 'Transient Name Server' and year in matchrow['external_designation']:
+                    tnscsvlist.append({'id': result['id'], 'tns_name': matchrow['external_designation'], 'timestamp': timestamp})
+
     conn.close ()
+
+    if len(tnscsvlist) > 0:
+        with open(options.loglocation + '/' + options.tnscsvfile, 'a') as f:
+            w = csv.DictWriter(f, tnscsvlist[0].keys(), delimiter = ',')
+            for row in tnscsvlist:
+                w.writerow(row)
 
 
     return
