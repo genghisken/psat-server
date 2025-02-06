@@ -62,7 +62,7 @@ from astropy.time import Time
 #data_path = pkg_resources.resource_filename('st3ph3n', 'data')
 #api_config = data_path + '/api_config_MINE.yaml'
 
-EYEBALL_THRESHOLD = 7.0
+EYEBALL_THRESHOLD = 7.5
 
 def insertVRAEntry(API_CONFIG_FILE, objectId, pReal, pGal, rank, rank_column, is_gal_cand, debug = False):
     if rank_column not in ['rank', 'rank_alt1']:
@@ -194,8 +194,9 @@ def runUpdates(options):
 
 
     features_df = pd.DataFrame(np.array(feature_list), columns = feature_maker.feature_names_dayN)
+    features_df.drop(['SN', 'ORPHAN', 'NT', 'UNCLEAR', 'DET_N_today', 'NON_N_today', 'DET_mag_median'], axis=1, inplace=True)
     ##
-    s_a_r = ScoreAndRank(features_df,model_type='dayN', model_name='crabby')
+    s_a_r = ScoreAndRank(features_df,model_type='dayN', model_name='duck')
     s_a_r.calculate_rank()
 
     gal_flags = np.array( ( s_a_r.is_gal_cand & (s_a_r.ranks<EYEBALL_THRESHOLD) ) ).astype(int) 

@@ -40,7 +40,7 @@ from atlasapiclient import client as atlasapiclient
 
 import os
     
-EYEBALL_THRESHOLD = 7.0
+EYEBALL_THRESHOLD = 7.5
 
 def insertVRAEntry(API_CONFIG_FILE, objectId, pReal, pGal, rank, rank_column, is_gal_cand, debug = False):
     if rank_column not in ['rank', 'rank_alt1']:
@@ -115,11 +115,13 @@ def main():
 
     # 3. Make dataframe with our feature list.
     features_df = pd.DataFrame(np.array(feature_list), columns = feature_maker.feature_names_day1)
-
+    # Dropping useless features - once Crabby removed fully from prod will exclude these from the
+    # feature maker but for now we make them and drop them
+    features_df.drop(['SN', 'UNCLEAR', 'ORPHAN', 'NT'], axis=1, inplace=True)
 
     # 4. instantiate score and rank object with the features dataframe
     #    This calculates pReal and pGal
-    s_a_r = ScoreAndRank(features_df, model_type='day1', model_name='crabby')
+    s_a_r = ScoreAndRank(features_df, model_type='day1', model_name='duck')
 
     # 5. Make the payload to write pReal, pGal into the tcs_vra_scores table
     # list of real scores and gal scores

@@ -73,14 +73,14 @@ def main():
     counts_n_ranks.columns = ['max_rank', 'mean_rank', 'counts']
 
     # The first condition is:
-    # If an object has had at eadt one update and it's ranks never rose asbove 3
+    # If an object has had at eadt one update and it's ranks never rose above 2
     ids_to_del_1 = set(counts_n_ranks[ (counts_n_ranks.counts>1)
-                   &(counts_n_ranks['max_rank']<3)
+                   &(counts_n_ranks['max_rank']<2)
                   ].index)
     # The second condition is 
-    # If an oject was given a rank less than 1.5 delete (even if seen only once)
+    # If an oject was given a rank less than 1 delete (even if seen only once)
     ids_to_del_2 = set(counts_n_ranks[ (counts_n_ranks.counts>=1)
-                   &(counts_n_ranks['max_rank']<1.5)
+                   &(counts_n_ranks['max_rank']<1)
                   ].index) 
     # The third condition is
     # If an object has been camping for 3 days or more in the eyeball list but mean rank < 3: delete
