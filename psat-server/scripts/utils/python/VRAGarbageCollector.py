@@ -41,7 +41,7 @@ def insertVRAEntry(API_CONFIG_FILE, objectId, pReal, pGal, rank, debug = False):
     
 def get_vra_eyeball():
     todo_list = atlasapiclient.RequestVRAToDoList(payload = {'datethreshold': "2024-02-22"}, get_response=True)
-    todo_df=pd.DataFrame(todo_list.response)
+    todo_df=pd.DataFrame(todo_list.response_data)
     vra_df = fetch_vra_dataframe(datethreshold=todo_df.timestamp.min()).set_index('transient_object_id')
     return vra_df.loc[todo_df.transient_object_id.values]
 
