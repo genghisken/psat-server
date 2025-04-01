@@ -194,7 +194,7 @@ def runUpdates(options):
 
 
     features_df = pd.DataFrame(np.array(feature_list), columns = feature_maker.feature_names_dayN)
-    features_df.drop(['SN', 'ORPHAN', 'NT', 'UNCLEAR', 'DET_N_today', 'NON_N_today', 'DET_mag_median'], axis=1, inplace=True)
+    features_df.drop(['SN', 'ORPHAN', 'NT', 'UNCLEAR', 'DET_N_today', 'NON_N_today'], axis=1, inplace=True)
     ##
     s_a_r = ScoreAndRank(features_df,model_type='dayN', model_name='duck')
     s_a_r.calculate_rank()
