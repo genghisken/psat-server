@@ -61,6 +61,8 @@ def main():
     outputFile = options.outputFile
     
     vra_eyeball_allrows = get_vra_eyeball()
+    # REMOVING ROWS RELATING TO THE OLD MODELS (or decisions etc..)
+    vra_eyeball_allrows = vra_eyeball_allrows[~vra_eyeball_allrows['rank'].isna().values]
     vra_df_eyeball= vra_eyeball_allrows.reset_index().drop_duplicates('transient_object_id', keep='last')
 
 
@@ -84,7 +86,7 @@ def main():
                   ].index) 
     # The third condition is
     # If an object has been camping for 3 days or more in the eyeball list but mean rank < 3: delete
-    ids_to_del_3 = set(counts_n_ranks[ (counts_n_ranks.counts>=2)
+    ids_to_del_3 = set(counts_n_ranks[ (counts_n_ranks.counts>2)
                    &(counts_n_ranks['mean_rank']<3)
                   ].index) 
 
