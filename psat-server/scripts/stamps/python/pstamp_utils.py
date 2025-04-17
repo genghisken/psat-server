@@ -2581,7 +2581,7 @@ def getDetectabilityInfo2(conn, candidate, limitDays = 100, limitDaysAfter = 0, 
                 for imType in ['target','ref','diff']:
                     print("%s (%s): %s" % (imType, diffImageCombination[imType][0], diffImageCombination[imType][1]), end=' ')
                 print()
-                detectabilityData.append(json.dumps({'mjd': row['mjd'], 'filter': row['filter'], 'diff': diffImageCombination['diff'][1], 'pscamera': row['fpa_detector']}))
+                detectabilityData.append(json.dumps({'mjd': row['mjd'], 'filter': row['filter'], 'diff': diffImageCombination['diff'][1], 'target': diffImageCombination['target'][1], 'pscamera': row['fpa_detector']}))
 
         # Now we must eliminate the dupes.  Sadly, we can't use sets, since "dicts are not hashable" but we
         # can do a trick by converting the dict to json and then back to dict.
@@ -3995,7 +3995,10 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
          dec2_deg.append(dec)
          mjd_obs.append(float(int(result["mjd"])))
          filter.append(result["filter"])
-         fpa_id.append(int(result["diff"]))
+         if diffType == 'warp' or diffType == 'stack':
+             fpa_id.append(int(result["target"]))
+         else:
+             fpa_id.append(int(result["diff"]))
          row = row + 1
 
    # Create the FITS columns.
@@ -4987,10 +4990,12 @@ def addRequestIdToTransients(conn, psReqeustId, transients, processingFlag = PRO
    try:
       cursor = conn.cursor (MySQLdb.cursors.DictCursor)
 
+      # 2025-02-12 KWS I've no idea why processing_flags is NULL, but occasionally it is.
+      #                Override its value with zero before doing the bitwise OR.
       for transient in transients:
          cursor.execute ("""
             update tcs_transient_objects
-            set postage_stamp_request_id = %s, processing_flags = processing_flags | %s
+            set postage_stamp_request_id = %s, processing_flags = coalesce(processing_flags, 0) | %s
             where id = %s
             """, (psReqeustId, processingFlag, transient))
 
