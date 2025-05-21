@@ -149,10 +149,13 @@ def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId
                        o.object_classification,
                        o.local_comments,
                        o.detection_list_id,
-                       m.mjd_obs as mjd
-                  from tcs_transient_objects o, tcs_cmf_metadata m
-                 where o.tcs_cmf_metadata_id = m.id
-                   and o.detection_list_id = %s
+                       m.mjd_obs as mjd,
+                       g.name as detection_stamp
+                  from tcs_transient_objects o
+                  join tcs_cmf_metadata m on o.tcs_cmf_metadata_id = m.id
+             left join tcs_image_groups g on g.id = o.tcs_images_id
+                 where o.detection_list_id = %s
+                   and (o.observation_status is null or o.observation_status != 'mover')
                    and followup_flag_date >= %s
                  order by o.followup_id
             """, (listId, dateThreshold))
@@ -167,10 +170,12 @@ def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId
                        o.object_classification,
                        o.local_comments,
                        o.detection_list_id,
-                       m.mjd_obs as mjd
-                  from tcs_transient_objects o, tcs_cmf_metadata m
-                 where o.tcs_cmf_metadata_id = m.id
-                   and o.id = %s
+                       m.mjd_obs as mjd,
+                       g.name as detection_stamp
+                  from tcs_transient_objects o
+                  join tcs_cmf_metadata m on o.tcs_cmf_metadata_id = m.id
+             left join tcs_image_groups g on g.id = o.tcs_images_id
+                 where o.id = %s
             """, (objectId,))
             resultSet = cursor.fetchone ()
 
