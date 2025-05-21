@@ -237,8 +237,8 @@ def getATLASCandidates(conn, options):
     else:
         # Get only the ATLAS objects that don't have the 'moons' flag set.
         rbThreshold = None
-        if options.rbthreshold is not None:
-            rbThreshold = float(options.rbthreshold)
+#        if options.rbthreshold is not None:
+#           rbThreshold = float(options.rbthreshold)
         candidateList = getAtlasObjects(conn, listId = detectionList, dateThreshold = dateThreshold, rbThreshold = rbThreshold)
 
     return candidateList
