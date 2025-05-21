@@ -11,29 +11,44 @@ and uncertainties) and (optionally) download & plot target, reference, and diffe
 Additionally, a distribution plot of source match separations is produced.
 
 Usage:
-  %s <config_file> [<candidate>...] [--catalog_file=<catalog_file>] [--output_folder=<output_folder>] [--mode=all] [--ra_column=<ra_column>] [--dec_column=<dec_column>] [--mjd_column=<mjd_column>] [--id_column=<id_column>] [--output_csv=<output_csv>] [--do_plot] [--list=<listid>] [--customlist=<customlistid>] [--radius=<radius>] [--update] [--date=<date>] [--survey=<survey>] [--loglocation=<loglocation>] [--logprefix=<logprefix>]
   %s (-h | --help)
+  %s <config_file> [<candidate>...]
+            [--list=<listid>] [--customlist=<customlistid>]
+            [--catalog_file=<catalog_file>]
+            [--mode=<mode>]
+            [--do_plot]
+            [--output_folder=<output_folder>] [--output_csv=<output_csv>]
+            [--ra_column=<ra_column>] [--dec_column=<dec_column>] [--mjd_column=<mjd_column>] [--id_column=<id_column>]
+            [--date=<date>] [--survey=<survey>]
+            [--loglocation=<loglocation>] [--logprefix=<logprefix>]
+            [--pixelscale=<pixelscale>] [--radius=<radius>] [--maxpm=<maxpm>] [--maxsep=<maxsep>]
+            [--update]
+
 
 Options:
-  -h --help                  Show this help message and exit.
-  --catalog_file=<catalog>   Tab-separated catalog file. Overrides connection to the database.
-  --output_folder=<folder>   Directory to save plots.
-  --output_csv=<csv>         Optional CSV for matched sources [default: matches.csv].
-  --do_plot                  Download & plot cutouts for each match.
-  --mode=<mode>              Operation mode: default or all [default: default].
-  --ra_column=<ra>           RA column for all mode [default: ra]
-  --dec_column=<dec>         DEC column for all mode [default: dec]
-  --mjd_column=<mjd>         MJD column for all mode [default: mjd].
-  --id_column=<id>           ID column for all mode [default: id].
-  --list=<listid>               The object list [default: 4]
-  --customlist=<customlistid>   The object custom list
-  --radius=<radius>             Match radius (arcsec) [default: 3]
-  --update                      Update the database
+  -h --help                     Show this help message and exit.
+  --list=<listid>               The object list, ignored if candidate or catalog_file provided
+  --customlist=<customlistid>   The object custom list, ignored if candidate or catalog_file provided
+  --catalog_file=<catalog>      Tab-separated catalog file. Overrides connection to the database.
+  --output_folder=<folder>      Directory to save plots.
+  --output_csv=<csv>            Optional CSV for matched sources [default: matches.csv].
+  --mode=<mode>                 Operation mode: default or all [default: default].
+  --do_plot                     Download & plot cutouts for each match.
+  --ra_column=<ra>              RA column for all mode [default: ra]
+  --dec_column=<dec>            DEC column for all mode [default: dec]
+  --mjd_column=<mjd>            MJD column for all mode [default: mjd].
+  --id_column=<id>              ID column for all mode [default: id].
   --date=<date>                 Date threshold - no hyphens. If date is a small number assume number of days before NOW [default: 20160601]
   --survey=<survey>             Survey database to interrogate [default: atlas].
   --numberOfThreads=<n>         Number of threads (stops external database overloading) [default: 10]
   --loglocation=<loglocation>   Log file location [default: /tmp/]
   --logprefix=<logprefix>       Log prefix [default: gaia_pm_crossmatch]
+  --pixelscale=<pixelscale>     Telescope pixel scale [default: 0.25]
+  --radius=<radius>             Base search radius (arcsec) [default: 5.0]
+  --maxpm=<maxpm>               Maximum proper motion in arcsec per year [default: 5.0]
+  --maxsep=<maxsep>             Maximum separation allowed [default 4.0]
+  --baseurl=<baseurl>           Webserver URL (for finding stamps externally) [default: https://star.pst.qub.ac.uk/sne/]
+  --update                      Update the database
 
 
   E.g.:
@@ -81,7 +96,7 @@ from queries import getATLASCandidates, getPanSTARRSCandidates
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(levelname)s - %(message)s",
                     stream=sys.stdout)
-BASE_URL = "https://star.pst.qub.ac.uk/sne/ps13pi/media/images/data/ps13pi"
+
 PIXEL_SCALE = 0.25  # arcsec per pixel; cutouts are 200x200, so centre is (100,100)
 SEARCH_RADIUS_ARCSEC = 5.0  # base search radius in arcsec
 MAX_PM = 5.0              # maximum proper motion in arcsec per year
@@ -134,7 +149,7 @@ def get_local_connection():
 # ------------------------
 # Local Gaia proper motion crossmatch function
 # ------------------------
-def crossmatchWithLocalGaiaProperMotion(conn, objectRow, base_radius_arcsec=SEARCH_RADIUS_ARCSEC, max_sep_arcsec=MAX_SEP_ARCSEC):
+def crossmatchWithLocalGaiaProperMotion(conn, options, objectRow):
     """
     Crossmatch with the local Gaia database while accounting for proper motion.
     Returns (searchDone, best_match_dict_or_None).
@@ -153,7 +168,7 @@ def crossmatchWithLocalGaiaProperMotion(conn, objectRow, base_radius_arcsec=SEAR
     obs_time = Time(mjd, format='mjd')
     observation_epoch = obs_time.jyear
     dt = abs(observation_epoch - GAIA_REF_EPOCH)
-    expanded_radius = base_radius_arcsec + MAX_PM * dt
+    expanded_radius = float(options.radius) + float(options.maxpm) * dt
 
     from gkutils.commonutils import coneSearchHTM, FULL
     message, matches = coneSearchHTM(ra, dec, expanded_radius, 'tcs_cat_gaia_dr3', queryType=FULL, conn=conn)
@@ -196,7 +211,7 @@ def crossmatchWithLocalGaiaProperMotion(conn, objectRow, base_radius_arcsec=SEAR
         gaia_coord_at_obs = gaia_coord.apply_space_motion(new_obstime=obs_time)
         separation = target_coord.separation(gaia_coord_at_obs).arcsecond
 
-        if separation < min_sep and separation <= max_sep_arcsec:
+        if separation < min_sep and separation <= float(options.maxsep):
             min_sep = separation
             best_match = {
                 'source_id':    row.get('source_id'),
@@ -218,7 +233,7 @@ def crossmatchWithLocalGaiaProperMotion(conn, objectRow, base_radius_arcsec=SEAR
 # ------------------------
 # Image download and plotting functions 
 # ------------------------
-def get_images_for_stamp(detection_stamp):
+def get_images_for_stamp(options, detection_stamp):
     """Helper function to download FITS cutouts and return 200×200 arrays."""
     def extract_folder(stamp):
         parts = stamp.split('_')
@@ -244,6 +259,14 @@ def get_images_for_stamp(detection_stamp):
     folder = extract_folder(detection_stamp)
     if not folder:
         return np.zeros((200,200)), np.zeros((200,200)), np.zeros((200,200))
+
+    if options.survey == 'atlas':
+        BASE_URL = options.baseurl + 'atlas4/media/images/data/atlas4'
+    elif options.survey == 'panstarrs':
+        BASE_URL = options.baseurl + 'ps13pi/media/images/data/ps13pi'
+    else:
+        logging.error("Base URL is undefined")
+        exit(1)
 
     urls = {
         'target': f"{BASE_URL}/{folder}/{detection_stamp}_target.fits",
@@ -276,13 +299,13 @@ def get_images_for_stamp(detection_stamp):
             crop_center(data['ref']),
             crop_center(data['diff']))
 
-def plot_all_images_with_overlay(detection_stamp, best_match,
+def plot_all_images_with_overlay(options, detection_stamp, best_match,
                                  object_ra, object_dec, output_file):
     """
     Downloads the target, ref, and diff images for detection_stamp and plots them side-by-side.
     Overlays colored circles and connecting lines per spec.
     """
-    target_img, ref_img, diff_img = get_images_for_stamp(detection_stamp)
+    target_img, ref_img, diff_img = get_images_for_stamp(options, detection_stamp)
     if target_img.size == 0:
         logging.info(f"Could not get complete images for {detection_stamp}.")
         return
@@ -292,7 +315,7 @@ def plot_all_images_with_overlay(detection_stamp, best_match,
     def sky_to_pix(ra1, dec1, ra2, dec2):
         dra = (ra2 - ra1) * math.cos(math.radians(dec1)) * 3600.0
         ddec = (dec2 - dec1) * 3600.0
-        return centre[0] - dra/PIXEL_SCALE, centre[1] + ddec/PIXEL_SCALE
+        return centre[0] - dra/float(options.pixelscale), centre[1] + ddec/float(options.pixelscale)
 
     red_x, red_y   = sky_to_pix(object_ra, object_dec,
                                  best_match['ra_gaia'], best_match['dec_gaia'])
@@ -329,8 +352,8 @@ def plot_all_images_with_overlay(detection_stamp, best_match,
 
         # uncertainty ellipse around 2016
         if best_match.get('eff_ra_err') and best_match.get('eff_dec_err'):
-            w = 2 * best_match['eff_ra_err'] / PIXEL_SCALE
-            h = 2 * best_match['eff_dec_err'] / PIXEL_SCALE
+            w = 2 * best_match['eff_ra_err'] / float(options.pixelscale)
+            h = 2 * best_match['eff_dec_err'] / float(options.pixelscale)
             ellipse = Ellipse((red_x, red_y), width=w, height=h,
                               edgecolor='cyan', facecolor='none', lw=1)
             ax.add_patch(ellipse)
@@ -386,11 +409,7 @@ def worker(i, db, chunk, dateAndTime, firstPass, miscParameters, q):
             'dec': row[dec_col],
             'mjd': row[mjd_col]
         }
-        searchDone, best_match = crossmatchWithLocalGaiaProperMotion(
-            connCatalogues, objectRow,
-            base_radius_arcsec=SEARCH_RADIUS_ARCSEC,
-            max_sep_arcsec=MAX_SEP_ARCSEC
-        )
+        searchDone, best_match = crossmatchWithLocalGaiaProperMotion(connCatalogues, options, objectRow)
         stamp = row.get(id_field, f"row_{i}")
         print("BEST_MATCH", best_match, searchDone)
         results.append((stamp, best_match, row))
@@ -546,6 +565,7 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
                 if do_plot:
                     out_file = os.path.join(output_folder, f"{stamp}_gaia_match.png")
                     plot_all_images_with_overlay(
+                        options,
                         stamp, best_match,
                         orig[ra_field], orig[dec_field],
                         out_file
