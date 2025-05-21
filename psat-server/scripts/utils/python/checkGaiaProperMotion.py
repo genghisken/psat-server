@@ -374,6 +374,12 @@ def worker(i, db, chunk, dateAndTime, firstPass, miscParameters, q):
     """
     Process a chunk (list) of catalog rows in parallel.
     """
+    import warnings
+    from erfa.core import ErfaWarning
+
+    # ignore all ErfaWarning warnings
+    warnings.filterwarnings('ignore', category=ErfaWarning)
+
     options = miscParameters[0]
 
     id_field  = miscParameters[1].get("id_field", "detection_stamp")
