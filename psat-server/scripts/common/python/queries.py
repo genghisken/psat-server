@@ -153,7 +153,6 @@ def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId
                   from tcs_transient_objects o, tcs_cmf_metadata m
                  where o.tcs_cmf_metadata_id = m.id
                    and o.detection_list_id = %s
-                   and (o.observation_status is null or o.observation_status != 'mover')
                    and followup_flag_date >= %s
                  order by o.followup_id
             """, (listId, dateThreshold))

@@ -38,7 +38,7 @@ Options:
   --dec_column=<dec>            DEC column for all mode [default: dec]
   --mjd_column=<mjd>            MJD column for all mode [default: mjd].
   --id_column=<id>              ID column for all mode [default: id].
-  --date=<date>                 Date threshold - no hyphens. If date is a small number assume number of days before NOW [default: 20160601]
+  --date=<date>                 Date threshold - no hyphens. If date is a small number assume number of days before NOW [default: 20100101]
   --survey=<survey>             Survey database to interrogate [default: atlas].
   --numberOfThreads=<n>         Number of threads (stops external database overloading) [default: 10]
   --loglocation=<loglocation>   Log file location [default: /tmp/]
