@@ -24,6 +24,7 @@ Usage:
             [--pixelscale=<pixelscale>] [--radius=<radius>] [--maxpm=<maxpm>] [--maxsep=<maxsep>]
             [--baseurl=<baseurl>]
             [--update]
+            [--usestampmjd]
 
 
 Options:
@@ -50,6 +51,7 @@ Options:
   --maxsep=<maxsep>             Maximum separation allowed [default: 4.0]
   --baseurl=<baseurl>           Webserver URL (for finding stamps externally) [default: https://star.pst.qub.ac.uk/sne/]
   --update                      Update the database
+  --usestampmjd                 Override the mjd in the data with the one extracted from the stamp filename.
 
 
   E.g.:
@@ -517,7 +519,7 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
                 else:
                     logging.info("Neither 'detection_stamp' nor 'stamp' found.")
                     sys.exit(1)
-            if 'mjd' not in df.columns:
+            if 'mjd' not in df.columns or (df['detection_stamp'] is not None and options.usestampmjd):
                 df['mjd'] = df['detection_stamp'].apply(
                     lambda s: float(s.split('_')[1]) if '_' in s else np.nan
                 )
