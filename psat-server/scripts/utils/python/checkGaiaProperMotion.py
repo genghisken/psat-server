@@ -22,6 +22,7 @@ Usage:
             [--date=<date>] [--survey=<survey>]
             [--loglocation=<loglocation>] [--logprefix=<logprefix>]
             [--pixelscale=<pixelscale>] [--radius=<radius>] [--maxpm=<maxpm>] [--maxsep=<maxsep>]
+            [--baseurl=<baseurl>]
             [--update]
 
 
@@ -558,6 +559,7 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
             miscParameters=[cfg, miscParams]
         )
 
+        print(results_flat)
         for stamp, best_match, orig in results_flat:
             if best_match is not None:
                 matches_data.append({
