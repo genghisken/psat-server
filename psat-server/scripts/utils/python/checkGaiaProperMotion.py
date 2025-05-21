@@ -46,7 +46,7 @@ Options:
   --pixelscale=<pixelscale>     Telescope pixel scale [default: 0.25]
   --radius=<radius>             Base search radius (arcsec) [default: 5.0]
   --maxpm=<maxpm>               Maximum proper motion in arcsec per year [default: 5.0]
-  --maxsep=<maxsep>             Maximum separation allowed [default 4.0]
+  --maxsep=<maxsep>             Maximum separation allowed [default: 4.0]
   --baseurl=<baseurl>           Webserver URL (for finding stamps externally) [default: https://star.pst.qub.ac.uk/sne/]
   --update                      Update the database
 
