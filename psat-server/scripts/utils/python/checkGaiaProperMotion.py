@@ -21,7 +21,8 @@ Usage:
             [--ra_column=<ra_column>] [--dec_column=<dec_column>] [--mjd_column=<mjd_column>] [--id_column=<id_column>]
             [--date=<date>] [--survey=<survey>]
             [--loglocation=<loglocation>] [--logprefix=<logprefix>]
-            [--pixelscale=<pixelscale>] [--radius=<radius>] [--maxpm=<maxpm>] [--maxsep=<maxsep>]
+            [--pixelscaleps=<pixelscaleps>] [--pixelscaleat=<pixelscaleat>]
+            [--radius=<radius>] [--maxpm=<maxpm>] [--maxsep=<maxsep>]
             [--baseurl=<baseurl>]
             [--update]
             [--usestampmjd]
@@ -45,7 +46,8 @@ Options:
   --numberOfThreads=<n>         Number of threads (stops external database overloading) [default: 10]
   --loglocation=<loglocation>   Log file location [default: /tmp/]
   --logprefix=<logprefix>       Log prefix [default: gaia_pm_crossmatch]
-  --pixelscale=<pixelscale>     Telescope pixel scale [default: 0.25]
+  --pixelscaleps=<pixelscaleps>   Pan-STARRS pixel scale [default: 0.25]
+  --pixelscaleat=<pixelscaleat>   ATLAS pixel scale [default: 1.86]
   --radius=<radius>             Base search radius (arcsec) [default: 5.0]
   --maxpm=<maxpm>               Maximum proper motion in arcsec per year [default: 5.0]
   --maxsep=<maxsep>             Maximum separation allowed [default: 4.0]
@@ -88,10 +90,13 @@ __doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.arg
 
 from docopt import docopt
 import sys, os, shutil, re, csv
-from gkutils.commonutils import dbConnect, Struct, cleanOptions, calculateHeatMap
+from gkutils.commonutils import dbConnect, Struct, cleanOptions, PROCESSING_FLAGS
+
+# TEMPORARY CODE until gkutils is updated: New proper motion check flag.
+PROCESSING_FLAGS['pmcheck'] = 0x2000
 
 sys.path.append('../../common/python')
-from queries import getATLASCandidates, getPanSTARRSCandidates
+from queries import getATLASCandidates, getPanSTARRSCandidates, updateTransientObservationAndProcessingStatus, insertTransientObjectComment
 
 # ------------------------
 # Global constants and setup
@@ -100,10 +105,8 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(levelname)s - %(message)s",
                     stream=sys.stdout)
 
-PIXEL_SCALE = 0.25  # arcsec per pixel; cutouts are 200x200, so centre is (100,100)
-SEARCH_RADIUS_ARCSEC = 5.0  # base search radius in arcsec
-MAX_PM = 5.0              # maximum proper motion in arcsec per year
-MAX_SEP_ARCSEC = 4.0      # maximum separation allowed (in arcsec)
+PIXEL_SCALE_PS = 0.25  # Pan-STARRS pixel scale. cutouts are 200x200, so centre is (100,100)
+PIXEL_SCALE_ATLAS = 1.862 # ATLAS ACAM pixel scale
 
 # ------------------------
 # Tiny Struct for docopt results
@@ -313,12 +316,18 @@ def plot_all_images_with_overlay(options, detection_stamp, best_match,
         logging.info(f"Could not get complete images for {detection_stamp}.")
         return
 
+    pixelscale = 0.25 # default to Pan-STARRS pixel scale
+    if options.survey == 'atlas':
+        pixelscale = float(options.pixelscaleat)
+    elif options.survey == 'panstarrs':
+        pixelscale = float(options.pixelscaleps)
+
     # compute pixel offsets
     centre = (100, 100)
     def sky_to_pix(ra1, dec1, ra2, dec2):
         dra = (ra2 - ra1) * math.cos(math.radians(dec1)) * 3600.0
         ddec = (dec2 - dec1) * 3600.0
-        return centre[0] - dra/float(options.pixelscale), centre[1] + ddec/float(options.pixelscale)
+        return centre[0] - dra/pixelscale, centre[1] + ddec/pixelscale
 
     red_x, red_y   = sky_to_pix(object_ra, object_dec,
                                  best_match['ra_gaia'], best_match['dec_gaia'])
@@ -355,8 +364,8 @@ def plot_all_images_with_overlay(options, detection_stamp, best_match,
 
         # uncertainty ellipse around 2016
         if best_match.get('eff_ra_err') and best_match.get('eff_dec_err'):
-            w = 2 * best_match['eff_ra_err'] / float(options.pixelscale)
-            h = 2 * best_match['eff_dec_err'] / float(options.pixelscale)
+            w = 2 * best_match['eff_ra_err'] / pixelscale
+            h = 2 * best_match['eff_dec_err'] / pixelscale
             ellipse = Ellipse((red_x, red_y), width=w, height=h,
                               edgecolor='cyan', facecolor='none', lw=1)
             ax.add_patch(ellipse)
@@ -471,6 +480,7 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
 
 
     matches_data = []
+    data = []
     chunk_size = 1_000_000
 
 
@@ -572,6 +582,7 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
                     'source_match_distance': best_match['separation'],
                     'source_id': best_match['source_id']
                 })
+                
                 if do_plot:
                     out_file = os.path.join(output_folder, f"{stamp}_gaia_match.png")
                     plot_all_images_with_overlay(
@@ -585,6 +596,27 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
     if output_csv:
         pd.DataFrame(matches_data).to_csv(output_csv, index=False)
         logging.info(f"Saved match catalog to {output_csv}")
+
+    if options.update and (options.candidate or options.list or options.customList) and options.id_column == 'id':
+        # We must be talking to the database, not an input CSV file. So do we
+        # want to update the database?
+        # Note that for the time being we are doing this single-threaded at the end of the PM check.
+        # In future we might want to do the updates in parallel. This may or may not result in table
+        # locking, but should be a lot quicker than doing single threaded.
+
+        for row in data:
+            # 1. Set the processing flag for all the data we just checked.
+            if row[id_field] not in matches_data:
+                rowsChecked = updateTransientObservationAndProcessingStatus(conn, row[id_field], processingFlag = PROCESSING_FLAGS['pmcheck'], survey = options.survey)
+
+        for row in matches_data:
+            # 2. Update the processing flag AND set observation_status for any objects that MATCH
+            rowsUpdated = updateTransientObservationAndProcessingStatus(conn, row[id_field], processingFlag = PROCESSING_FLAGS['pmcheck'], observationStatus = 'hpmstar', survey = options.survey)
+
+            # 3. Write a comment into the object comments table.
+            comment = "HPM Check. Object is %.2f arcsec from Gaia DR3 %s." % (row['source_match_distance'],row['source_id'])
+            commentRowsUpdated = insertTransientObjectComment(conn, row[id_field], comment)
+
 
     if conn is not None:
         conn.close ()

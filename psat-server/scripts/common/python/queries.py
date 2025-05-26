@@ -1,5 +1,10 @@
 import MySQLdb
 import sys
+from gkutils.commonutils import PROCESSING_FLAGS
+
+# Temporary measure until this is properly implemented in gkutils:
+PROCESSING_FLAGS['pmcheck'] = 0x2000
+
 
 def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = None, rbThreshold = None):
     """getAtlasObjects.
@@ -280,4 +285,78 @@ def getPanSTARRSCandidates(conn, options):
         candidateList = getPanSTARRSObjects(conn, listId = detectionList, dateThreshold = dateThreshold)
     
     return candidateList
+
+
+# Update the processing flag AND change the observation_status.
+def updateTransientObservationAndProcessingStatus(conn, objectId, processingFlag = PROCESSING_FLAGS['pmcheck'], observationStatus = None, survey = 'panstarrs'):
+
+    rowsUpdated = 0
+    
+    try:
+        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+        
+        # 2012-02-29 KWS Make the query more efficient by only updating the relevant table
+
+        # Try updating the tcs_transient_reobservations table
+
+        if survey == 'panstarrs':
+            cursor.execute ("""
+                update tcs_transient_objects
+                set observation_status = COALESCE(NULLIF(observation_status, ''), %s),
+                    processing_flags = COALESCE(processing_flags, 0) | %s
+                where id = %s
+                """, (observationStatus, processingFlag, objectId))
+
+        elif survey == 'atlas':
+            cursor.execute ("""
+                update atlas_diff_objects
+                set observation_status = COALESCE(NULLIF(observation_status, ''), %s),
+                    processing_flags = COALESCE(processing_flags, 0) | %s
+                where id = %s
+                """, (observationStatus, processingFlag, objectId))
+    
+        else:
+            print("Need to specify survey as atlas or panstarrs.")
+            cursor.close ()
+            return rowsUpdated
+
+
+        rowsUpdated = cursor.rowcount
+
+        # Did we update any transient object rows? If not issue a warning.
+        if rowsUpdated == 0:
+            print("WARNING: No transient object entries were updated.")
+
+        cursor.close ()
+
+
+    except MySQLdb.Error as e:
+        print(str(e))
+
+    return rowsUpdated
+
+
+# Insert an object comment. Note that this code, particularly the subquery
+# may run into a COLLATION error. It's not obvious how to fix this.
+def insertTransientObjectComment(conn, objectId, comment):
+
+    import MySQLdb
+    try:
+        cursor = conn.cursor (MySQLdb.cursors.DictCursor)
+
+        cursor.execute ("""
+            INSERT INTO tcs_object_comments (transient_object_id, comment, date_inserted)
+            SELECT %s, %s, NOW()
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM tcs_object_comments
+                WHERE transient_object_id = %s
+                AND comment LIKE %s)
+            """, (objectId, comment, objectId, comment))
+
+    except MySQLdb.Error as e:
+        print(str(e))
+
+    cursor.close ()
+    return conn.insert_id()
 
