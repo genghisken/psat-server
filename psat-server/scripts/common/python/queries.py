@@ -179,7 +179,7 @@ def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId
                        g.name as detection_stamp
                   from tcs_transient_objects o
                   join tcs_cmf_metadata m on o.tcs_cmf_metadata_id = m.id
-             left join tcs_images i on g.id = o.image_group_id
+             left join tcs_image_groups g on g.id = o.image_group_id
                  where o.id = %s
             """, (objectId,))
             resultSet = cursor.fetchone ()

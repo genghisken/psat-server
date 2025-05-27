@@ -614,7 +614,7 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
             rowsUpdated = updateTransientObservationAndProcessingStatus(conn, row[id_field], processingFlag = PROCESSING_FLAGS['pmcheck'], observationStatus = 'hpmstar', survey = options.survey)
 
             # 3. Write a comment into the object comments table.
-            comment = "HPM Check. Object is %.2f arcsec from Gaia DR3 %s." % (row['source_match_distance'],row['source_id'])
+            comment = "HPM Check. Object is %.2f arcsec from Gaia DR3 source %s." % (row['source_match_distance'],row['source_id'])
             commentRowsUpdated = insertTransientObjectComment(conn, row[id_field], comment)
 
 
