@@ -26,6 +26,7 @@ Usage:
             [--baseurl=<baseurl>]
             [--update]
             [--usestampmjd]
+            [--overrideflags]
 
 
 Options:
@@ -54,6 +55,7 @@ Options:
   --baseurl=<baseurl>           Webserver URL (for finding stamps externally) [default: https://star.pst.qub.ac.uk/sne/]
   --update                      Update the database
   --usestampmjd                 Override the mjd in the data with the one extracted from the stamp filename.
+  --overrideflags               Override the processing (pmcheck) flag.
 
 
   E.g.:
@@ -190,7 +192,6 @@ def crossmatchWithLocalGaiaProperMotion(conn, options, objectRow):
     min_sep = np.inf
 
     for separation_initial, row in matches:
-        print("HELO")
         galaxy = row.get('classprob_dsc_combmod_galaxy')
         qso    = row.get('classprob_dsc_combmod_quasar')
         if galaxy is not None and qso is not None and (galaxy + qso) > 0.5:
@@ -483,6 +484,9 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
     data = []
     chunk_size = 1_000_000
 
+    processingFlags = PROCESSING_FLAGS['pmcheck']
+    if options.overrideflags:
+        processingFlags = -1
 
     if catalog_file:
         # read as an iterator of DataFrames
@@ -490,9 +494,9 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
     elif options.candidate or options.list or options.customList:
         # pull from DB into a list of dicts
         if options.survey == 'atlas':
-            data = getATLASCandidates(conn, options)
+            data = getATLASCandidates(conn, options, processingFlags = processingFlags)
         elif options.survey == 'panstarrs':
-            data = getPanSTARRSCandidates(conn, options)
+            data = getPanSTARRSCandidates(conn, options, processingFlags = processingFlags)
         else:
             logging.error(f"Unsupported survey: {options.survey}")
             sys.exit(1)
@@ -571,7 +575,7 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
             miscParameters=[cfg, miscParams]
         )
 
-        print(results_flat)
+        #print(results_flat)
         for stamp, best_match, orig in results_flat:
             if best_match is not None:
                 matches_data.append({
