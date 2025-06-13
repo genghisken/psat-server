@@ -6,7 +6,7 @@ from gkutils.commonutils import PROCESSING_FLAGS
 PROCESSING_FLAGS['pmcheck'] = 0x2000
 
 
-def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = None, rbThreshold = None):
+def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = None, rbThreshold = None, processingFlags=-1):
     """getAtlasObjects.
 
     Args:
@@ -28,16 +28,16 @@ def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = N
                           join atlas_detectionsddc d
                             on o.detection_id = d.id
                           join atlas_metadataddc m
-                            on m.id = d.atlas_metadata_id
-                                
+                            on m.id = d.atlas_metadata_id                                
                      left join tcs_latest_object_stats s
                             on s.id = o.id
                          where detection_list_id = %s
                            and followup_flag_date >= %s
                            and zooniverse_score > %s
+                           and (processing_flags & %s = 0 or processing_flags is null)
                       order by followup_id
                     ) temp
-                """, (listId, dateThreshold, rbThreshold))
+                """, (listId, dateThreshold, rbThreshold, processingFlags))
             else:
                 cursor.execute ("""
                     select id, followup_id, ifnull(ra_avg, ra) ra, ifnull(dec_avg, `dec`) `dec`, name, object_classification, detection_list_id, mjd from (
@@ -51,9 +51,10 @@ def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = N
                             on s.id = o.id
                          where detection_list_id = %s
                            and followup_flag_date >= %s
-                      order by followup_id
+                           and (processing_flags & %s = 0 or processing_flags is null)
+                     order by followup_id
                     ) temp
-                """, (listId, dateThreshold))
+                """, (listId, dateThreshold, processingFlags))
             resultSet = cursor.fetchall ()
         else:
             cursor.execute ("""
@@ -133,7 +134,7 @@ def getAtlasObjectsByCustomList(conn, listId = 4):
     return resultSet
 
 
-def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId = None):
+def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId = None, processingFlags = -1):
     """getPS1Objects.
 
     Args:
@@ -162,8 +163,9 @@ def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId
                  where o.detection_list_id = %s
                    and (o.observation_status is null or o.observation_status != 'mover')
                    and followup_flag_date >= %s
+                   and (processing_flags & %s = 0 or processing_flags is null)
                  order by o.followup_id
-            """, (listId, dateThreshold))
+            """, (listId, dateThreshold, processingFlags))
             resultSet = cursor.fetchall ()
         else:
             cursor.execute ("""
@@ -196,7 +198,7 @@ def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId
 
 
 
-def getATLASCandidates(conn, options):
+def getATLASCandidates(conn, options, processingFlags=-1):
     candidateList = []
 
     if options.list is not None:
@@ -249,13 +251,13 @@ def getATLASCandidates(conn, options):
         rbThreshold = None
 #        if options.rbthreshold is not None:
 #           rbThreshold = float(options.rbthreshold)
-        candidateList = getAtlasObjects(conn, listId = detectionList, dateThreshold = dateThreshold, rbThreshold = rbThreshold)
+        candidateList = getAtlasObjects(conn, listId = detectionList, dateThreshold = dateThreshold, rbThreshold = rbThreshold, processingFlags = processingFlags)
 
     return candidateList
 
 
 # TODO: modify the Pan-STARRS code to get custom lists or re-use the ATLAS one.
-def getPanSTARRSCandidates(conn, options):
+def getPanSTARRSCandidates(conn, options, processingFlags=-1):
     candidateList = []
 
     if options.list is not None:
@@ -282,7 +284,7 @@ def getPanSTARRSCandidates(conn, options):
 
     else:
         # Get only the ATLAS objects that don't have the 'moons' flag set.
-        candidateList = getPanSTARRSObjects(conn, listId = detectionList, dateThreshold = dateThreshold)
+        candidateList = getPanSTARRSObjects(conn, listId = detectionList, dateThreshold = dateThreshold, processingFlags = processingFlags)
     
     return candidateList
 
