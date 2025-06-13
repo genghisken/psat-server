@@ -204,18 +204,18 @@ def getATLASCandidates(conn, options, processingFlags = 0):
     if options.list is not None:
         try:
             detectionList = int(options.list)
-            if detectionList < 0 or detectionList > 8:
-                print("Detection list must be between 0 and 8")
-                return 1
+            if detectionList < 0 or detectionList > 13:
+                print("Detection list must be between 0 and 13")
+                return candidateList
         except ValueError as e:
             sys.exit("Detection list must be an integer")
 
     if options.customlist is not None:
         try:
             customlist = int(options.customlist)
-            if customlist < 0 or customlist > 100:
-                print("Custom list must be between 0 and 100")
-                return 1
+            if customlist < 0 or customlist > 200:
+                print("Custom list must be between 0 and 200")
+                return candidateList
         except ValueError as e:
             sys.exit("Custom list must be an integer")
 
@@ -263,9 +263,9 @@ def getPanSTARRSCandidates(conn, options, processingFlags = 0):
     if options.list is not None:
         try:
             detectionList = int(options.list)
-            if detectionList < 0 or detectionList > 8:
-                print("Detection list must be between 0 and 8")
-                return 1
+            if detectionList < 0 or detectionList > 13:
+                print("Detection list must be between 0 and 13")
+                return candidateList
         except ValueError as e:
             sys.exit("Detection list must be an integer")
 
