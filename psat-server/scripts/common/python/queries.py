@@ -134,7 +134,7 @@ def getAtlasObjectsByCustomList(conn, listId = 4):
     return resultSet
 
 
-def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId = None, processingFlags = 0:
+def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId = None, processingFlags = 0):
     """getPS1Objects.
 
     Args:
