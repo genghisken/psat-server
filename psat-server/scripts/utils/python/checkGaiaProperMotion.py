@@ -486,7 +486,7 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
 
     processingFlags = PROCESSING_FLAGS['pmcheck']
     if options.overrideflags:
-        processingFlags = -1
+        processingFlags = 0
 
     if catalog_file:
         # read as an iterator of DataFrames

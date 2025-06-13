@@ -6,7 +6,7 @@ from gkutils.commonutils import PROCESSING_FLAGS
 PROCESSING_FLAGS['pmcheck'] = 0x2000
 
 
-def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = None, rbThreshold = None, processingFlags=-1):
+def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = None, rbThreshold = None, processingFlags = 0):
     """getAtlasObjects.
 
     Args:
@@ -134,7 +134,7 @@ def getAtlasObjectsByCustomList(conn, listId = 4):
     return resultSet
 
 
-def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId = None, processingFlags = -1):
+def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId = None, processingFlags = 0:
     """getPS1Objects.
 
     Args:
@@ -198,7 +198,7 @@ def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId
 
 
 
-def getATLASCandidates(conn, options, processingFlags=-1):
+def getATLASCandidates(conn, options, processingFlags = 0):
     candidateList = []
 
     if options.list is not None:
@@ -257,7 +257,7 @@ def getATLASCandidates(conn, options, processingFlags=-1):
 
 
 # TODO: modify the Pan-STARRS code to get custom lists or re-use the ATLAS one.
-def getPanSTARRSCandidates(conn, options, processingFlags=-1):
+def getPanSTARRSCandidates(conn, options, processingFlags = 0):
     candidateList = []
 
     if options.list is not None:
