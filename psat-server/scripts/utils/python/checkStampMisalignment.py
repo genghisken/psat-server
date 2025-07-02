@@ -268,7 +268,7 @@ def assess_shift(img_ref, img_new, *,
 def pixelshiftCheck(options):
 
     ref_path   = options.ref_fits
-    tgt_path   = optiopns.target_fits
+    tgt_path   = options.target_fits
     profile    = options.profile
     prominence = float(options.prominence)
     shiftcut   = float(options.shiftcut)
