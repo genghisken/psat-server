@@ -160,7 +160,6 @@ def main(argv = None):
     multiplier = 1.5
     siteMasks = getSiteMasks(conn, multiplier)
 
-    conn.close()
 
     objectsForUpdate = []
 
@@ -174,6 +173,7 @@ def main(argv = None):
 
     else:
         # Get only the ATLAS objects that don't have the 'moons' flag set.
+        print("Grabbing date threshold")
         dateThreshold = getMostRecentProcessedDate(conn)
 
         # When both thresholds are defined, use the one in the database.
@@ -193,6 +193,7 @@ def main(argv = None):
         #                finished with it.
         objectsForUpdate = parallelProcess(db, dateAndTime, 1, [0], getLargeDataSet, miscParameters = [options, dateThreshold], firstPass = True)
 
+    conn.close()
 
 
     # We no longer update the quality_threshold_pass flag.  It takes far too long.
