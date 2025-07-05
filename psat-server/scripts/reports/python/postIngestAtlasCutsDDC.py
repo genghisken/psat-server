@@ -379,7 +379,11 @@ def checkIntraDayRecurrences(mjdCount, intraDayThreshold = INTRA_DAY_THRESH, num
 
     checkMJDRecurrences = False
     dayCount = 0
-    triggerMJD = None
+
+    # 2025-07-05 KWS Can't leave triggerMJD as None. In python 2 None in comparisions was always smaller than
+    #                whatever we were comparing it with. In python 3, use -inf. Revisit this code later.
+    #triggerMJD = None
+    triggerMJD = float('-inf')
     for mjd, number in mjdCount.items():
         if number >= intraDayThreshold and mjd >= (maxMJD - mjdWindow):
             dayCount += 1
@@ -415,6 +419,7 @@ def getObjectInfo(conn, objectId, mjdThreshold = None):
       # 2020-04-29 KWS Added ability to grab everything BEFORE a stated MJD so we can grab what
       #                detections would have been available on a certain date.
       # 2022-08-30 KWS Get the chi^2/n value as well so we can check it.
+      # 2025-07-04 KWS Added nx and ny. Since TDO, we can no longer assume a chip size of 10560.
       if mjdThreshold is not None:
           cursor.execute ("""
                 SELECT d.ra RA,
@@ -429,6 +434,8 @@ def getObjectInfo(conn, objectId, mjdThreshold = None):
                        m.obs expname,
                        m.mag5sig,
                        m.obj object,
+                       m.nx,
+                       m.ny,
                        d.pmv,
                        d.pvr,
                        d.ptr,
@@ -460,6 +467,8 @@ def getObjectInfo(conn, objectId, mjdThreshold = None):
                        m.obs expname,
                        m.mag5sig,
                        m.obj object,
+                       m.nx,
+                       m.ny,
                        d.pmv,
                        d.pvr,
                        d.ptr,
@@ -716,27 +725,34 @@ def testObject(conn, object, mjdWindow = MJD_WINDOW, debug = True, checkTriggerI
       #                Since the heatmap is now in place for all detectors, this should mitigate agains the main sources of junk being used to
       #                trigger bogus objects.
       # 2023-03-01 KWS I've altered the above condition to ((objectRow['pvr'] >= 0 or objectRow['ptr'] >= 0) and (objectRow['psc'] > PSC_THRESH and objectRow['psc'] < 900)) condition.
+      # 2025-07-04 KWS Introduced check on nx and ny instead of CHIP_SIZE, since this is not longer constant!
 
-      binnedx = int(objectRow['x']*(masks[objectRow['expname'][0:3]].shape[1] - 1)/(CHIP_SIZE-1))
-      binnedy = int(objectRow['y']*(masks[objectRow['expname'][0:3]].shape[0] - 1)/(CHIP_SIZE-1))
+      detInMaskArea = False
 
-      if binnedx < 0:
-          binnedx = 0
+      # 2025-07-04 KWS I don't yet know how to do masks for the TDO telescope. Skip for the time being.
+      #                Also switched from using CHIP_SIZE to objectRow['nx'] and objectRow['ny'].
+      if objectRow['expname'][0:3] != '05r':
+          binnedx = int(objectRow['x']*(masks[objectRow['expname'][0:3]].shape[1] - 1)/(objectRow['nx']-1))
+          binnedy = int(objectRow['y']*(masks[objectRow['expname'][0:3]].shape[0] - 1)/(objectRow['ny']-1))
 
-      if binnedx > (masks[objectRow['expname'][0:3]].shape[1] - 1):
-          binnedx = masks[objectRow['expname'][0:3]].shape[1] - 1
+          if binnedx < 0:
+              binnedx = 0
 
-      if binnedy < 0:
-          binnedy = 0
+          if binnedx > (masks[objectRow['expname'][0:3]].shape[1] - 1):
+              binnedx = masks[objectRow['expname'][0:3]].shape[1] - 1
 
-      if binnedy > (masks[objectRow['expname'][0:3]].shape[0] - 1):
-          binnedy = masks[objectRow['expname'][0:3]].shape[0] - 1
+          if binnedy < 0:
+              binnedy = 0
 
-      detInMaskArea = masks[objectRow['expname'][0:3]][binnedy][binnedx]
+          if binnedy > (masks[objectRow['expname'][0:3]].shape[0] - 1):
+              binnedy = masks[objectRow['expname'][0:3]].shape[0] - 1
+
+          detInMaskArea = masks[objectRow['expname'][0:3]][binnedy][binnedx]
+
       #print detInMaskArea
-      #print int(objectRow['y']*masks[objectRow['expname'][0:3]].shape[0]/(CHIP_SIZE-1)), int(objectRow['x']*masks[objectRow['expname'][0:3]].shape[1]/(CHIP_SIZE-1))
+      #print int(objectRow['y']*masks[objectRow['expname'][0:3]].shape[0]/(objectRow['ny']-1)), int(objectRow['x']*masks[objectRow['expname'][0:3]].shape[1]/(objectRow['nx']-1))
       #testMask = masks[objectRow['expname'][0:3]].copy()
-      #testMask[int(objectRow['y']*masks[objectRow['expname'][0:3]].shape[0]/(CHIP_SIZE-1))][int(objectRow['x']*masks[objectRow['expname'][0:3]].shape[1]/(CHIP_SIZE-1))] = 3
+      #testMask[int(objectRow['y']*masks[objectRow['expname'][0:3]].shape[0]/(objectRow['ny']-1))][int(objectRow['x']*masks[objectRow['expname'][0:3]].shape[1]/(objectRow['nx']-1))] = 3
       #testMask[binnedy][binnedx] = 3
       #print
       #print n.flip(testMask, 0)
@@ -752,9 +768,9 @@ def testObject(conn, object, mjdWindow = MJD_WINDOW, debug = True, checkTriggerI
               and objectRow['pbn'] < PBN_THRESH \
               and objectRow['Filter'] != 't' \
               and objectRow['x'] > MIN_SIZE \
-              and objectRow['x'] < MAX_SIZE \
+              and objectRow['x'] < (objectRow['nx'] - MIN_SIZE) \
               and objectRow['y'] > MIN_SIZE \
-              and objectRow['y'] < MAX_SIZE \
+              and objectRow['y'] < (objectRow['ny'] - MIN_SIZE) \
               and not detInMaskArea:
 
           mjds.append([objectRow["MJD"]])
