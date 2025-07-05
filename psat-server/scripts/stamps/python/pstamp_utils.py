@@ -6648,7 +6648,8 @@ def makeATLASObjectPostageStamps2(conn, candidateList, PSSImageRootLocation, sta
 #   if objectsModified:
 #      updateTriplets(conn, objectsModified)
 
-def getATLASxyFromRaDec(imageFilename, ra, dec):
+# 2025-07-02 KWS Added nx, ny because of new ATLAS detectors.
+def getATLASxyFromRaDec(imageFilename, ra, dec, nx = 10560, ny = 10560):
     """getATLASxyFromRaDec.
 
     Args:
@@ -6671,7 +6672,7 @@ def getATLASxyFromRaDec(imageFilename, ra, dec):
         except ValueError as e:
            print("Unable to convert x and y to float.")
 
-        if x < 0 or x > 10560 or y < 0 or y > 10560:
+        if x < 0 or x > nx or y < 0 or y > ny:
            print("x or y out of bounds (%f, %f)" % (x, y))
 
     return x,y

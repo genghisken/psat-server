@@ -507,7 +507,7 @@ def makeATLASObjectPostageStamps3(conn, candidateList, PSSImageRootLocation, sta
          x = None
          y = None
 
-         (objectId, tdate, diffId, ippIdet) = (candidate['id'], row.tdate, row.expname, row.tphot_id)
+         (objectId, tdate, diffId, ippIdet, nx, ny) = (candidate['id'], row.tdate, row.expname, row.tphot_id, row.nx, row.ny)
 
          camera = diffId[0:3]
          mjd = diffId[3:8]
@@ -542,7 +542,7 @@ def makeATLASObjectPostageStamps3(conn, candidateList, PSSImageRootLocation, sta
                 except ValueError as e:
                    print("Unable to convert x and y to float.")
                    continue
-                if x < 0 or x > 10560 or y < 0 or y > 10560:
+                if x < 0 or x > nx or y < 0 or y > ny:
                    print("x or y out of bounds (%f, %f)" % (x, y))
          else:
             xhColor = 'green1'
@@ -651,7 +651,7 @@ def makeATLASObjectPostageStamps3(conn, candidateList, PSSImageRootLocation, sta
                rot = 0
                if useMonsta:
                    #status, rot = imu.getMonstaPostageStamp(imageFilenames[imageType], absoluteLocalImageName, (row['x'] - 0.5), (row['y'] - 0.5), dx)
-                   status, rot = imu.getMonstaPostageStamp(imageFilenames[imageType], absoluteLocalImageName, x, y, dx)
+                   status, rot = imu.getMonstaPostageStamp(imageFilenames[imageType], absoluteLocalImageName, x, y, dx, ccdSizex = nx, ccdSizey = ny)
                else:
                    status = imu.getFITSPostageStamp(imageFilenames[imageType], absoluteLocalImageName, x, y, dx, dy)
 

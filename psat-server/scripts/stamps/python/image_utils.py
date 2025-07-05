@@ -693,7 +693,8 @@ def getFITSPostageStamp(filename, outputFilename, x, y, dx, dy):
     return status
 
 
-def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/atlas/vendor/monsta/bin/monsta', monstaScript = '/atlas/lib/monsta/subarray_ken3.pro', ccdSize = 10560):
+# 2025-07-02 KWS Grab the ccd size from the image shape. (NOTE: change to header info - means we don't have to load an array with the entire image.)
+def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/atlas/vendor/monsta/bin/monsta', monstaScript = '/atlas/lib/monsta/subarray_ken3.pro', ccdSizex = 10560, ccdSizey = 10560):
     """
     Use monsta subarray to cut out a substamp
     """
@@ -749,9 +750,8 @@ def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/at
     if pa<-90 or pa>90:
        rot = 2
 
-    sizey, sizex = ccdSize, ccdSize
+    sizey, sizex = ccdSizey, ccdSizex
     h.close()
-
 
     tempFilename = '/tmp/monsta/' + os.path.basename(filename) + '_' + str(os.getpid())
 
@@ -761,8 +761,12 @@ def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/at
         if not os.path.exists('/tmp/monsta'):
             os.makedirs('/tmp/monsta')
 
-        print("MONSTA: ", monstaCmd, monstaScript, filename, tempFilename, x, y, size, ccdSize)
-        p = subprocess.Popen([monstaCmd, monstaScript, filename, tempFilename, str(x), str(y), str(size), str(ccdSize)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # 2025-07-02 KWS Switch to calling the monsta script assuming sizex and sizey are different. Should yield the same result if both are 10560.
+        #                NOTE: Normally x,y are the coords. Now we have to calculate them ourself. x = x - size/2, y = y - size/2 I think.
+        print("MONSTA: ", monstaCmd, monstaScript, filename, tempFilename, x - size/2, x + size/2 - 1, y - size/2, y + size/2 - 1, sizex, sizey)
+        p = subprocess.Popen([monstaCmd, monstaScript, filename, tempFilename, str(x - size/2), str(x + size/2 - 1), str(y - size/2), str(y + size/2 - 1), str(sizex), str(sizey)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        #print("MONSTA: ", monstaCmd, monstaScript, filename, tempFilename, x, y, size, ccdSize)
+        #p = subprocess.Popen([monstaCmd, monstaScript, filename, tempFilename, str(x), str(y), str(size), str(ccdSize)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, errors = p.communicate()
 
         if errors.strip() == '':
