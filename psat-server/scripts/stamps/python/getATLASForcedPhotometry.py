@@ -423,7 +423,7 @@ def main(argv = None):
     else:
 
         if options.customlist is not None:
-            if int(options.customlist) > 0 and int(options.customlist) < 100:
+            if int(options.customlist) > 0 and int(options.customlist) <= 100:
                 customList = int(options.customlist)
                 objectList = getObjectsByCustomList(conn, customList, processingFlags = 0)
             else:
@@ -431,11 +431,11 @@ def main(argv = None):
                 sys.exit(1)
         else:
             if options.detectionlist is not None:
-                if int(options.detectionlist) >= 0 and int(options.detectionlist) < 9:
+                if int(options.detectionlist) >= 0 and int(options.detectionlist) <= 50:
                     detectionList = int(options.detectionlist)
                     objectList = getObjectsByList(conn, listId = detectionList, processingFlags = 0)
                 else:
-                    print("The list must be between 0 and 9 inclusive.  Exiting.")
+                    print("The list must be between 0 and 50 inclusive.  Exiting.")
                     sys.exit(1)
 
     print("LENGTH OF OBJECTLIST = ", len(objectList))
