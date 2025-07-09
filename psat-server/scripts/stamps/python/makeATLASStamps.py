@@ -514,6 +514,11 @@ def makeATLASObjectPostageStamps3(conn, candidateList, PSSImageRootLocation, sta
          
          imageGroupName = "%d_%s_%s_%s" % (objectId, tdate, diffId, ippIdet)
 
+         if row.expname[0:3] == '05r':
+            # 05r pixel scale requires 50% more pixels for same area. Will fix with more configurable setting later.
+            dx = 296
+         else:
+            dx = stampSize
 
          if useMonsta:
             if options is not None and options.redregex is not None and options.redlocation is not None and options.diffregex is not None and options.difflocation is not None: 
@@ -661,8 +666,11 @@ def makeATLASObjectPostageStamps3(conn, candidateList, PSSImageRootLocation, sta
 
                objectsModified.add(objectId)
 
+               # 2025-07-09 KWS Verify the HDUs. There's a bug in the 05r FILTER definition which is not
+               #                defined correctly as a string.
                try:
                    hdus = pf.open(absoluteLocalImageName)
+                   hdus.verify('fix')
                except IOError as e:
                    print(e)
                    print("Cannot open file %s! Abandon this image for the time being." % absoluteLocalImageName)

@@ -444,6 +444,9 @@ def fitsToJpeg (fitsFilename, jpegFilename, levels = (), nsigma = 10):
    # 2012-02-13 KWS Added 'ignore' keyword.  Some non-PS1 images (e.g. LSQ) contain non-standard FITS data
    uncompresedHDU.writeto(tempUncompressedFitsFilename, clobber=True, output_verify='ignore')
 
+   # 2025-07-09 KWS Close the file.
+   uncompresedHDU.close()
+
    # Now run the FITS to JPEG utility with the calculated max/min values
    # Note that FITS to JPEG inists on the image being uncompressed first...
    print("Converting to JPEG")
@@ -792,6 +795,12 @@ def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/at
         status = PSTAMP_EDGE_TOO_CLOSE
 
     if os.path.exists(tempFilename):
+        # 2025-07-09 KWS Emergency fix. The wpwarp2 tool can't read the FILTER info if it's not a string. Fix and rewrite.
+        if '05r' in tempFilename:
+            th = pf.open(tempFilename)
+            th.verify('fix')
+            th.writeto(tempFilename, overwrite=True, output_verify='ignore')
+            th.close()
         shutil.move(tempFilename, outputFilename)
     else:
         if status == PSTAMP_SUCCESS:
