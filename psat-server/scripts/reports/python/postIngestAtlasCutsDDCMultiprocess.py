@@ -207,7 +207,7 @@ def main(argv = None):
 
     print("TOTAL OBJECTS TO FILTER = %d" % len(objectsForUpdate))
     if len(objectsForUpdate) > 0:
-        nProcessors, listChunks = splitList(objectsForUpdate, bins=28)
+        nProcessors, listChunks = splitList(objectsForUpdate, bins=64)
 
         print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
         objectsForUpdate = parallelProcess(db, dateAndTime, nProcessors, listChunks, eliminatePreviouslyPromotedObjects, miscParameters = [options], firstPass = True)
@@ -218,7 +218,7 @@ def main(argv = None):
     print("TOTAL OBJECTS TO CHECK = %d" % len(objectsForUpdate))
     # Don't do anything unless there is at least one request!
     if len(objectsForUpdate) > 0:
-        nProcessors, listChunks = splitList(objectsForUpdate, bins=28)
+        nProcessors, listChunks = splitList(objectsForUpdate, bins=64)
 
         print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
         updateList = parallelProcess(db, dateAndTime, nProcessors, listChunks, worker, miscParameters = [options, options.recent, siteMasks], firstPass = True)
