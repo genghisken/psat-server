@@ -23,7 +23,7 @@ Assumes:
   2. The databases are in the SAME MySQL server instance.
 
 Usage:
-  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>]
+  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>] [--createtarcommand]
   %s (-h | --help)
   %s --version
 
@@ -35,6 +35,7 @@ Options:
   --ddc                          Assume the DDC schema.
   --truncate                     Truncate the database tables. Default is NOT to truncate.
   --copyimages                   Copy the images as well (extremely time consuming).
+  --createtarcommand             Instead of copying the images, create a TAR command that can be run retrospectively.
   --nocreateinfo                 When dumping db tables from large db, skip the create statements (for inhomogenious backends situation).
   --dumpfile=<dumpfile>          Filename of dumped data [default: /home/atls/big_tables.sql].
   --djangofile=<djangofile>      Filename of dumped Django data [default: /home/atls/django_schema.sql].
@@ -43,9 +44,10 @@ Options:
 
 E.g.:
   %s publicuser publicpass public db1 atlas4 --ddc --list=5 --copyimages
+  %s atlas4_extracteduser xxxxxxxxxxxxxx atlas4_extracted db5 atlas4 1111822090325015200 --copyimages --nocreateinfo --dumpfile=/home/atls/atlas4/atlas4_extracted.sql --djangofile=/home/atls/atlas4/atlas4_extracted_django.sql --imagessource=/db5/images/ --imagesdest=/db5/images/ --ddc 
 """
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, MySQLdb, shutil, re
 from gkutils.commonutils import dbConnect, find, Struct, cleanOptions
@@ -517,6 +519,7 @@ def truncateAllTables(conn, newSchema):
     truncateTable(conn, 'atlas_metadata', newSchema)
     truncateTable(conn, 'atlas_metadataddc', newSchema)
     truncateTable(conn, 'atlas_detectionsddc', newSchema)
+    truncateTable(conn, 'atlas_detectionsnnc', newSchema)
     truncateTable(conn, 'atlas_forced_photometry', newSchema)
     truncateTable(conn, 'atlas_stacked_forced_photometry', newSchema)
     truncateTable(conn, 'tcs_gravity_event_annotations', newSchema)
@@ -588,7 +591,7 @@ def removeAllImagesAndLocationMaps(newSchema, imageRootDestination):
 
 
 
-def copyImages(conn, objectId, sourceReadOnlySchema, newSchema, imageRootSource, imageRootDestination):
+def copyImages(conn, objectId, sourceReadOnlySchema, newSchema, imageRootSource, imageRootDestination, taronly = False):
 
     imageFilenames = getObjectImages(conn, objectId, sourceReadOnlySchema)
     for filename in imageFilenames:
@@ -599,7 +602,7 @@ def copyImages(conn, objectId, sourceReadOnlySchema, newSchema, imageRootSource,
         #                midnight UTC). So if we have exposure name in the file, get
         #                the MJD from the exposure name. Otherwise get it from the MJD
         #                embedded in the image_filename (as before).
-        if any([x in filename['image_filename'] for x in ['01a', '02a', '03a', '04a']]):
+        if any([x in filename['image_filename'] for x in ['01a', '02a', '03a', '04a', '05r']]):
             mjd = filename['image_filename'].split('_')[2][3:8]
         else:
             # Use the old way to get the MJD - relevant for finding charts.
@@ -612,18 +615,27 @@ def copyImages(conn, objectId, sourceReadOnlySchema, newSchema, imageRootSource,
         imageSourceFilenameFits = imageRootSource + sourceReadOnlySchema + '/' + mjd + '/' + filename['image_filename'] + '.fits'
         imageDestinationFilenameFits = imageDestinationDirectoryName + '/' + filename['image_filename'] + '.fits'
 
-        if not os.path.exists(imageDestinationDirectoryName):
-            os.makedirs(imageDestinationDirectoryName, exist_ok=True)
 
-        try:
-            if not os.path.exists(imageDestinationFilenameJpeg):
-                # Don't need to copy files we already have.
-                shutil.copy2(imageSourceFilenameJpeg, imageDestinationFilenameJpeg)
-            if not os.path.exists(imageDestinationFilenameFits):
-                # Don't need to copy files we already have.
-                shutil.copy2(imageSourceFilenameFits, imageDestinationFilenameFits)
-        except IOError as e:
-            print(e)
+        if not taronly:
+
+            if not os.path.exists(imageDestinationDirectoryName):
+                os.makedirs(imageDestinationDirectoryName, exist_ok=True)
+
+            try:
+                if not os.path.exists(imageDestinationFilenameJpeg):
+                    # Don't need to copy files we already have.
+                    shutil.copy2(imageSourceFilenameJpeg, imageDestinationFilenameJpeg)
+                if not os.path.exists(imageDestinationFilenameFits):
+                    # Don't need to copy files we already have.
+                    shutil.copy2(imageSourceFilenameFits, imageDestinationFilenameFits)
+            except IOError as e:
+                print(e)
+
+        else:
+            # Write into the logfile what needs to be copied. We only need the source filename
+            # We will use this to MANUALLY create a TAR file afterwards.
+            print("TAR:", imageSourceFilenameJpeg)
+            print("TAR:", imageSourceFilenameFits)
 
 
 # 2015-04-24 KWS Occasionally we'd like to publish individual objects or a small sublist
@@ -632,7 +644,7 @@ def copyImages(conn, objectId, sourceReadOnlySchema, newSchema, imageRootSource,
 # 2017-05-10 KWS Added the new tcs_object_comments table
 # 2024-03-04 KWS Added the new tcs_vra_scores table
 # 2024-07-30 KWS Added tcs_vra_rank and tcs_vra_todo tables
-def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnlySchema, ddc = False, copyimages = False, imageRootSource = None, imageRootDestination = None, getmetadata = False, survey = 'atlas'):
+def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnlySchema, ddc = False, copyimages = False, imageRootSource = None, imageRootDestination = None, getmetadata = False, survey = 'atlas', taronly = False):
 
     # Now add the objects one-at-a time.  The advantage of doing it this way is
     # that we can veto publication of individual objects if necessary.
@@ -716,7 +728,7 @@ def migrateData(conn, connPrivateReadonly, objectList, newSchema, sourceReadOnly
 
         if copyimages and imageRootSource is not None and imageRootDestination is not None:
             print("Copying images...")
-            copyImages(conn, object['id'], sourceReadOnlySchema, newSchema, imageRootSource, imageRootDestination)
+            copyImages(conn, object['id'], sourceReadOnlySchema, newSchema, imageRootSource, imageRootDestination, taronly = taronly)
         counter += 1
 
     if getmetadata and survey == 'atlas':
@@ -754,7 +766,8 @@ def main(argv = None):
     #                of the new schema has READ ONLY access to the source schema.
     #                The script should ABORT if the new schema credentials have
     #                write access to the old schema.
-    if 'public' not in options.database:
+    if 'public' not in options.database and 'test' not in options.database and 'migrate' not in options.database:
+        print(options.database)
         sys.exit("ONLY the public database credentials should be entered")
 
     # If the list isn't specified assume it's the Eyeball List.
@@ -835,8 +848,18 @@ def main(argv = None):
 
         # 2024-03-14 KWS Added authtoken_token. 
         print('Extracting all the Django relevant tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
-        cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions authtoken_token django_admin_log django_content_type django_migrations django_session django_site > %s' % (options.username, options.password, options.sourceschema, options.hostname, options.djangofile)
+        #djangoTables = 'auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site'
+        # 2025-07-28 KWS Since we created the user and token permissions we now have some new tables to backup.
+        #                I recommend a complete rewrite where we specify the tables ("djangoTables=...,...,..." with a default comma separated value) in the options.
+        djangoTables = 'auth_group auth_group_permissions auth_group_profile auth_permission auth_user auth_user_groups auth_user_profile auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site'
+        if options.includeauthtoken:
+            djangoTables += ' authtoken_token'
+        cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces %s > %s' % (options.username, options.password, options.sourceschema, options.hostname, djangoTables, options.djangofile)
         os.system(cmd)
+
+#        print('Extracting all the Django relevant tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
+#        cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions authtoken_token django_admin_log django_content_type django_migrations django_session django_site > %s' % (options.username, options.password, options.sourceschema, options.hostname, options.djangofile)
+#        os.system(cmd)
 
         print('Importing the Django tables from the %s schema.' % options.sourceschema)
         cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.djangofile)
@@ -847,7 +870,8 @@ def main(argv = None):
         noCreateInfo = ''
         if options.nocreateinfo is not None:
             noCreateInfo = '--no-create-info'
-        cmd = 'mysqldump -u%s --password=%s %s -h %s %s --no-tablespaces tcs_cmf_metadata atlas_metadata atlas_metadataddc atlas_diff_subcells atlas_diff_subcell_logs > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, options.dumpfile)
+        #cmd = 'mysqldump -u%s --password=%s %s -h %s %s --no-tablespaces tcs_cmf_metadata atlas_metadata atlas_metadataddc atlas_diff_subcells atlas_diff_subcell_logs > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, options.dumpfile)
+        cmd = 'mysqldump -u%s --password=%s %s -h %s %s --no-tablespaces tcs_cmf_metadata atlas_metadata atlas_metadataddc > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, options.dumpfile)
         os.system(cmd)
 
         print('Importing the giant tables from the %s schema.' % options.sourceschema)
@@ -863,7 +887,7 @@ def main(argv = None):
 #        insertAllRecords(conn, 'atlas_diff_subcell_logs', options.sourceschema, options.database)
 
     print("Length of list = %d)" % len(candidateList))
-    migrateData(conn, connPrivateReadonly, candidateList, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages, imageRootSource = options.imagessource, imageRootDestination = options.imagesdest)
+    migrateData(conn, connPrivateReadonly, candidateList, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages, imageRootSource = options.imagessource, imageRootDestination = options.imagesdest, taronly = options.createtarcommand)
 
     conn.close ()
     connPrivateReadonly.close ()
