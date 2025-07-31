@@ -27,7 +27,7 @@ from astropy.visualization import ZScaleInterval
 from scipy.fft import fft2, ifft2, fftshift
 from scipy.ndimage import gaussian_filter
 from scipy.optimize import curve_fit, OptimizeWarning
-from gkutils.commonutils import Struct
+from gkutils.commonutils import Struct, cleanOptions
 import warnings
 
 # ======================================
