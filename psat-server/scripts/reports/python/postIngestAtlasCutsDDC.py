@@ -748,6 +748,11 @@ def testObject(conn, object, mjdWindow = MJD_WINDOW, debug = True, checkTriggerI
               binnedy = masks[objectRow['expname'][0:3]].shape[0] - 1
 
           detInMaskArea = masks[objectRow['expname'][0:3]][binnedy][binnedx]
+          MIN_SIZE = 100
+      else:
+          # MIN_SIZE is half the stamp size. For 05r this is set to 296/2. In future the code
+          # should calculate this based on the pixel scale and the FOV we require.
+          MIN_SIZE = 148
 
       #print detInMaskArea
       #print int(objectRow['y']*masks[objectRow['expname'][0:3]].shape[0]/(objectRow['ny']-1)), int(objectRow['x']*masks[objectRow['expname'][0:3]].shape[1]/(objectRow['nx']-1))

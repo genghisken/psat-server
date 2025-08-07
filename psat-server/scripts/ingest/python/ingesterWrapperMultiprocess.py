@@ -154,7 +154,7 @@ def main():
 
     if len(fileList) > 0:
         # 2018-02-06 KWS Use half the default number of processes. This may ironically speed up ingest.
-        nProcessors, listChunks = splitList(filesToIngest, bins = 64)
+        nProcessors, listChunks = splitList(filesToIngest, bins = 32)
 
         print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
         parallelProcess(db, dateAndTime, nProcessors, listChunks, worker, miscParameters = [options], drainQueues = False)

@@ -12,7 +12,7 @@ Assumes:
   2. The databases are in the SAME MySQL server instance.
 
 Usage:
-  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>] [--getmetadata] [--insertdiffsubcelllogs] [--includeauthtoken] [--survey=<survey>]
+  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>] [--getmetadata] [--insertdiffsubcelllogs] [--includeauthtoken] [--survey=<survey>] [--createtarcommand]
   %s (-h | --help)
   %s --version
 
@@ -24,6 +24,7 @@ Options:
   --ddc                           Assume the DDC schema.
   --truncate                      Truncate the database tables. Default is NOT to truncate.
   --copyimages                    Copy the images as well (extremely time consuming).
+  --createtarcommand              Instead of copying the images, create a TAR command that can be run retrospectively.
   --loglocation=<loglocation>     Log file location [default: /tmp/]
   --logprefix=<logprefix>         Log prefix [default: migration]
   --nocreateinfo                  When dumping db tables from large db, skip the create statements (for inhomogenious backends situation).
@@ -39,9 +40,9 @@ Options:
 
 E.g.:
   %s publicuser publicpass public db1 atlas4 --ddc --list=5 --copyimages
-  %s atlas4migrateduser xxxxxxxxxxxxxxx atlas4migrated db1 atlas4 --ddc --list=1,2,3,4,5,7,8,9,10,11,12,13 --copyimages --loglocation=/db4/tc_logs/atlas4/ --includeauthtoken
   %s ps13pi_extracteduser xxxxxxxxxxxxxx ps13pi_extracted db0 ps13pi 1111822080325015100 --copyimages --loglocation=/db0/tc_logs/ps13pi/ --nocreateinfo --dumpfile=/home/pstc/ps13pi/ps13pi_extracted.sql --djangofile=/home/pstc/ps13pi/ps13pi_extracted_django.sql --imagessource=/db0/images/ --imagesdest=/db0/images/ --getmetadata --survey=panstarrs
   %s atlas4_extracteduser xxxxxxxxxxxxxx atlas4_extracted db5 atlas4 1111822090325015200 --copyimages --loglocation=/db5/tc_logs/atlas4/ --nocreateinfo --dumpfile=/home/atls/atlas4/atlas4_extracted.sql --djangofile=/home/atls/atlas4/atlas4_extracted_django.sql --imagessource=/db5/images/ --imagesdest=/db5/images/ --getmetadata --survey=atlas --ddc --includeauthtoken
+  %s atlas4migrateduser xxxxxxxxxxxxxxxx atlas4migrated db5 atlas4 --list=1,2,3,4,5,7,8,9,10,11,12,13 --copyimages --loglocation=/db5/tc_logs/atlas4/ --nocreateinfo --dumpfile=/home/atls/atlas4/atlas4_migrated.sql --djangofile=/home/atls/atlas4/atlas4_migrated_django.sql --imagessource=/db5/images/ --imagesdest=/db5/images/ --survey=atlas --ddc --includeauthtoken --createtarcommand --truncate
 
 """
 import sys
@@ -76,7 +77,7 @@ def worker(num, db, listFragment, dateAndTime, firstPass, miscParameters):
         print("Cannot connect to the private database")
         return 1
 
-    migrateData(conn, connPrivateReadonly, listFragment, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages, imageRootSource = options.imagessource, imageRootDestination = options.imagesdest, getmetadata = options.getmetadata, survey = options.survey)
+    migrateData(conn, connPrivateReadonly, listFragment, options.database, options.sourceschema, ddc = options.ddc, copyimages = options.copyimages, imageRootSource = options.imagessource, imageRootDestination = options.imagesdest, getmetadata = options.getmetadata, survey = options.survey, taronly = options.createtarcommand)
 
     print("Process complete.")
     conn.close()
@@ -191,7 +192,10 @@ def main():
 
         # 2024-03-14 KWS Added authtoken_token. 
         print('Extracting all the Django relevant tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
-        djangoTables = 'auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site'
+        #djangoTables = 'auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site'
+        # 2025-07-28 KWS Since we created the user and token permissions we now have some new tables to backup.
+        #                I recommend a complete rewrite where we specify the tables ("djangoTables=...,...,..." with a default comma separated value) in the options.
+        djangoTables = 'auth_group auth_group_permissions auth_group_profile auth_permission auth_user auth_user_groups auth_user_profile auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site'
         if options.includeauthtoken:
             djangoTables += ' authtoken_token'
         cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces %s > %s' % (options.username, options.password, options.sourceschema, options.hostname, djangoTables, options.djangofile)

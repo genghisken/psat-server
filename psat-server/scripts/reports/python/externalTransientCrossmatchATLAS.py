@@ -757,6 +757,17 @@ class SearchTNSONLY():
         print("\t* Crossmatching against TNS List")
         #searchDone, matches = searchCatalogue(connPESSTO, [objectRow], 'fs_tns_transients', radius = searchRadius)
         searchDone, matches = searchCatalogue(connCatalogues, [objectRow], 'tcs_cat_tns', radius = searchRadius)
+
+        # 2025-05-19 KWS Fixed the TNS match so that we get ALL TNS entries, not just the nearest.
+        #if searchDone and matches:
+        #    m = []
+        #    for match in matches[0][1]:
+        #        separation = match[0]
+        #        matchRow = match[1]
+        #        m.append([separation, matchRow])
+        #    table = matches[0][2]
+        #    allMatches[table] = m
+
         if searchDone and matches:
             separation = matches[0][1][0][0]
             nearestMatch = matches[0][1][0][1]

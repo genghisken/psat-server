@@ -639,8 +639,15 @@ def makeATLASObjectPostageStamps3(conn, candidateList, PSSImageRootLocation, sta
                    p = subprocess.Popen([wpwarp1Cmd, '-samp', absoluteLocalImageName, targetImage], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                else:
                    # Use the new wpwarp2. E.g. wpwarp2 -novar -nomask -nozerosat -wp /tmp/02a58993o0492c_new.tmpl /tmp/ATLAS20nvd_02a58993o0492c.fits
-                   print(wpwarp2Cmd, '-novar', '-nomask', '-nozerosat', '-wp', absoluteLocalImageName, targetImage)
-                   p = subprocess.Popen([wpwarp2Cmd, '-novar', '-nomask', '-nozerosat', '-wp', absoluteLocalImageName, targetImage], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                   # 2025-07-14 KWS There's something wrong with the newly fixed headers that wpwarp2 doesn't like.
+                   #                It's picking up a black value for FILTER. So force it temporarily until we find
+                   #                out what's up.
+                   if row.expname[0:3] == '05r':
+                       print(wpwarp2Cmd, '-novar', '-nomask', '-nozerosat', '-filter', 'w', '-wp', absoluteLocalImageName, targetImage)
+                       p = subprocess.Popen([wpwarp2Cmd, '-novar', '-nomask', '-nozerosat', '-filter', 'w', '-wp', absoluteLocalImageName, targetImage], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                   else:
+                       print(wpwarp2Cmd, '-novar', '-nomask', '-nozerosat', '-wp', absoluteLocalImageName, targetImage)
+                       p = subprocess.Popen([wpwarp2Cmd, '-novar', '-nomask', '-nozerosat', '-wp', absoluteLocalImageName, targetImage], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
                output, errors = p.communicate()
                rc = p.returncode
