@@ -2756,8 +2756,9 @@ def insertForcedPhotometry(conn, row):
                 flags,
                 n_frames,
                 padding,
-                pscamera)
-          values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                pscamera,
+                fptype)
+          values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
           """, (row["transient_object_id"],
                 row["mjd_obs"],
                 row["exptime"],
@@ -2806,7 +2807,8 @@ def insertForcedPhotometry(conn, row):
                 row["flags"],
                 row["n_frames"],
                 row["padding"],
-                row["pscamera"]))
+                row["pscamera"],
+                row["fptype"]))
 
    except MySQLdb.Error as e:
       print("Error %d: %s" % (e.args[0], e.args[1]))
