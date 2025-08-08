@@ -62,6 +62,8 @@ Options:
     %s config.yaml --catalog_file=test.tst --output_folder=/tmp/ --output_csv=test.csv --do_plot
     %s config.yaml --catalog_file=test.tst --output_folder=/tmp/ --mode=all --ra_column=ra_psf --dec_column=dec_psf --id_column=stamp_id --output_csv=output.csv --do_plot
     %s config.yaml 1131057501112826700 --output_folder=/tmp/ --mode=all --ra_column=ra_psf --dec_column=dec_psf --id_column=stamp_id --output_csv=output.csv --do_plot --mjd_column=mjd_obs --id_column=id --radius=5.0 --update
+    %s ~/config_gaiapm.yaml --list=4 --output_csv=matches.csv --mode=all --output_folder=/tmp --survey=atlas --maxsep=2.0 --update
+    %s ~/config_gaiapm_panstarrs.yaml --list=4 --output_csv=matches.csv --mode=all --output_folder=/tmp --survey=panstarrs --maxsep=2.0 --ra_column=ra_psf --dec_column=dec_psf --update
 
 """
 
@@ -88,7 +90,7 @@ from urllib.request import urlretrieve
 
 from docopt import docopt
 from gkutils.commonutils import dbConnect, splitList, parallelProcess
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 
 from docopt import docopt
 import sys, os, shutil, re, csv
