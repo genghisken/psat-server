@@ -2,7 +2,7 @@
 """Request Pan-STARRS Postage Stamps
 
 Usage:
-  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--rbthreshold=<rbthreshold>]
+  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>]
   %s (-h | --help)
   %s --version
 
@@ -18,8 +18,7 @@ Options:
   --usefirstdetection                 Use the first detection from which to count date threshold
   --overrideflags                     Ignore processing flags when requesting object data. Dangerous!
   --requestprefix=<requestprefix>     Detectability request prefix [default: qub_pstamp_request]
-  --requesthome=<requesthome>         Place to store the FITS request before sending
-  --rbthreshold=<rbthreshold>         Only request forced photometry if RB factor above a specified threshold (only applies to lists).
+  --requesthome=<requesthome>         Place to store the FITS request before sending [default: /tmp]
 
 Example:
   python %s ../../../../config/config.yaml 1124922100042044700 --requestprefix=qub_stamp_request --test
@@ -33,7 +32,7 @@ sys.path.append('../../common/python')
 from queries import getPanSTARRSCandidates, updateTransientObservationAndProcessingStatus, insertTransientObjectComment, LC_NON_DET_AND_BLANKS_QUERY, LC_DET_QUERY
 
 from gkutils.commonutils import dbConnect, getCurrentMJD, PROCESSING_FLAGS
-from pstamp_utils import getAverageCoordinates, IPP_IDET_NON_DETECTION_VALUE, writeFITSPostageStampRequestById, addRequestToDatabase, addRequestIdToTransients, sendPSRequest, updateRequestStatus, width, height, SUBMITTED, findIdCombinationForPostageStampRequest2
+from pstamp_utils import getAverageCoordinates, IPP_IDET_NON_DETECTION_VALUE, writeFITSPostageStampRequestById, addRequestToDatabase, addRequestIdToTransients, sendPSRequest, updateRequestStatus, width, height, SUBMITTED, findIdCombinationForPostageStampRequest2, getObjectsByList
 
 import MySQLdb, sys, datetime, time
 
@@ -362,24 +361,6 @@ def main(argv = None):
     # 2023-04-19 KWS MySQLdb disables autocommit by default. Switch it on globally.
     conn.autocommit(True)
 
-    gpc1Conn = None
-
-    #if not test:
-    #    gpc1Conn = dbConnect(gpc1hostname, gpc1username, gpc1password, gpc1database)
-    #    if not gpc1Conn:
-    #        print "Cannot connect to the GPC1 database. No point continuing..."
-    #        return 1
-
-    # If the list isn't specified assume it's the Eyeball List.
-    if options.list is not None:
-        try:
-            detectionList = int(options.list)
-            if detectionList < 1 or detectionList > 8:
-                print("Detection list must be between 1 and 8")
-                return 1
-        except ValueError as e:
-            sys.exit("Detection list must be an integer")
-
     if options.limit is not None:
         try:
             limit = int(options.limit)
@@ -399,16 +380,30 @@ def main(argv = None):
 
     candidateList = []
 
-    if len(args) > 1:
-        for i in range(1,len(args)):
-            comments = getObjectComments(conn, int(args[i]))
-            if comments:
-                candidateList.append({'id': int(args[i]), 'local_comments': comments['local_comments']})
-            else:
-                candidateList.append({'id': int(args[i]), 'local_comments': ''})
+
+    # If the list isn't specified assume it's the Eyeball List.
+    if options.listid is not None:
+        try:
+            detectionList = int(options.listid)
+            if detectionList < 0 or detectionList > 8:
+                print ("Detection list must be between 0 and 8")
+                return 1
+        except ValueError as e:
+            sys.exit("Detection list must be an integer")
+
+    dateThreshold = '%s-%s-%s' % (options.flagdate[0:4], options.flagdate[4:6], options.flagdate[6:8])
+
+    candidateList = []
+    if len(options.candidate) > 0:
+        for row in options.candidate:
+            object = getObjectsByList(conn, objectId = int(row))
+            if object:
+                candidateList.append(object)
 
     else:
-        candidateList = getPS1Candidates(conn, listId = detectionList, flagDate = flagDate, processingFlags = processingFlags, ignoreProcessingFlags = options.overrideflags)
+        candidateList = getObjectsByList(conn, listId = detectionList, dateThreshold = dateThreshold, processingFlags = processingFlags)
+        #candidateList = getPS1Candidates(conn, listId = detectionList, flagDate = flagDate, processingFlags = processingFlags, ignoreProcessingFlags = options.overrideflags)
+
 
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
