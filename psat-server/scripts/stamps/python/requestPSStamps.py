@@ -22,10 +22,11 @@ Options:
 
 Example:
   python %s ../../../../config/config.yaml 1124922100042044700 --requestprefix=qub_stamp_request --test
+  python %s ../../../../../ps13pi/config/config.yaml 1232123421115632400 --requesttype incremental --detectiontype all --limitdays 6000 --usefirstdetection --limitdaysafter 6000 --overrideflags --test
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 
 sys.path.append('../../common/python')
