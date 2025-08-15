@@ -2,7 +2,7 @@
 """Request Pan-STARRS forced photometry
 
 Usage:
-  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--flagdate=<flagdate>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--difftype=<difftype>] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--rbthreshold=<rbthreshold>] [--camera=<camera>] [--coords=<coords>]
+  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--difftype=<difftype>] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--rbthreshold=<rbthreshold>] [--camera=<camera>] [--coords=<coords>]
   %s (-h | --help)
   %s --version
 
@@ -59,6 +59,9 @@ def main(argv = None):
     password = config['databases']['local']['password']
     database = config['databases']['local']['database']
     hostname = config['databases']['local']['hostname']
+
+    uploadURL = config['postage_stamp_parameters']['uploadurl']
+
 
     conn = dbConnect(hostname, username, password, database)
     if not conn:
