@@ -362,3 +362,104 @@ def insertTransientObjectComment(conn, objectId, comment):
     cursor.close ()
     return conn.insert_id()
 
+
+# 2013-10-11 KWS Rehash of LC detections query based on the Non-detections query below.
+#                This allows us to request stamps based on new detections whilst not
+#                overwriting the existing ones.
+# 2015-05-31 KWS Added filename, ppsub_input, ppsub_reference to selection.
+# 2021-12-28 KWS Pull out fpa_detector so we can identify which camera we need to make
+#                requests for (GPC1 or GPC2).
+LC_DET_QUERY = """\
+         select mjd_obs mjd, substr(fpa_filter,1,1) filter, imageid, cast(truncate(mjd_obs,3) as char) tdate, ipp_idet, ra_psf, dec_psf, o.id, filename, ppsub_input, ppsub_reference, m.skycell sc, m.fpa_detector,
+                case
+                    when instr(m.filename,'MD') then substr(m.filename, instr(m.filename,'MD'),4)
+                    when instr(m.filename,'RINGS') then substr(m.filename, instr(m.filename,'RINGS'),8)
+                    else 'null'
+                end as field,
+                case
+                    -- 3pi
+                    when instr(m.filename,'WS') then if(instr(m.filename,'skycell'), replace(substr(m.filename, instr(m.filename,'skycell'),instr(m.filename,'.dif') - instr(m.filename,'skycell')), '.WS', ''), 'null')
+                    -- MD
+                    else if(instr(m.filename,'skycell'), replace(substr(m.filename, instr(m.filename,'skycell'),instr(m.filename,'.dif') - instr(m.filename,'skycell')), '.SS', ''), 'null')
+                end as skycell
+           from tcs_transient_objects o, tcs_cmf_metadata m
+          where o.tcs_cmf_metadata_id = m.id
+            and o.id = %s
+            and o.cal_psf_mag is not null
+            and (fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%'))
+         union all
+         select mjd_obs mjd, substr(fpa_filter,1,1) filter, imageid, cast(truncate(mjd_obs,3) as char) tdate, ipp_idet, ra_psf, dec_psf, transient_object_id id, filename, ppsub_input, ppsub_reference, m.skycell sc, m.fpa_detector,
+                case
+                    when instr(m.filename,'MD') then substr(m.filename, instr(m.filename,'MD'),4)
+                    when instr(m.filename,'RINGS') then substr(m.filename, instr(m.filename,'RINGS'),8)
+                    else 'null'
+                end as field,
+                case
+                    -- 3pi
+                    when instr(m.filename,'WS') then if(instr(m.filename,'skycell'), replace(substr(m.filename, instr(m.filename,'skycell'),instr(m.filename,'.dif') - instr(m.filename,'skycell')), '.WS', ''), 'null')
+                    -- MD
+                    else if(instr(m.filename,'skycell'), replace(substr(m.filename, instr(m.filename,'skycell'),instr(m.filename,'.dif') - instr(m.filename,'skycell')), '.SS', ''), 'null')
+                end as skycell
+           from tcs_transient_reobservations r, tcs_cmf_metadata m
+          where r.tcs_cmf_metadata_id = m.id
+            and r.transient_object_id = %s
+            and r.cal_psf_mag is not null
+            and (fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%'))
+       order by mjd, imageid, ipp_idet
+      """
+
+# 2013-09-16 KWS Non-detections AND Blanks so that we can request postage stamps for blank areas...
+# 2015-05-31 KWS Added filename, ppsub_input, ppsub_reference to selection.
+# 2021-12-28 KWS Pull out fpa_detector so we can identify which camera we need to make
+#                requests for (GPC1 or GPC2).
+LC_NON_DET_AND_BLANKS_QUERY = """\
+         select distinct mjd_obs mjd, substr(mm.fpa_filter,1,1) filter, imageid, cast(truncate(mm.mjd_obs,3) as char) tdate, field, det.skycell, filename, ppsub_input, ppsub_reference, mm.skycell sc, mm.zero_pt, mm.exptime, mm.deteff_counts, mm.deteff_magref, mm.deteff_calculated_offset, mm.fpa_detector
+           from tcs_cmf_metadata mm,
+           (
+             select distinct field, skycell
+               from (
+               select
+                      skycell,
+                      case
+                          when instr(m.tessellation,'MD') then substr(m.tessellation, instr(m.tessellation,'MD'),4)
+                          when instr(m.tessellation,'RINGS') then substr(m.tessellation, instr(m.tessellation,'RINGS'),8)
+                          else 'null'
+                      end as field
+                 from tcs_cmf_metadata m, tcs_transient_objects o
+                where o.tcs_cmf_metadata_id = m.id
+                  and o.id = %s
+                union
+               select
+                      skycell,
+                      case
+                          when instr(m.tessellation,'MD') then substr(m.tessellation, instr(m.tessellation,'MD'),4)
+                          when instr(m.tessellation,'RINGS') then substr(m.tessellation, instr(m.tessellation,'RINGS'),8)
+                          else 'null'
+                      end as field
+                 from tcs_cmf_metadata m, tcs_transient_reobservations r
+                where r.tcs_cmf_metadata_id = m.id
+                  and r.transient_object_id = %s
+               ) fieldandskycell
+           ) det
+         where mm.skycell = det.skycell and mm.tessellation like concat(det.field,'%%')
+           and imageid not in
+             (
+                      select imageid
+                        from (
+                      select m.imageid
+                        from tcs_transient_objects o, tcs_cmf_metadata m
+                       where o.tcs_cmf_metadata_id = m.id
+                         and o.id = %s
+                         and o.cal_psf_mag is not null
+                      union all
+                      select m.imageid
+                        from tcs_transient_reobservations r, tcs_cmf_metadata m
+                       where r.tcs_cmf_metadata_id = m.id
+                         and r.transient_object_id = %s
+                         and r.cal_psf_mag is not null
+                      ) temp2
+             )
+           and (fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%'))
+         order by mm.mjd_obs
+      """
+
