@@ -516,7 +516,7 @@ def main(argv = None):
             print("Postage Stamp Request ID = %d" % psRequestId)
 
             # Send the request to the postage stamp server
-            pssServerId = sendPSRequest(requestFileName, requestName, username = stampuser, password = stamppass, uploadURL = uploadURL)
+            pssServerId = sendPSRequest(requestFileName, requestName, username = stampuser, password = stamppass, postageStampServerURL = uploadURL)
             if (pssServerId >= 0):
                 addRequestIdToTransients(conn, psRequestId, candidateIdList, processingFlag = processingFlags)
                 submitted = updateRequestStatus(conn, requestName, SUBMITTED, pssServerId)
