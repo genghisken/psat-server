@@ -3519,7 +3519,7 @@ def writeFITSRequest(outfile, requestName, results, imageTypes, xsize, ysize, ps
 #                no point continuing.
 # 2015-03-25 KWS Modified the main stamp request code to use V2 of the stamp request format
 
-def writeFITSPostageStampRequestById(conn, gpc1Conn, outfile, requestName, results, xsize, ysize, psRequestType = 'byid', optionMask = 2049, email = 'qub2@qub.ac.uk', camera = 'gpc1'):
+def writeFITSPostageStampRequestById(conn, outfile, requestName, results, xsize, ysize, gpc1Conn = None, psRequestType = 'byid', optionMask = 2049, email = 'qub2@qub.ac.uk', camera = 'gpc1'):
    """writeFITSPostageStampRequestById.
 
    Args:

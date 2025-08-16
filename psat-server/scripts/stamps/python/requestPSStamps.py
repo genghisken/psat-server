@@ -500,7 +500,7 @@ def main(argv = None):
             print("No detections to request.  Skipping this iteration.")
             continue
 
-        writeFITSPostageStampRequestById(conn, gpc1Conn, requestFileName, requestName, imageRequestData, width, height, email = email, camera=camera)
+        writeFITSPostageStampRequestById(conn, requestFileName, requestName, imageRequestData, width, height, email = email, camera=camera)
 
         # Temporarily stop processing here (i.e. don't send the FITS file to the PSS).
         #time.sleep(1)
