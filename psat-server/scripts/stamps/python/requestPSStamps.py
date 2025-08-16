@@ -419,7 +419,7 @@ def main(argv = None):
     # We need to split our requests so that the postage stamp server can handle them efficiently
     arrayLength = len(candidateList)
     maxNumberOfCandidates = OBJECTS_PER_ITERATION
-    numberOfIterations = arrayLength/maxNumberOfCandidates
+    numberOfIterations = int(arrayLength/maxNumberOfCandidates)
 
     # Check to see if we need an extra iteration to clean up the end of the array
     if arrayLength%maxNumberOfCandidates != 0:
