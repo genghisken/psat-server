@@ -539,8 +539,6 @@ def main(argv = None):
 
     conn.commit ()
     conn.close ()
-    if not test and gpc1Conn:
-        gpc1Conn.close()
 
     return
 
