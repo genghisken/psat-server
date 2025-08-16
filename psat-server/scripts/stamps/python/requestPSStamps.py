@@ -34,7 +34,7 @@ from docopt import docopt
 sys.path.append('../../common/python')
 from queries import getPanSTARRSCandidates, updateTransientObservationAndProcessingStatus, insertTransientObjectComment, LC_NON_DET_AND_BLANKS_QUERY, LC_DET_QUERY
 
-from gkutils.commonutils import dbConnect, getCurrentMJD, PROCESSING_FLAGS
+from gkutils.commonutils import dbConnect, getCurrentMJD, PROCESSING_FLAGS, Struct, cleanOptions
 from pstamp_utils import getAverageCoordinates, IPP_IDET_NON_DETECTION_VALUE, writeFITSPostageStampRequestById, addRequestToDatabase, addRequestIdToTransients, sendPSRequest, updateRequestStatus, width, height, SUBMITTED, findIdCombinationForPostageStampRequest2, getObjectsByList
 
 import MySQLdb, sys, datetime, time
