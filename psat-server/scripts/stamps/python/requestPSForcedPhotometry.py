@@ -62,6 +62,8 @@ def main(argv = None):
 
     uploadURL = config['postage_stamp_parameters']['uploadurl']
 
+    stampuser = config['web_credentials']['stampserver']['username']
+    stamppass = config['web_credentials']['stampserver']['password']
 
     conn = dbConnect(hostname, username, password, database)
     if not conn:
@@ -161,7 +163,7 @@ def main(argv = None):
 
         psRequestId = addRequestToDatabase(conn, requestName, sqlCurrentDate, DETECTABILITY_REQUEST)
  
-        pssServerId = sendPSRequest(requestFileName, requestName)
+        pssServerId = sendPSRequest(requestFileName, requestName, username = stampuser, password = stamppass)
         print(pssServerId)
         if pssServerId is not None and (pssServerId >= 0):
             if (updateRequestStatus(conn, requestName, SUBMITTED, pssServerId) > 0):

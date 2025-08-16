@@ -2,27 +2,29 @@
 """Request Pan-STARRS Postage Stamps
 
 Usage:
-  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>]
+  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--detectiontype=(all|detections|nondetections)] [--requesttype=(all|incremental)]
   %s (-h | --help)
   %s --version
 
 Options:
-  -h --help                           Show this screen.
-  --version                           Show version.
-  --test                              Just do a quick test.
-  --listid=<listid>                   Object list id
-  --customlist=<customlistid>         The object custom list
-  --flagdate=<flagdate>               Date threshold - no hyphens [default: 20200101]
-  --limitdays=<limitdays>             Number of days before which we will not request forced photometry [default: 100]
-  --limitdaysafter=<limitdaysafter>   Number of days after which we will not request images [default: 0]
-  --usefirstdetection                 Use the first detection from which to count date threshold
-  --overrideflags                     Ignore processing flags when requesting object data. Dangerous!
-  --requestprefix=<requestprefix>     Detectability request prefix [default: qub_pstamp_request]
-  --requesthome=<requesthome>         Place to store the FITS request before sending [default: /tmp]
+  -h --help                                          Show this screen.
+  --version                                          Show version.
+  --test                                             Just do a quick test.
+  --listid=<listid>                                  Object list id
+  --customlist=<customlistid>                        The object custom list
+  --flagdate=<flagdate>                              Date threshold - no hyphens [default: 20200101]
+  --limitdays=<limitdays>                            Number of days before which we will not request forced photometry [default: 100]
+  --limitdaysafter=<limitdaysafter>                  Number of days after which we will not request images [default: 0]
+  --usefirstdetection                                Use the first detection from which to count date threshold
+  --overrideflags                                    Ignore processing flags when requesting object data. Dangerous!
+  --requestprefix=<requestprefix>                    Stamp request prefix [default: qub_pstamp_request]
+  --requesthome=<requesthome>                        Place to store the FITS request before sending [default: /tmp]
+  --detectiontype=(all|detections|nondetections)     Detecton type [default: detections]
+  --requesttype=(all|incremental)                    Request type [default: incremental]
 
 Example:
   python %s ../../../../config/config.yaml 1124922100042044700 --requestprefix=qub_stamp_request --test
-  python %s ../../../../../ps13pi/config/config.yaml 1232123421115632400 --requesttype incremental --detectiontype all --limitdays 6000 --usefirstdetection --limitdaysafter 6000 --overrideflags --test
+  python %s ../../../../../ps13pi/config/config.yaml 1232123421115632400 --requesttype=incremental --detectiontype=all --limitdays=6000 --usefirstdetection --limitdaysafter=6000 --overrideflags --test
 """
 
 import sys
@@ -332,6 +334,9 @@ def main(argv = None):
     database = config['databases']['local']['database']
     hostname = config['databases']['local']['hostname']
 
+    stampuser = config['web_credentials']['stampserver']['username']
+    stamppass = config['web_credentials']['stampserver']['password']
+
     test = options.test
 
     # The default is to request all days of data.
@@ -510,7 +515,7 @@ def main(argv = None):
             print("Postage Stamp Request ID = %d" % psRequestId)
 
             # Send the request to the postage stamp server
-            pssServerId = sendPSRequest(requestFileName, requestName, uploadURL = uploadURL)
+            pssServerId = sendPSRequest(requestFileName, requestName, username = stampuser, password = stamppass, uploadURL = uploadURL)
             if (pssServerId >= 0):
                 addRequestIdToTransients(conn, psRequestId, candidateIdList, processingFlag = processingFlags)
                 submitted = updateRequestStatus(conn, requestName, SUBMITTED, pssServerId)
