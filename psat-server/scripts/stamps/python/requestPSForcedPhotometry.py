@@ -35,7 +35,7 @@ from gkutils.commonutils import find, Struct, cleanOptions, getCurrentMJD, readG
 from pstamp_utils import getObjectsByList, writeDetectabilityFITSRequest, addRequestToDatabase, sendPSRequest, updateRequestStatus, DETECTABILITY_REQUEST, SUBMITTED
 import random
 
-def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, requestHome = '/tmp', uploadURL = None, n = None):
+def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, stampuser, stamppass, requestHome = '/tmp', uploadURL = None, n = None):
 
     limitDays = int(options.limitdays)
     limitDaysAfter = int(options.limitdaysafter)
@@ -190,7 +190,7 @@ def main(argv = None):
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
-    requestForcedPhotometry(conn, options, candidateList, OBJECTS_PER_ITERATION, requestHome = requestHome, uploadURL = uploadURL)
+    requestForcedPhotometry(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, requestHome = requestHome, uploadURL = uploadURL)
 
     conn.commit()
     conn.close()

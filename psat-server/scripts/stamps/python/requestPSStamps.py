@@ -310,11 +310,17 @@ def eliminateOldDetections(conn, candidate, detections, thresholdMJD, thresholdM
     return imagesToRequest
    
 
-def requestStamps(conn, options, candidateList, objectsPerIteration, requestHome = '/tmp', uploadURL = None, n = None):
+def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, stamppass, requestHome = '/tmp', uploadURL = None, n = None):
 
     limitDays = int(options.limitdays)
     limitDaysAfter = int(options.limitdaysafter)
     useFirstDetection = options.usefirstdetection
+
+    processingFlags = PROCESSING_FLAGS['stamps']
+
+    detectionType = options.detectiontype
+    if detectionType in ('nondetections', 'all'):
+        processingFlags = PROCESSING_FLAGS['nondets']
 
     # We need to split our requests so that the postage stamp server can handle them efficiently
     arrayLength = len(candidateList)
@@ -334,15 +340,15 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, requestHome
         imageRequestData = []
         for candidate in candidateArray:
 
-            if detectionType == DETECTIONTYPES['all'] and limit == 0:
+            if detectionType == 'all' and limit == 0:
                 lightcurveData = getLightcurveDetections(conn, candidate['id'])
                 lightcurveData += getLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
                 existingImages = getExistingDetectionImages(conn, candidate['id'])
                 existingImages += getExistingNonDetectionImages(conn, candidate['id'])
-            elif detectionType == DETECTIONTYPES['nondetections'] and limit == 0:
+            elif detectionType == 'nondetections' and limit == 0:
                 lightcurveData = getLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
                 existingImages = getExistingNonDetectionImages(conn, candidate['id'])
-            elif detectionType == DETECTIONTYPES['detections'] and limit == 0:
+            elif detectionType == 'detections' and limit == 0:
                 lightcurveData = getLightcurveDetections(conn, candidate['id'])
                 existingImages = getExistingDetectionImages(conn, candidate['id'])
             else:
@@ -478,12 +484,13 @@ def main(argv = None):
     limitDaysAfter = int(options.limitdaysafter)
     useFirstDetection = options.usefirstdetection
 
-    detectionType = DETECTIONTYPES[options.detectiontype]
     requestType = REQUESTTYPES[options.requesttype]
 
     processingFlags = PROCESSING_FLAGS['stamps']
 
-    if detectionType == DETECTIONTYPES['nondetections'] or detectionType == DETECTIONTYPES['all']:
+    detectionType = options.detectiontype
+
+    if detectionType == in ('nondetections', 'all'):
         processingFlags = PROCESSING_FLAGS['nondets']
 
     MAX_NUMBER_OF_OBJECTS = int(config['postage_stamp_parameters']['max_number_of_objects'])
@@ -553,7 +560,7 @@ def main(argv = None):
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
-    requestStamps(conn, options, candidateList, OBJECTS_PER_ITERATION, requestHome = requestHome, uploadURL = uploadURL)
+    requestStamps(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, requestHome = requestHome, uploadURL = uploadURL)
 
 
     conn.commit ()
