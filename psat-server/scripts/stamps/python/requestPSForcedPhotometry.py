@@ -37,6 +37,10 @@ import random
 
 def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, requestHome = '/tmp', uploadURL = None, n = None):
 
+    limitDays = int(options.limitdays)
+    limitDaysAfter = int(options.limitdaysafter)
+    useFirstDetection = options.usefirstdetection
+
     # n is an empty string or a str(process id). Used in multiprocessing mode to distinguish requests.
 
     # 2020-05-14 KWS Only request forced photometry for candidates that have an RB factor above
@@ -131,10 +135,6 @@ def main(argv = None):
     import yaml
     with open(options.configFile) as yaml_file:
         config = yaml.load(yaml_file, Loader=yaml.SafeLoader)
-
-    limitDays = int(options.limitdays)
-    limitDaysAfter = int(options.limitdaysafter)
-    useFirstDetection = options.usefirstdetection
 
     username = config['databases']['local']['username']
     password = config['databases']['local']['password']

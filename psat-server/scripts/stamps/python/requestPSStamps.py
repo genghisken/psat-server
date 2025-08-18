@@ -312,6 +312,10 @@ def eliminateOldDetections(conn, candidate, detections, thresholdMJD, thresholdM
 
 def requestStamps(conn, options, candidateList, objectsPerIteration, requestHome = '/tmp', uploadURL = None, n = None):
 
+    limitDays = int(options.limitdays)
+    limitDaysAfter = int(options.limitdaysafter)
+    useFirstDetection = options.usefirstdetection
+
     # We need to split our requests so that the postage stamp server can handle them efficiently
     arrayLength = len(candidateList)
     maxNumberOfCandidates = objectsPerIteration
@@ -458,10 +462,6 @@ def main(argv = None):
     import yaml
     with open(options.configFile) as yaml_file:
         config = yaml.load(yaml_file, Loader=yaml.SafeLoader)
-
-    limitDays = int(options.limitdays)
-    limitDaysAfter = int(options.limitdaysafter)
-    useFirstDetection = options.usefirstdetection
 
     username = config['databases']['local']['username']
     password = config['databases']['local']['password']
