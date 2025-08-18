@@ -310,7 +310,7 @@ def eliminateOldDetections(conn, candidate, detections, thresholdMJD, thresholdM
     return imagesToRequest
    
 
-def requestStamps(conn, options, candidateList, objectsPerIteration, n = None):
+def requestStamps(conn, options, candidateList, objectsPerIteration, requestHome = '/tmp', uploadURL = None, n = None):
 
     # We need to split our requests so that the postage stamp server can handle them efficiently
     arrayLength = len(candidateList)
@@ -382,7 +382,7 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, n = None):
         if n is not None:
             requestName += '_%s' % str(n)
 
-        requestFileName = "%s/%s.fits" % (options.requesthome, requestName)
+        requestFileName = "%s/%s.fits" % (requestHome, requestName)
 
         # 2015-09-30 KWS Minor bug fix. Should be referring to imageRequestData
         #                below, not lightcurveData.
@@ -493,6 +493,11 @@ def main(argv = None):
     camera = config['postage_stamp_parameters']['camera']
     uploadURL = config['postage_stamp_parameters']['uploadurl']
 
+    if options.requesthome:
+        requestHome = options.requesthome
+    else:
+        requestHome = '/' + os.uname()[1].split('.')[0] + '/ingest/pstamp/requests'
+
     conn = dbConnect(hostname, username, password, database)
     if not conn:
         print("Cannot connect to the database")
@@ -548,7 +553,7 @@ def main(argv = None):
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
-    requestStamps(conn, options, candidateList, OBJECTS_PER_ITERATION)
+    requestStamps(conn, options, candidateList, OBJECTS_PER_ITERATION, requestHome = requestHome, uploadURL = uploadURL)
 
 
     conn.commit ()

@@ -35,7 +35,7 @@ from gkutils.commonutils import find, Struct, cleanOptions, getCurrentMJD, readG
 from pstamp_utils import getObjectsByList, writeDetectabilityFITSRequest, addRequestToDatabase, sendPSRequest, updateRequestStatus, DETECTABILITY_REQUEST, SUBMITTED
 import random
 
-def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, n = None):
+def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, requestHome = '/tmp', uploadURL = None, n = None):
 
     # n is an empty string or a str(process id). Used in multiprocessing mode to distinguish requests.
 
@@ -96,13 +96,13 @@ def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, n
  
         time.sleep(1)
  
-        if options.test or fileWritten is False:
-            print("No request was sent to the stamp server.")
+        if options.test or fileWritten is False or uploadURL is False:
+            print("No request was sent to the stamp server. This is either a test or upload URL is not set.")
             continue
 
         psRequestId = addRequestToDatabase(conn, requestName, sqlCurrentDate, DETECTABILITY_REQUEST)
  
-        pssServerId = sendPSRequest(requestFileName, requestName, username = stampuser, password = stamppass)
+        pssServerId = sendPSRequest(requestFileName, requestName, username = stampuser, password = stamppass, postageStampServerURL = uploadURL)
         print(pssServerId)
         if pssServerId is not None and (pssServerId >= 0):
             if (updateRequestStatus(conn, requestName, SUBMITTED, pssServerId) > 0):
@@ -190,7 +190,7 @@ def main(argv = None):
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
-    requestForcedPhotometry(conn, options, candidateList, OBJECTS_PER_ITERATION)
+    requestForcedPhotometry(conn, options, candidateList, OBJECTS_PER_ITERATION, requestHome = requestHome, uploadURL = uploadURL)
 
     conn.commit()
     conn.close()
