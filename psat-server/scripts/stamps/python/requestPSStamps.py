@@ -564,7 +564,7 @@ def main(argv = None):
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
-    requestStamps(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, stampemail, requestHome = requestHome, uploadURL = uploadURL)
+    requestStamps(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, email, requestHome = requestHome, uploadURL = uploadURL)
 
 
     conn.commit ()
