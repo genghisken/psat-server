@@ -323,6 +323,8 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
     if detectionType in ('nondetections', 'all'):
         processingFlags = PROCESSING_FLAGS['nondets']
 
+    requestType = options.requesttype
+
     # We need to split our requests so that the postage stamp server can handle them efficiently
     arrayLength = len(candidateList)
     maxNumberOfCandidates = objectsPerIteration
@@ -359,7 +361,7 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
                 if limit > 0:
                     lightcurveData = getLightcurveDetections(conn, candidate['id'], limit = limit)
 
-            if requestType == REQUESTTYPES['incremental'] and limit == 0:
+            if requestType == 'incremental' and limit == 0:
                 lightcurveData = eliminateExistingImages(conn, candidate['id'], lightcurveData, existingImages)
 
             if limitDays > 0:
@@ -484,8 +486,6 @@ def main(argv = None):
     limitDays = int(options.limitdays)
     limitDaysAfter = int(options.limitdaysafter)
     useFirstDetection = options.usefirstdetection
-
-    requestType = REQUESTTYPES[options.requesttype]
 
     processingFlags = PROCESSING_FLAGS['stamps']
 
