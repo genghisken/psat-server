@@ -490,7 +490,7 @@ def main(argv = None):
 
     detectionType = options.detectiontype
 
-    if detectionType == in ('nondetections', 'all'):
+    if detectionType in ('nondetections', 'all'):
         processingFlags = PROCESSING_FLAGS['nondets']
 
     MAX_NUMBER_OF_OBJECTS = int(config['postage_stamp_parameters']['max_number_of_objects'])
