@@ -310,6 +310,139 @@ def eliminateOldDetections(conn, candidate, detections, thresholdMJD, thresholdM
     return imagesToRequest
    
 
+def requestStamps(conn, options, candidateList, objectsPerIteration, n = None):
+
+    # We need to split our requests so that the postage stamp server can handle them efficiently
+    arrayLength = len(candidateList)
+    maxNumberOfCandidates = objectsPerIteration
+    numberOfIterations = int(arrayLength/maxNumberOfCandidates)
+
+    # Check to see if we need an extra iteration to clean up the end of the array
+    if arrayLength%maxNumberOfCandidates != 0:
+        numberOfIterations += 1
+
+    print("Number of iterations = %d" % numberOfIterations)
+
+    for currentIteration in range(numberOfIterations):
+        candidateArray = candidateList[currentIteration*maxNumberOfCandidates:currentIteration*maxNumberOfCandidates+maxNumberOfCandidates]
+        print("Iteration %d / %d" % (currentIteration + 1, numberOfIterations))
+
+        imageRequestData = []
+        for candidate in candidateArray:
+
+            if detectionType == DETECTIONTYPES['all'] and limit == 0:
+                lightcurveData = getLightcurveDetections(conn, candidate['id'])
+                lightcurveData += getLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
+                existingImages = getExistingDetectionImages(conn, candidate['id'])
+                existingImages += getExistingNonDetectionImages(conn, candidate['id'])
+            elif detectionType == DETECTIONTYPES['nondetections'] and limit == 0:
+                lightcurveData = getLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
+                existingImages = getExistingNonDetectionImages(conn, candidate['id'])
+            elif detectionType == DETECTIONTYPES['detections'] and limit == 0:
+                lightcurveData = getLightcurveDetections(conn, candidate['id'])
+                existingImages = getExistingDetectionImages(conn, candidate['id'])
+            else:
+                # Assume a limit is set, otherwise no request will get sent. Setting a limit
+                # forces only detections to be requested and this will always force the most
+                # most recent <limit> images to be requested.
+                if limit > 0:
+                    lightcurveData = getLightcurveDetections(conn, candidate['id'], limit = limit)
+
+            if requestType == REQUESTTYPES['incremental'] and limit == 0:
+                lightcurveData = eliminateExistingImages(conn, candidate['id'], lightcurveData, existingImages)
+
+            if limitDays > 0:
+                thresholdMJDMax = 70000
+                if useFirstDetection:
+                    # We need to know when the first detection was,
+                    # but we don't always request detections.
+                    detectionData = getLightcurveDetections(conn, candidate['id'])
+                    # The detection MJD should be the first element returned
+                    thresholdMJD = detectionData[0]['mjd'] - limitDays
+                    if limitDaysAfter > 0:
+                        thresholdMJDMax = detectionData[0]['mjd'] + limitDaysAfter
+                else:
+                    thresholdMJD = getCurrentMJD() - limitDays
+                lightcurveData = eliminateOldDetections(conn, candidate['id'], lightcurveData, thresholdMJD, thresholdMJDMax)
+
+            if lightcurveData:
+                #for row in lightcurveData:
+                #    print row
+                imageRequestData += lightcurveData
+
+        print("Number of PS Images to Request: %d" % len(imageRequestData))
+
+        currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
+        (year, month, day, hour, min, sec) = currentDate.split(':')
+        timeReqeustSuffix = "%s%s%s_%s%s%s" % (year, month, day, hour, min, sec)
+
+        requestName = "%s_%s" % (options.requestprefix, timeReqeustSuffix)
+
+        # Are we in multiprocessing mode?
+        if n is not None:
+            requestName += '_%s' % str(n)
+
+        requestFileName = "%s/%s.fits" % (options.requesthome, requestName)
+
+        # 2015-09-30 KWS Minor bug fix. Should be referring to imageRequestData
+        #                below, not lightcurveData.
+        if test:
+            if imageRequestData:
+                for row in imageRequestData:
+                    print(row['mjd'], row['filter'], row['fpa_detector'], end=' ')
+                    diffImageCombination = findIdCombinationForPostageStampRequest2(row)
+                    for imType in ['target','ref','diff']:
+                        print("%s (%s): %s" % (imType, diffImageCombination[imType][0], diffImageCombination[imType][1]), end=' ')
+                    print()
+            print("Just testing...  No requests sent.")
+            continue
+
+        if not len(imageRequestData):
+            print("No detections to request.  Skipping this iteration.")
+            continue
+
+        writeFITSPostageStampRequestById(conn, requestFileName, requestName, imageRequestData, width, height, email = email, camera=camera)
+
+        # Temporarily stop processing here (i.e. don't send the FITS file to the PSS).
+        #time.sleep(1)
+        #continue
+
+        # Extract the candidates into a list so that we don't have to rewrite any code
+        candidateIdList = [x['id'] for x in candidateArray]
+
+        sqlCurrentDate = "%s-%s-%s %s:%s:%s" % (year, month, day, hour, min, sec)
+
+        psRequestId = addRequestToDatabase(conn, requestName, sqlCurrentDate)
+        if (psRequestId > 0):
+            print("Postage Stamp Request ID = %d" % psRequestId)
+
+            # Send the request to the postage stamp server
+            pssServerId = sendPSRequest(requestFileName, requestName, username = stampuser, password = stamppass, postageStampServerURL = uploadURL)
+            if (pssServerId >= 0):
+                addRequestIdToTransients(conn, psRequestId, candidateIdList, processingFlag = processingFlags)
+                submitted = updateRequestStatus(conn, requestName, SUBMITTED, pssServerId)
+                # 2024-04-24 KWS For reasons I DO NOT UNDERSTAND, 50% of requests get submitted twice. WHY????
+                #                Added an extra commit in an attempt to STOP this happening, but I don't know
+                #                why it's needed.
+                conn.commit()
+                if (submitted > 0):
+                    print("Successfully submitted job to Postage Stamp Server and updated database.")
+                else:
+                    print("Submitted job, but did not update database.")
+            else:
+                print("Did Not successfully submit the job to the Postage Stamp Server!")
+                # Remove the request ID from the transients - we can try again some other time.
+                addRequestIdToTransients(conn, None, candidateIdList, processingFlag = PROCESSING_FLAGS['unprocessed'])
+
+
+        # Sleep for 1 second.  This should ensure that all request IDs (which are time based) are unique
+        time.sleep(1)
+
+    return
+
+
+
+
 def main(argv = None):
     """main.
 
@@ -415,135 +548,11 @@ def main(argv = None):
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
+    requestStamps(conn, options, candidateList, OBJECTS_PER_ITERATION)
 
-    # We need to split our requests so that the postage stamp server can handle them efficiently
-    arrayLength = len(candidateList)
-    maxNumberOfCandidates = OBJECTS_PER_ITERATION
-    numberOfIterations = int(arrayLength/maxNumberOfCandidates)
-
-    # Check to see if we need an extra iteration to clean up the end of the array
-    if arrayLength%maxNumberOfCandidates != 0:
-        numberOfIterations += 1
-
-    print("Number of iterations = %d" % numberOfIterations)
-
-    for currentIteration in range(numberOfIterations):
-        candidateArray = candidateList[currentIteration*maxNumberOfCandidates:currentIteration*maxNumberOfCandidates+maxNumberOfCandidates]
-        print("Iteration %d / %d" % (currentIteration + 1, numberOfIterations))
-
-        imageRequestData = []
-        for candidate in candidateArray:
-
-            if detectionType == DETECTIONTYPES['all'] and limit == 0:
-                lightcurveData = getLightcurveDetections(conn, candidate['id'])
-                lightcurveData += getLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
-                existingImages = getExistingDetectionImages(conn, candidate['id'])
-                existingImages += getExistingNonDetectionImages(conn, candidate['id'])
-            elif detectionType == DETECTIONTYPES['nondetections'] and limit == 0:
-                lightcurveData = getLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
-                existingImages = getExistingNonDetectionImages(conn, candidate['id'])
-            elif detectionType == DETECTIONTYPES['detections'] and limit == 0:
-                lightcurveData = getLightcurveDetections(conn, candidate['id'])
-                existingImages = getExistingDetectionImages(conn, candidate['id'])
-            else:
-                # Assume a limit is set, otherwise no request will get sent. Setting a limit
-                # forces only detections to be requested and this will always force the most
-                # most recent <limit> images to be requested.
-                if limit > 0:
-                    lightcurveData = getLightcurveDetections(conn, candidate['id'], limit = limit)
-
-            if requestType == REQUESTTYPES['incremental'] and limit == 0:
-                lightcurveData = eliminateExistingImages(conn, candidate['id'], lightcurveData, existingImages)
-
-            if limitDays > 0:
-                thresholdMJDMax = 70000
-                if useFirstDetection:
-                    # We need to know when the first detection was,
-                    # but we don't always request detections.
-                    detectionData = getLightcurveDetections(conn, candidate['id'])
-                    # The detection MJD should be the first element returned
-                    thresholdMJD = detectionData[0]['mjd'] - limitDays
-                    if limitDaysAfter > 0:
-                        thresholdMJDMax = detectionData[0]['mjd'] + limitDaysAfter
-                else:
-                    thresholdMJD = getCurrentMJD() - limitDays
-                lightcurveData = eliminateOldDetections(conn, candidate['id'], lightcurveData, thresholdMJD, thresholdMJDMax)
-
-            if lightcurveData:
-                #for row in lightcurveData:
-                #    print row
-                imageRequestData += lightcurveData
-
-        print("Number of PS Images to Request: %d" % len(imageRequestData))
-
-        currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
-        (year, month, day, hour, min, sec) = currentDate.split(':')
-        timeReqeustSuffix = "%s%s%s_%s%s%s" % (year, month, day, hour, min, sec)
-
-        requestName = "%s_%s" % (options.requestprefix, timeReqeustSuffix)
-        requestFileName = "%s/%s.fits" % (options.requesthome, requestName)
-
-        # 2015-09-30 KWS Minor bug fix. Should be referring to imageRequestData
-        #                below, not lightcurveData.
-        if test:
-            if imageRequestData:
-                for row in imageRequestData:
-                    print(row['mjd'], row['filter'], row['fpa_detector'], end=' ')
-                    diffImageCombination = findIdCombinationForPostageStampRequest2(row)
-                    for imType in ['target','ref','diff']:
-                        print("%s (%s): %s" % (imType, diffImageCombination[imType][0], diffImageCombination[imType][1]), end=' ')
-                    print()
-            print("Just testing...  No requests sent.")
-            continue
-
-        if not len(imageRequestData):
-            print("No detections to request.  Skipping this iteration.")
-            continue
-
-        writeFITSPostageStampRequestById(conn, requestFileName, requestName, imageRequestData, width, height, email = email, camera=camera)
-
-        # Temporarily stop processing here (i.e. don't send the FITS file to the PSS).
-        #time.sleep(1)
-        #continue
-
-        # Extract the candidates into a list so that we don't have to rewrite any code
-        candidateIdList = [x['id'] for x in candidateArray]
-
-        sqlCurrentDate = "%s-%s-%s %s:%s:%s" % (year, month, day, hour, min, sec)
-
-        psRequestId = addRequestToDatabase(conn, requestName, sqlCurrentDate)
-        if (psRequestId > 0):
-            print("Postage Stamp Request ID = %d" % psRequestId)
-
-            # Send the request to the postage stamp server
-            pssServerId = sendPSRequest(requestFileName, requestName, username = stampuser, password = stamppass, postageStampServerURL = uploadURL)
-            if (pssServerId >= 0):
-                addRequestIdToTransients(conn, psRequestId, candidateIdList, processingFlag = processingFlags)
-                submitted = updateRequestStatus(conn, requestName, SUBMITTED, pssServerId)
-                # 2024-04-24 KWS For reasons I DO NOT UNDERSTAND, 50% of requests get submitted twice. WHY????
-                #                Added an extra commit in an attempt to STOP this happening, but I don't know
-                #                why it's needed.
-                conn.commit()
-                if (submitted > 0):
-                    print("Successfully submitted job to Postage Stamp Server and updated database.")
-                else:
-                    print("Submitted job, but did not update database.")
-            else:
-                print("Did Not successfully submit the job to the Postage Stamp Server!")
-                # Remove the request ID from the transients - we can try again some other time.
-                addRequestIdToTransients(conn, None, candidateIdList, processingFlag = PROCESSING_FLAGS['unprocessed'])
-
-
-        # Sleep for 1 second.  This should ensure that all request IDs (which are time based) are unique
-        time.sleep(1)
 
     conn.commit ()
     conn.close ()
-
-    return
-
-
-
 
 
 if __name__ == '__main__':

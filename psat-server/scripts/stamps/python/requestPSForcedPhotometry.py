@@ -35,6 +35,87 @@ from gkutils.commonutils import find, Struct, cleanOptions, getCurrentMJD, readG
 from pstamp_utils import getObjectsByList, writeDetectabilityFITSRequest, addRequestToDatabase, sendPSRequest, updateRequestStatus, DETECTABILITY_REQUEST, SUBMITTED
 import random
 
+def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, n = None):
+
+    # n is an empty string or a str(process id). Used in multiprocessing mode to distinguish requests.
+
+    # 2020-05-14 KWS Only request forced photometry for candidates that have an RB factor above
+    #                a specified threshold.
+    candidateListFiltered = []
+    if options.rbthreshold:
+        rbThreshold = float(options.rbthreshold)
+        for candidate in candidateList:
+            if candidate['rb_factor'] >= rbThreshold:
+                candidateListFiltered.append(candidate)
+        candidateList = candidateListFiltered
+
+    arrayLength = len(candidateList)
+    maxNumberOfCandidates = objectsPerIteration
+    numberOfIterations = int(arrayLength/maxNumberOfCandidates)
+ 
+    # 2020-02-06 KWS Randomly shuffle the list - to reduce possiblilty of race conditions
+    #                at the detectability server
+    candidateList = list(candidateList)
+    random.shuffle(candidateList)
+
+    coords = []
+    # If we override the coordinates and the array length is 1, substitute the coordinates
+    if arrayLength == 1:
+        if options.coords:
+            coords = [float(options.coords.split(',')[0]), float(options.coords.split(',')[1])]
+
+    # Check to see if we need an extra iteration to clean up the end of the array
+    if arrayLength%maxNumberOfCandidates != 0:
+        numberOfIterations += 1
+ 
+    print("Number of iterations = %d" % numberOfIterations)
+ 
+    for currentIteration in range(numberOfIterations):
+        candidateSubList = candidateList[currentIteration*maxNumberOfCandidates:currentIteration*maxNumberOfCandidates+maxNumberOfCandidates]
+        print("Iteration %d" % (currentIteration+1))
+ 
+        # Get current time and date info and format it as necessary
+        currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
+        (year, month, day, hour, min, sec) = currentDate.split(':')
+ 
+        # Construct a time suffix for the request name and format the time for SQL
+        timeRequestSuffix = "%s%s%s_%s%s%s" % (year, month, day, hour, min, sec)
+        sqlCurrentDate = "%s-%s-%s %s:%s:%s" % (year, month, day, hour, min, sec)
+ 
+        requestName = "%s_%s" % (options.requestprefix, timeRequestSuffix)
+
+        # Are we in multiprocessing mode?
+        if n is not None:
+            requestName += '_%s' % str(n)
+
+        requestFileName = "%s/%s.fits" % (requestHome, requestName)
+ 
+        fileWritten = False
+        for candidate in candidateSubList:
+            fileWritten = writeDetectabilityFITSRequest(conn, requestFileName, requestName, candidateSubList, diffType = options.difftype, limitDays = limitDays, limitDaysAfter = limitDaysAfter, camera = options.camera, coords = coords)
+ 
+        time.sleep(1)
+ 
+        if options.test or fileWritten is False:
+            print("No request was sent to the stamp server.")
+            continue
+
+        psRequestId = addRequestToDatabase(conn, requestName, sqlCurrentDate, DETECTABILITY_REQUEST)
+ 
+        pssServerId = sendPSRequest(requestFileName, requestName, username = stampuser, password = stamppass)
+        print(pssServerId)
+        if pssServerId is not None and (pssServerId >= 0):
+            if (updateRequestStatus(conn, requestName, SUBMITTED, pssServerId) > 0):
+                print("Successfully submitted job to Postage Stamp Server and updated database.")
+            else:
+                print("Submitted job, but did not update database.")
+        else:
+            print("Did Not successfully submit the job to the Postage Stamp Server!")
+
+        # Sleep for 1 second.  This should ensure that all request IDs (which are time based) are unique
+        time.sleep(1)
+
+ 
 def main(argv = None):
     """main.
 
@@ -81,7 +162,8 @@ def main(argv = None):
     if not os.path.exists(requestHome):
         requestHome = "/tmp"
 
-    OBJECTS_PER_ITERATION = int(config['postage_stamp_parameters']['objects_per_iteration'])
+    MAX_NUMBER_OF_OBJECTS = int(config['postage_stamp_parameters']['max_number_of_objects'])
+    OBJECTS_PER_ITERATION = int(config['postage_stamp_parameters']['fp_objects_per_iteration'])
 
     # If the list isn't specified assume it's the Eyeball List.
     if options.listid is not None:
@@ -105,77 +187,11 @@ def main(argv = None):
     else:
         candidateList = getObjectsByList(conn, listId = detectionList, dateThreshold = dateThreshold, processingFlags = processingFlags)
 
-    # 2020-05-14 KWS Only request forced photometry for candidates that have an RB factor above
-    #                a specified threshold.
-    candidateListFiltered = []
-    if options.rbthreshold:
-        rbThreshold = float(options.rbthreshold)
-        for candidate in candidateList:
-            if candidate['rb_factor'] >= rbThreshold:
-                candidateListFiltered.append(candidate)
-        candidateList = candidateListFiltered
+    if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
+        sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
-    arrayLength = len(candidateList)
-    maxNumberOfCandidates = OBJECTS_PER_ITERATION
-    numberOfIterations = int(arrayLength/maxNumberOfCandidates)
- 
-    # 2020-02-06 KWS Randomly shuffle the list - to reduce possiblilty of race conditions
-    #                at the detectability server
-    candidateList = list(candidateList)
-    random.shuffle(candidateList)
+    requestForcedPhotometry(conn, options, candidateList, OBJECTS_PER_ITERATION)
 
-    coords = []
-    # If we override the coordinates and the array length is 1, substitute the coordinates
-    if arrayLength == 1:
-        if options.coords:
-            coords = [float(options.coords.split(',')[0]), float(options.coords.split(',')[1])]
-
-    # Check to see if we need an extra iteration to clean up the end of the array
-    if arrayLength%maxNumberOfCandidates != 0:
-        numberOfIterations += 1
- 
-    print("Number of iterations = %d" % numberOfIterations)
- 
-    for currentIteration in range(numberOfIterations):
-        candidateSubList = candidateList[currentIteration*maxNumberOfCandidates:currentIteration*maxNumberOfCandidates+maxNumberOfCandidates]
-        print("Iteration %d" % (currentIteration+1))
- 
-        # Get current time and date info and format it as necessary
-        currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
-        (year, month, day, hour, min, sec) = currentDate.split(':')
- 
-        # Construct a time suffix for the request name and format the time for SQL
-        timeRequestSuffix = "%s%s%s_%s%s%s" % (year, month, day, hour, min, sec)
-        sqlCurrentDate = "%s-%s-%s %s:%s:%s" % (year, month, day, hour, min, sec)
- 
-        requestName = "%s_%s" % (options.requestprefix, timeRequestSuffix)
-        requestFileName = "%s/%s.fits" % (requestHome, requestName)
- 
-        fileWritten = False
-        for candidate in candidateSubList:
-            fileWritten = writeDetectabilityFITSRequest(conn, requestFileName, requestName, candidateSubList, diffType = options.difftype, limitDays = limitDays, limitDaysAfter = limitDaysAfter, camera = options.camera, coords = coords)
- 
-        time.sleep(1)
- 
-        if options.test or fileWritten is False:
-            print("No request was sent to the stamp server.")
-            continue
-
-        psRequestId = addRequestToDatabase(conn, requestName, sqlCurrentDate, DETECTABILITY_REQUEST)
- 
-        pssServerId = sendPSRequest(requestFileName, requestName, username = stampuser, password = stamppass)
-        print(pssServerId)
-        if pssServerId is not None and (pssServerId >= 0):
-            if (updateRequestStatus(conn, requestName, SUBMITTED, pssServerId) > 0):
-                print("Successfully submitted job to Postage Stamp Server and updated database.")
-            else:
-                print("Submitted job, but did not update database.")
-        else:
-            print("Did Not successfully submit the job to the Postage Stamp Server!")
-
-        # Sleep for 1 second.  This should ensure that all request IDs (which are time based) are unique
-        time.sleep(1)
- 
     conn.commit()
     conn.close()
 
