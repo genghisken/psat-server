@@ -310,8 +310,9 @@ def eliminateOldDetections(conn, candidate, detections, thresholdMJD, thresholdM
     return imagesToRequest
    
 
-def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, stamppass, requestHome = '/tmp', uploadURL = None, n = None):
+def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, stamppass, stampemail, requestHome = '/tmp', uploadURL = None, n = None):
 
+    camera = 'gpc1'
     limit = 0
     if options.limit is not None:
         limit = int(options.limit)
@@ -416,7 +417,7 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
             print("No detections to request.  Skipping this iteration.")
             continue
 
-        writeFITSPostageStampRequestById(conn, requestFileName, requestName, imageRequestData, width, height, email = email, camera=camera)
+        writeFITSPostageStampRequestById(conn, requestFileName, requestName, imageRequestData, width, height, email = stampemail, camera=camera)
 
         # Temporarily stop processing here (i.e. don't send the FITS file to the PSS).
         #time.sleep(1)
@@ -563,7 +564,7 @@ def main(argv = None):
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
-    requestStamps(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, requestHome = requestHome, uploadURL = uploadURL)
+    requestStamps(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, stampemail, requestHome = requestHome, uploadURL = uploadURL)
 
 
     conn.commit ()

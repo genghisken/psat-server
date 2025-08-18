@@ -35,7 +35,7 @@ from gkutils.commonutils import find, Struct, cleanOptions, getCurrentMJD, readG
 from pstamp_utils import getObjectsByList, writeDetectabilityFITSRequest, addRequestToDatabase, sendPSRequest, updateRequestStatus, DETECTABILITY_REQUEST, SUBMITTED
 import random
 
-def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, stampuser, stamppass, requestHome = '/tmp', uploadURL = None, n = None):
+def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, stampuser, stamppass, stampemail, requestHome = '/tmp', uploadURL = None, n = None):
 
     limitDays = int(options.limitdays)
     limitDaysAfter = int(options.limitdaysafter)
