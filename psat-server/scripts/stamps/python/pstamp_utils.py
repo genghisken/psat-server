@@ -2504,7 +2504,8 @@ def getDetectabilityInfo(conn, candidate):
 
    return resultSet
 
-def getMaxForcedPhotometryMJD(conn, candidate):
+# 2025-08-18 KWS Added fpType to parameter list.
+def getMaxForcedPhotometryMJD(conn, candidate, fpType = 0):
     """getMaxForcedPhotometryMJD.
 
     Args:
@@ -2520,7 +2521,8 @@ def getMaxForcedPhotometryMJD(conn, candidate):
           select ifnull(max(mjd_obs),0) maxmjd
             from tcs_forced_photometry
            where transient_object_id = %s
-      """, (candidate,))
+             and fptype = %s
+      """, (candidate, fpType))
       resultSet = cursor.fetchone ()
 
       cursor.close ()
@@ -2533,7 +2535,7 @@ def getMaxForcedPhotometryMJD(conn, candidate):
 
 
 # 2020-01-09 KWS Completely rewrote detectability info request
-def getDetectabilityInfo2(conn, candidate, limitDays = 100, limitDaysAfter = 0, useFirstDetection = True):
+def getDetectabilityInfo2(conn, candidate, limitDays = 100, limitDaysAfter = 0, useFirstDetection = True, fpType = 0):
     """getDetectabilityInfo2.
 
     Args:
@@ -2569,7 +2571,7 @@ def getDetectabilityInfo2(conn, candidate, limitDays = 100, limitDaysAfter = 0, 
         lightcurveData = eliminateOldDetections(conn, candidate, lightcurveData, thresholdMJD, thresholdMJDMax)
 
     # If we already have forced photometry, don't request it again.
-    maxForcedPhotometryMJD = getMaxForcedPhotometryMJD(conn, candidate)
+    maxForcedPhotometryMJD = getMaxForcedPhotometryMJD(conn, candidate, fpType = fpType)
 
     if lightcurveData:
         for row in lightcurveData:
@@ -2667,7 +2669,8 @@ def addForcedPhotRow(conn, candidate, ra, dec, targetFlux, targetFluxSig, mjdObs
    return conn.insert_id()
 
 
-def deleteForcedPhotometry(conn, candidate):
+# 2025-08-18 KWS Added fpType to parameter list.
+def deleteForcedPhotometry(conn, candidate, fpType = 0):
    """deleteForcedPhotometry.
 
    Args:
@@ -2681,7 +2684,8 @@ def deleteForcedPhotometry(conn, candidate):
       cursor.execute ("""
           delete from tcs_forced_photometry
           where transient_object_id = %s
-          """, (candidate,))
+            and fptype = %s
+          """, (candidate, fpType))
 
       cursor.close ()
 
@@ -3963,6 +3967,12 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
 
    row = 1
 
+   fpType = 0
+   if diffType == 'warp':
+      fpType = 1
+   elif diffType == 'stack':
+      fpType = 2
+
    for candidate in candidateList:
       # Find the average RA/DEC for the candidate
       if coords:
@@ -3971,7 +3981,7 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
           (ra, dec) = getAverageCoordinates(conn, candidate['id'])
 
       # Pick up the detectability info for this candidate
-      detectabilityResultSet = getDetectabilityInfo2(conn, candidate['id'], limitDays = limitDays, limitDaysAfter = limitDaysAfter)
+      detectabilityResultSet = getDetectabilityInfo2(conn, candidate['id'], limitDays = limitDays, limitDaysAfter = limitDaysAfter, fpType = fpType)
       if len(detectabilityResultSet) == 0:
           # Do NOT write any requests
           print("No data to request!")
