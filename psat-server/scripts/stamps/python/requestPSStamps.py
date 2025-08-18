@@ -312,7 +312,9 @@ def eliminateOldDetections(conn, candidate, detections, thresholdMJD, thresholdM
 
 def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, stamppass, requestHome = '/tmp', uploadURL = None, n = None):
 
-    limit = int(options.limit)
+    limit = 0
+    if options.limit is not None:
+        limit = int(options.limit)
     limitDays = int(options.limitdays)
     limitDaysAfter = int(options.limitdaysafter)
     useFirstDetection = options.usefirstdetection
