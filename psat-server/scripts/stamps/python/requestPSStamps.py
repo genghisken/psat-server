@@ -401,7 +401,7 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
 
         # 2015-09-30 KWS Minor bug fix. Should be referring to imageRequestData
         #                below, not lightcurveData.
-        if options.test is not None:
+        if options.test:
             if imageRequestData:
                 for row in imageRequestData:
                     print(row['mjd'], row['filter'], row['fpa_detector'], end=' ')
