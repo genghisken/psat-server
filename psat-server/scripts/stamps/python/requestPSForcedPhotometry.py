@@ -145,6 +145,7 @@ def main(argv = None):
 
     stampuser = config['web_credentials']['stampserver']['username']
     stamppass = config['web_credentials']['stampserver']['password']
+    email = config['postage_stamp_parameters']['email']
 
     conn = dbConnect(hostname, username, password, database)
     if not conn:
@@ -190,7 +191,7 @@ def main(argv = None):
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
-    requestForcedPhotometry(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, requestHome = requestHome, uploadURL = uploadURL)
+    requestForcedPhotometry(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, email, requestHome = requestHome, uploadURL = uploadURL)
 
     conn.commit()
     conn.close()
