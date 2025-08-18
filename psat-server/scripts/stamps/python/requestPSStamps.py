@@ -13,7 +13,7 @@ Options:
   --listid=<listid>                                  Object list id
   --customlist=<customlistid>                        The object custom list
   --flagdate=<flagdate>                              Date threshold - no hyphens [default: 20200101]
-  --limit=<limit>                                    Recurrent limit - how many stamps will we request [default: 6]
+  --limit=<limit>                                    Recurrent limit - how many stamps will we request
   --limitdays=<limitdays>                            Number of days before which we will not request forced photometry [default: 100]
   --limitdaysafter=<limitdaysafter>                  Number of days after which we will not request images [default: 0]
   --usefirstdetection                                Use the first detection from which to count date threshold
