@@ -2579,7 +2579,7 @@ def getDetectabilityInfo2(conn, candidate, limitDays = 100, limitDaysAfter = 0, 
             # We just need the diff ID
             # Don't request forced photometry that we already have!
             if row['mjd'] > maxForcedPhotometryMJD:
-                print(row['id'], row['fpa_detector'])
+                print(row['id'], row['fpa_detector'], row['mjd'], end=' ')
                 for imType in ['target','ref','diff']:
                     print("%s (%s): %s" % (imType, diffImageCombination[imType][0], diffImageCombination[imType][1]), end=' ')
                 print()
