@@ -509,6 +509,12 @@ def main(argv = None):
     database = config['databases']['local']['database']
     hostname = config['databases']['local']['hostname']
 
+    db = []
+    db.append(username)
+    db.append(password)
+    db.append(database)
+    db.append(hostname)
+
     stampuser = config['web_credentials']['stampserver']['username']
     stamppass = config['web_credentials']['stampserver']['password']
 
