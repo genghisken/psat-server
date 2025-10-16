@@ -2,7 +2,7 @@
 """Request Pan-STARRS Postage Stamps
 
 Usage:
-  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limit=<limit>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--detectiontype=(all|detections|nondetections)] [--requesttype=(all|incremental)]
+  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limit=<limit>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--detectiontype=(all|detections|nondetections)] [--requesttype=(all|incremental)] [--nprocesses=<nprocesses>] [--loglocation=<loglocation>]
   %s (-h | --help)
   %s --version
 
@@ -22,10 +22,13 @@ Options:
   --requesthome=<requesthome>                        Place to store the FITS request before sending [default: /tmp]
   --detectiontype=(all|detections|nondetections)     Detecton type [default: detections]
   --requesttype=(all|incremental)                    Request type [default: incremental]
+  --nprocesses=<nprocesses>                          Number of processes to use [default: 8]
+  --loglocation=<loglocation>                        Log file location [default: /tmp/]
 
 Example:
   python %s ../../../../config/config.yaml 1124922100042044700 --requestprefix=qub_stamp_request --test
   python %s ../../../../../ps13pi/config/config.yaml 1232123421115632400 --requesttype=incremental --detectiontype=all --limitdays=6000 --usefirstdetection --limitdaysafter=6000 --overrideflags --requesthome=/db0/ingest/pstamp/requests --test
+  python %s ../../../../../ps13pi/config/config.yaml --listid=4 --requesttype=incremental --detectiontype=all --limitd=6 --requesthome=/db0/ingest/pstamp/requests --test
 """
 
 import sys
@@ -35,7 +38,7 @@ from docopt import docopt
 sys.path.append('../../common/python')
 from queries import getPanSTARRSCandidates, updateTransientObservationAndProcessingStatus, insertTransientObjectComment, LC_NON_DET_AND_BLANKS_QUERY, LC_DET_QUERY
 
-from gkutils.commonutils import dbConnect, getCurrentMJD, PROCESSING_FLAGS, Struct, cleanOptions
+from gkutils.commonutils import dbConnect, getCurrentMJD, PROCESSING_FLAGS, Struct, cleanOptions, splitList, parallelProcess
 from pstamp_utils import getAverageCoordinates, IPP_IDET_NON_DETECTION_VALUE, writeFITSPostageStampRequestById, addRequestToDatabase, addRequestIdToTransients, sendPSRequest, updateRequestStatus, width, height, SUBMITTED, findIdCombinationForPostageStampRequest2, getObjectsByList
 
 import MySQLdb, sys, datetime, time
@@ -396,7 +399,7 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
 
         # Are we in multiprocessing mode?
         if n is not None:
-            requestName += '_%s' % str(n)
+            requestName += '_%02d' % n
 
         requestFileName = "%s/%s.fits" % (requestHome, requestName)
 
@@ -455,6 +458,25 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
         time.sleep(1)
 
     return
+
+
+def workerStampRequester(num, db, listFragment, dateAndTime, firstPass, miscParameters):
+    """thread worker function"""
+    # Redefine the output to be a log file.
+    options = miscParameters[0]
+    sys.stdout = open('%s%s_%s_%d.log' % (options.loglocation, options.logprefix, dateAndTime, num), "w")
+    conn = dbConnect(db[3], db[0], db[1], db[2])
+    # 2023-03-13 KWS MySQLdb disables autocommit by default. Switch it on globally.
+    conn.autocommit(True)
+
+    # Call the postage stamp requester
+    objectsForUpdate = requestStamps(conn, options, listFragment, OBJECTS_PER_ITERATION, stampuser, stamppass, email, requestHome = requestHome, uploadURL = uploadURL)
+    #q.put(objectsForUpdate)
+
+    print("Process complete.")
+    conn.close()
+    print("DB Connection Closed - exiting")
+    return 0
 
 
 
@@ -536,6 +558,7 @@ def main(argv = None):
 
     candidateList = []
 
+    nprocesses = int(options.nprocesses)
 
     # If the list isn't specified assume it's the Eyeball List.
     if options.listid is not None:
@@ -561,10 +584,24 @@ def main(argv = None):
         #candidateList = getPS1Candidates(conn, listId = detectionList, flagDate = flagDate, processingFlags = processingFlags, ignoreProcessingFlags = options.overrideflags)
 
 
+    print("TOTAL OBJECTS = %d" % len(exposureSet))
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
-    requestStamps(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, email, requestHome = requestHome, uploadURL = uploadURL)
+    if nprocesses == 1:
+        requestStamps(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, email, requestHome = requestHome, uploadURL = uploadURL)
+
+    else:
+        # Do some multiprocessing.
+        print("Requesting stamps...")
+    
+        if len(candidateList) > 1:
+            nProcessors, listChunks = splitList(candidateList, bins = nprocesses)
+
+            print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
+            parallelProcess(db, dateAndTime, nProcessors, listChunks, workerStampRequester, miscParameters = [options, OBJECTS_PER_ITERATION, stampuser, stamppass, email, requestHome, uploadURL], drainQueues = False)
+            print("%s Done Parallel Processing" % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
+
 
 
     conn.commit ()
