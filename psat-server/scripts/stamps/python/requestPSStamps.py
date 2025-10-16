@@ -591,7 +591,7 @@ def main(argv = None):
         #candidateList = getPS1Candidates(conn, listId = detectionList, flagDate = flagDate, processingFlags = processingFlags, ignoreProcessingFlags = options.overrideflags)
 
 
-    print("TOTAL OBJECTS = %d" % len(exposureSet))
+    print("TOTAL OBJECTS = %d" % len(candidateList))
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
