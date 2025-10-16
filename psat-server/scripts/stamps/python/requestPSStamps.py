@@ -2,7 +2,7 @@
 """Request Pan-STARRS Postage Stamps
 
 Usage:
-  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limit=<limit>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--detectiontype=(all|detections|nondetections)] [--requesttype=(all|incremental)] [--nprocesses=<nprocesses>] [--loglocation=<loglocation>]
+  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limit=<limit>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--detectiontype=(all|detections|nondetections)] [--requesttype=(all|incremental)] [--nprocesses=<nprocesses>] [--loglocation=<loglocation>] [--logprefix=<logprefix>]
   %s (-h | --help)
   %s --version
 
@@ -24,6 +24,7 @@ Options:
   --requesttype=(all|incremental)                    Request type [default: incremental]
   --nprocesses=<nprocesses>                          Number of processes to use [default: 8]
   --loglocation=<loglocation>                        Log file location [default: /tmp/]
+  --logprefix=<logprefix>                            Log prefix [default: stamp_requester]
 
 Example:
   python %s ../../../../config/config.yaml 1124922100042044700 --requestprefix=qub_stamp_request --test
