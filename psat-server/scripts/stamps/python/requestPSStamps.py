@@ -28,7 +28,7 @@ Options:
 Example:
   python %s ../../../../config/config.yaml 1124922100042044700 --requestprefix=qub_stamp_request --test
   python %s ../../../../../ps13pi/config/config.yaml 1232123421115632400 --requesttype=incremental --detectiontype=all --limitdays=6000 --usefirstdetection --limitdaysafter=6000 --overrideflags --requesthome=/db0/ingest/pstamp/requests --test
-  python %s ../../../../../ps13pi/config/config.yaml --listid=4 --requesttype=incremental --detectiontype=all --limit=6 --requesthome=/db0/ingest/pstamp/requests --test
+  python %s ../../../../../ps13pi/config/config.yaml --listid=4 --requesttype=incremental --limit=6 --requesthome=/db0/ingest/pstamp/requests --test
 """
 
 import sys
@@ -596,6 +596,10 @@ def main(argv = None):
         candidateList = getObjectsByList(conn, listId = detectionList, dateThreshold = dateThreshold, processingFlags = processingFlags)
         #candidateList = getPS1Candidates(conn, listId = detectionList, flagDate = flagDate, processingFlags = processingFlags, ignoreProcessingFlags = options.overrideflags)
 
+
+    currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
+    (year, month, day, hour, min, sec) = currentDate.split(':')
+    dateAndTime = "%s%s%s_%s%s%s" % (year, month, day, hour, min, sec)
 
     print("TOTAL OBJECTS = %d" % len(candidateList))
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
