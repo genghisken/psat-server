@@ -457,20 +457,27 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
         # Sleep for 1 second.  This should ensure that all request IDs (which are time based) are unique
         time.sleep(1)
 
-    return
+    return candidateList
 
 
 def workerStampRequester(num, db, listFragment, dateAndTime, firstPass, miscParameters):
     """thread worker function"""
     # Redefine the output to be a log file.
     options = miscParameters[0]
+    objectsPerIteration = miscParameters[1]
+    stampuser = miscParameters[2]
+    stamppass = miscParameters[3]
+    email = miscParameters[4]
+    requestHome = miscParameters[5]
+    uploadURL = miscParameters[6]
+
     sys.stdout = open('%s%s_%s_%d.log' % (options.loglocation, options.logprefix, dateAndTime, num), "w")
     conn = dbConnect(db[3], db[0], db[1], db[2])
     # 2023-03-13 KWS MySQLdb disables autocommit by default. Switch it on globally.
     conn.autocommit(True)
 
     # Call the postage stamp requester
-    objectsForUpdate = requestStamps(conn, options, listFragment, OBJECTS_PER_ITERATION, stampuser, stamppass, email, requestHome = requestHome, uploadURL = uploadURL)
+    objectsForUpdate = requestStamps(conn, options, listFragment, objectsPerIteration, stampuser, stamppass, email, requestHome = requestHome, uploadURL = uploadURL, n = num)
     #q.put(objectsForUpdate)
 
     print("Process complete.")
