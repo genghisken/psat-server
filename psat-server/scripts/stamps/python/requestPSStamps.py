@@ -22,7 +22,7 @@ Options:
   --requesthome=<requesthome>                        Place to store the FITS request before sending [default: /tmp]
   --detectiontype=(all|detections|nondetections)     Detecton type [default: detections]
   --requesttype=(all|incremental)                    Request type [default: incremental]
-  --nprocesses=<nprocesses>                          Number of processes to use [default: 8]
+  --nprocesses=<nprocesses>                          Number of processes to use [default: 4]
   --loglocation=<loglocation>                        Log file location [default: /tmp/]
   --logprefix=<logprefix>                            Log prefix [default: stamp_requester]
 
