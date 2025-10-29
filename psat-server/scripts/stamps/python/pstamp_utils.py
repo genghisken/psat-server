@@ -5110,9 +5110,12 @@ def sendPSRequest(filename, requestName, username = None, password = None, posta
         # First get our authenticated session established. Response code will be a 401
         # and a "please enter your username and password" message, but that's OK.
         # Our session is now authenticated.
-        response = s.post(postageStampServerURL)
+        # 2025-10-18 KWS Added a timeout for the initial connection to stop hangs.
+        response = s.post(postageStampServerURL, timeout=(5, 5))
         # Now post the data. This time we should get a 200 OK.
-        response = s.post(postageStampServerURL, files = data, timeout = 10, headers = headers)
+        # 2025-10-18 KWS The timeout value is a connect timeout only. Give it a tuple of two numbers
+        #                and we have a connect and read timeout.
+        response = s.post(postageStampServerURL, files = data, timeout = (5, 5), headers = headers)
         pssServerId = extractIdFromResponse(requestName, response.text)
 
     except IOError as e:
