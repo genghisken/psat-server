@@ -28,10 +28,11 @@ Options:
 
 E.g.:
   %s ~/config_fakers.yaml 1130252001002421600 --ddc --skipdownload --redlocation=/atlas/diff/CAMERA/fake/MJD.fake --redregex=EXPNAME.fits+fake --difflocation=/atlas/diff/CAMERA/fake/MJD.fake --diffregex=EXPNAME.diff+fake
+  %s ../../../../../atlas/config/config4_db5.yaml 1174859421252944900 --ddc --limit=6 --requesttype=all
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, shutil, re, csv, subprocess
 
