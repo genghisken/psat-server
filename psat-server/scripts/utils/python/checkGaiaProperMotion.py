@@ -223,18 +223,20 @@ def crossmatchWithLocalGaiaProperMotion(conn, options, objectRow):
         if separation < min_sep and separation <= float(options.maxsep):
             min_sep = separation
             best_match = {
-                'source_id':    row.get('source_id'),
-                'ra_gaia':      row['ra'],
-                'dec_gaia':     row['dec'],
-                'pmra':         pmra,
-                'pmdec':        pmdec,
-                'parallax':     parallax,
-                'propagated_ra':   gaia_coord_at_obs.ra.deg,
-                'propagated_dec':  gaia_coord_at_obs.dec.deg,
-                'separation':     separation,
+                'source_id':        row.get('source_id'),
+                'ra_gaia':          row['ra'],
+                'dec_gaia':         row['dec'],
+                'pmra':             pmra,
+                'pmdec':            pmdec,
+                'parallax':         parallax,
+                'propagated_ra':    gaia_coord_at_obs.ra.deg,
+                'propagated_dec':   gaia_coord_at_obs.dec.deg,
+                'separation':       separation,
                 # optional uncertainty fields if present:
-                'eff_ra_err':    row.get('pmra_error'),
-                'eff_dec_err':   row.get('pmdec_error'),
+                'eff_ra_err':       row.get('pmra_error'),
+                'eff_dec_err':      row.get('pmdec_error'),
+                'bp_rp':            row.get('bp_rp'),
+                'phot_g_mean_mag':  row.get('phot_g_mean_mag'),
             }
 
     return True, best_match
@@ -586,7 +588,9 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
                     dec_field: orig[dec_field],
                     mjd_field: orig[mjd_field],
                     'source_match_distance': best_match['separation'],
-                    'source_id': best_match['source_id']
+                    'source_id':             best_match['source_id'],
+                    'bp_rp':                 best_match['bp_rp'],
+                    'phot_g_mean_mag':       best_match['phot_g_mean_mag'],
                 })
                 
                 if do_plot:
@@ -620,7 +624,7 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
             rowsUpdated = updateTransientObservationAndProcessingStatus(conn, row[id_field], processingFlag = PROCESSING_FLAGS['pmcheck'], observationStatus = 'hpmstar', survey = options.survey)
 
             # 3. Write a comment into the object comments table.
-            comment = "HPM Check. Object is %.2f arcsec from Gaia DR3 source %s." % (row['source_match_distance'],row['source_id'])
+            comment = "HPM Check. Object is %.2f arcsec from from the projected position of Gaia DR3 stellar source %s, with a mag G=%.2f and colour BP-RP=%.2f." % (row['source_match_distance'],row['source_id'], row['phot_g_mean_mag'], row['bp_rp'])
             commentRowsUpdated = insertTransientObjectComment(conn, row[id_field], comment)
 
 
