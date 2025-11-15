@@ -624,7 +624,8 @@ def main(options, catalog_file, output_csv, output_folder, do_plot,
             rowsUpdated = updateTransientObservationAndProcessingStatus(conn, row[id_field], processingFlag = PROCESSING_FLAGS['pmcheck'], observationStatus = 'hpmstar', survey = options.survey)
 
             # 3. Write a comment into the object comments table.
-            comment = "HPM Check. Object is %.2f arcsec from from the projected position of Gaia DR3 stellar source %s, with a mag G=%.2f and colour BP-RP=%.2f." % (row['source_match_distance'],row['source_id'], row['phot_g_mean_mag'], row['bp_rp'])
+            # 2025-11-15 KWS Turns out that there are quite a few NaN entries in the Gaia table for the g mag and the bp_rp. Add a check.
+            comment = "HPM Check. Object is %.2f arcsec from from the projected position of Gaia DR3 stellar source %s, with a mag G=%.2f and colour BP-RP=%.2f." % (row['source_match_distance'],row['source_id'], row['phot_g_mean_mag'] if row['phot_g_mean_mag'] is not None else float('nan'), row['bp_rp'] if row['bp_rp'] is not None else float('nan'))
             commentRowsUpdated = insertTransientObjectComment(conn, row[id_field], comment)
 
 
