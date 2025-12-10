@@ -110,8 +110,8 @@ def main(argv = None):
     data = csv.DictReader(open(options.filename), delimiter=',')
 
     if options.outputfile is not None:
-        prefix = outputfile.split('.')[0]
-        suffix = outputfile.split('.')[-1]
+        prefix = options.outputfile.split('.')[0]
+        suffix = options.outputfile.split('.')[-1]
             
         if suffix == prefix:
             suffix = ''
