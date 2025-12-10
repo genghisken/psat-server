@@ -106,7 +106,6 @@ def main(argv = None):
     db.append(hostname)
 
 
-    objectList = []
     data = readGenericDataFile(options.filename, delimiter=options.delimiter)
 
     if options.outputfile is not None:
@@ -123,7 +122,7 @@ def main(argv = None):
         # Do it single threaded
         conn = dbConnect(hostname, username, password, database, quitOnError = True)
 
-        objects = crossmatchObjects(conn, options, objectList, matchRadius = float(options.matchradius))
+        objects = crossmatchObjects(conn, options, data, matchRadius = float(options.matchradius))
 
         with open('%s%s' % (prefix, suffix), 'w') as f:
             w = csv.DictWriter(f, objects[0].keys(), delimiter = ',')
