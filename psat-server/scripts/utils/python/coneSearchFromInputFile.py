@@ -67,7 +67,7 @@ def worker(num, db, objectListFragment, dateAndTime, firstPass, miscParameters, 
         q.put([])
         return 0
 
-    objectsForUpdate = crossmatchObjects(conn, options, objectListFragment, matchRadius = int(options.matchradius))
+    objectsForUpdate = crossmatchObjects(conn, options, objectListFragment, matchRadius = float(options.matchradius))
 
     # Write the objects for update onto a Queue object
     print("Adding %d objects onto the queue." % len(objectsForUpdate))
@@ -123,7 +123,7 @@ def main(argv = None):
         # Do it single threaded
         conn = dbConnect(hostname, username, password, database, quitOnError = True)
 
-        objects = crossmatchObjects(conn, options, objectList, matchRadius = int(options.matchradius))
+        objects = crossmatchObjects(conn, options, objectList, matchRadius = float(options.matchradius))
 
         with open('%s%s' % (prefix, suffix), 'w') as f:
             w = csv.DictWriter(f, objects[0].keys(), delimiter = ',')
