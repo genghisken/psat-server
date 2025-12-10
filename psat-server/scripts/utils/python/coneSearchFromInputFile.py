@@ -39,7 +39,7 @@ def crossmatchObjects(conn, options, objectList, matchRadius = 2.0, processNumbe
     objectsForUpdate = []
 
     for obj in objectList:
-        message, results = coneSearchHTM(float(obj[options.racolumn]), float(obj[options.deccolumn]), float(options.matchradius), options.table, queryType = FULL, conn = conn)
+        message, results = coneSearchHTM(float(obj[options.racolumn]), float(obj[options.deccolumn]), float(options.matchradius), options.tablename, queryType = FULL, conn = conn)
         if results and len(results) >= 1:
             # We have more than one object.  No we need to merge anything. Can exit now.
             separation = results[0][0]
@@ -106,7 +106,7 @@ def main(argv = None):
     db.append(hostname)
 
 
-    data = readGenericDataFile(options.filename, delimiter=options.delimiter)
+    data = readGenericDataFile(options.filename, delimiter='\t')
 
     if options.outputfile is not None:
         prefix = options.outputfile.split('.')[0]
