@@ -2,13 +2,14 @@
 """Do a cone search for a catalogue of a csv file full of objectid, ra, dec. Return objectid, ra, dec, attributes
 
 Usage:
-  %s <configfile> <filename> <tablename> [<attributes>...] [--matchradius=<matchradius>] [--outputfile=<outputFile>] [--nprocesses=<nprocesses>] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--namecolumn=<namecolumn>] [--racolumn=<racolumn>] [--deccolumn=<deccolumn>]
+  %s <configfile> <filename> <tablename> [<attributes>...] [--delimiter=<delimiter>]  [--matchradius=<matchradius>] [--outputfile=<outputFile>] [--nprocesses=<nprocesses>] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--namecolumn=<namecolumn>] [--racolumn=<racolumn>] [--deccolumn=<deccolumn>]
   %s (-h | --help)
   %s --version
 
 Options:
   -h --help                      Show this screen.
   --version                      Show version.
+  --delimiter=<delimiter>        Delimiter [default: ,]
   --matchradius=<matchradius>    Match radius [default: 2.0]
   --outputfile=<outputFile>      Output filename [default: /tmp/xmresults.csv]
   --nprocesses=<nprocesses>      Number of processes to use [default: 1].
@@ -125,7 +126,7 @@ def main(argv = None):
         objects = crossmatchObjects(conn, options, objectList, matchRadius = int(options.matchradius))
 
         with open('%s%s' % (prefix, suffix), 'w') as f:
-            w = csv.DictWriter(f, objects[0].keys(), delimiter = ',')
+            w = csv.DictWriter(f, objects[0].keys(), delimiter = options.delimiter)
             w.writeheader()
             for row in objectsForUpdate:
                 w.writerow(row)
