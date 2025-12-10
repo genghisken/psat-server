@@ -27,7 +27,7 @@ import sys
 __doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, MySQLdb, shutil, re
-from gkutils.commonutils import find, Struct, cleanOptions, dbConnect, coneSearchHTM, QUICK, FULL, splitList, parallelProcess
+from gkutils.commonutils import find, Struct, cleanOptions, dbConnect, coneSearchHTM, QUICK, FULL, splitList, parallelProcess, readGenericDataFile
 import MySQLdb
 import numpy as np
 import csv
@@ -107,7 +107,7 @@ def main(argv = None):
 
 
     objectList = []
-    data = csv.DictReader(open(options.filename), delimiter=',')
+    data = readGenericDataFile(options.filename, delimiter=options.delimiter)
 
     if options.outputfile is not None:
         prefix = options.outputfile.split('.')[0]
@@ -126,7 +126,7 @@ def main(argv = None):
         objects = crossmatchObjects(conn, options, objectList, matchRadius = int(options.matchradius))
 
         with open('%s%s' % (prefix, suffix), 'w') as f:
-            w = csv.DictWriter(f, objects[0].keys(), delimiter = options.delimiter)
+            w = csv.DictWriter(f, objects[0].keys(), delimiter = ',')
             w.writeheader()
             for row in objectsForUpdate:
                 w.writerow(row)
