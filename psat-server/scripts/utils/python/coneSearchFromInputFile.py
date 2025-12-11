@@ -124,11 +124,12 @@ def main(argv = None):
 
         objects = crossmatchObjects(conn, options, data, matchRadius = float(options.matchradius))
 
-        with open('%s%s' % (prefix, suffix), 'w') as f:
-            w = csv.DictWriter(f, objects[0].keys(), delimiter = ',')
-            w.writeheader()
-            for row in objectsForUpdate:
-                w.writerow(row)
+        if len(objects) > 0:
+            with open('%s%s' % (prefix, suffix), 'w') as f:
+                w = csv.DictWriter(f, objects[0].keys(), delimiter = ',')
+                w.writeheader()
+                for row in objectsForUpdate:
+                    w.writerow(row)
 
 
         if conn:
@@ -141,11 +142,12 @@ def main(argv = None):
         objects = parallelProcess(db, dateAndTime, nProcessors, listChunks, worker, miscParameters = [options], firstPass = True)
         print("%s Done Parallel Processing" % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
 
-        with open('%s%s' % (prefix, suffix), 'w') as f:
-            w = csv.DictWriter(f, objects[0].keys(), delimiter = ',')
-            w.writeheader()
-            for row in objectsForUpdate:
-                w.writerow(row)
+        if len(objects) > 0:
+            with open('%s%s' % (prefix, suffix), 'w') as f:
+                w = csv.DictWriter(f, objects[0].keys(), delimiter = ',')
+                w.writeheader()
+                for row in objectsForUpdate:
+                    w.writerow(row)
 
 
 
