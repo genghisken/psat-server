@@ -106,6 +106,9 @@ def main(argv = None):
     db.append(database)
     db.append(hostname)
 
+    currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
+    (year, month, day, hour, min, sec) = currentDate.split(':')
+    dateAndTime = "%s%s%s_%s%s%s" % (year, month, day, hour, min, sec)
 
     data = readGenericDataFile(options.filename, delimiter='\t')
 
