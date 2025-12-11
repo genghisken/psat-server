@@ -128,7 +128,7 @@ def main(argv = None):
             with open('%s%s' % (prefix, suffix), 'w') as f:
                 w = csv.DictWriter(f, objects[0].keys(), delimiter = ',')
                 w.writeheader()
-                for row in objectsForUpdate:
+                for row in objects:
                     w.writerow(row)
 
 
@@ -146,7 +146,7 @@ def main(argv = None):
             with open('%s%s' % (prefix, suffix), 'w') as f:
                 w = csv.DictWriter(f, objects[0].keys(), delimiter = ',')
                 w.writeheader()
-                for row in objectsForUpdate:
+                for row in objects:
                     w.writerow(row)
 
 
