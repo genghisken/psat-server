@@ -15,7 +15,7 @@ Options:
   --nprocesses=<nprocesses>      Number of processes to use [default: 1].
   --loglocation=<loglocation>    Log file location [default: /tmp/]
   --logprefix=<logprefix>        Log prefix [default: coneSearch]
-  --namecolumn=<namecolumn>      Column representing name [default: name]
+  --namecolumn=<namecolumn>      Column representing name [default: atlas_object_id]
   --racolumn=<racolumn>          Column representing RA [default: ra]
   --deccolumn=<deccolumn>        Column representing Declination [default: dec]
 
@@ -39,6 +39,7 @@ def crossmatchObjects(conn, options, objectList, matchRadius = 2.0, processNumbe
 
     objectsForUpdate = []
 
+    i = 0
     for obj in objectList:
         message, results = coneSearchHTM(float(obj[options.racolumn]), float(obj[options.deccolumn]), float(options.matchradius), options.tablename, queryType = FULL, conn = conn)
         if results and len(results) >= 1:
@@ -49,6 +50,9 @@ def crossmatchObjects(conn, options, objectList, matchRadius = 2.0, processNumbe
                 print (a)
                 obj[a] = results[0][1][a]
             objectsForUpdate.append(obj)
+        if i % 10000 == 0:
+            print("Done %d of %d objects" % (i, len(objectList)))
+        i += 1
 
     return objectsForUpdate
 
