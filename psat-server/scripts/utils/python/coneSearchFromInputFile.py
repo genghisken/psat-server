@@ -31,6 +31,7 @@ from gkutils.commonutils import find, Struct, cleanOptions, dbConnect, coneSearc
 import MySQLdb
 import numpy as np
 import csv
+import datetime
 
 # ******** This code should be moved to a COMMON area ********
 
