@@ -100,11 +100,11 @@ def main(argv = None):
     database = config['databases']['local']['database']
     hostname = config['databases']['local']['hostname']
 
-    db = []
-    db.append(username)
-    db.append(password)
-    db.append(database)
-    db.append(hostname)
+    db = {}
+    db['username']=username
+    db['password']=password
+    db['database']=database
+    db['hostname']=hostname
 
     currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
     (year, month, day, hour, min, sec) = currentDate.split(':')
