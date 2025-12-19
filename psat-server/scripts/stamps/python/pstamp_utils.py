@@ -2535,7 +2535,10 @@ def getMaxForcedPhotometryMJD(conn, candidate, fpType = 0):
 
 
 # 2020-01-09 KWS Completely rewrote detectability info request
-def getDetectabilityInfo2(conn, candidate, limitDays = 100, limitDaysAfter = 0, useFirstDetection = True, fpType = 0):
+# 2025-12-19 KWS Introduced overlapDays - subtract this value from the max MJD
+#                so that we can force an overlap request (and don't have to delete
+#                existing photometry.
+def getDetectabilityInfo2(conn, candidate, limitDays = 100, limitDaysAfter = 0, useFirstDetection = True, fpType = 0, overlapDays = 0):
     """getDetectabilityInfo2.
 
     Args:
@@ -2571,7 +2574,7 @@ def getDetectabilityInfo2(conn, candidate, limitDays = 100, limitDaysAfter = 0, 
         lightcurveData = eliminateOldDetections(conn, candidate, lightcurveData, thresholdMJD, thresholdMJDMax)
 
     # If we already have forced photometry, don't request it again.
-    maxForcedPhotometryMJD = getMaxForcedPhotometryMJD(conn, candidate, fpType = fpType)
+    maxForcedPhotometryMJD = getMaxForcedPhotometryMJD(conn, candidate, fpType = fpType) - overlapDays
 
     if lightcurveData:
         for row in lightcurveData:
@@ -3923,7 +3926,10 @@ def writeFITSPostageStampRequestBySkycell(conn, gpc1Conn, outfile, requestName, 
 #                and get the forced photometry with position set as the one of interest.
 #                Use the nearby object as a proxy to request and store the forced photometry. 
 #                We found the nearby object by cone searching around the object of interest.
-def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, diffType = 'WSdiff', email = 'qub2@qub.ac.uk', camera = 'gpc1', limitDays = 100, limitDaysAfter = 0, coords = []):
+# 2025-12-19 KWS Introduced overlapDays - subtract this value from the max MJD
+#                so that we can force an overlap request (and don't have to delete
+#                existing photometry.
+def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, diffType = 'WSdiff', email = 'qub2@qub.ac.uk', camera = 'gpc1', limitDays = 100, limitDaysAfter = 0, coords = [], overlapDays = 0):
    """writeDetectabilityFITSRequest.
 
    Args:
@@ -3981,7 +3987,7 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
           (ra, dec) = getAverageCoordinates(conn, candidate['id'])
 
       # Pick up the detectability info for this candidate
-      detectabilityResultSet = getDetectabilityInfo2(conn, candidate['id'], limitDays = limitDays, limitDaysAfter = limitDaysAfter, fpType = fpType)
+      detectabilityResultSet = getDetectabilityInfo2(conn, candidate['id'], limitDays = limitDays, limitDaysAfter = limitDaysAfter, fpType = fpType, overlapDays = overlapDays)
       if len(detectabilityResultSet) == 0:
           # Do NOT write any requests
           print("No data to request!")
@@ -5111,11 +5117,11 @@ def sendPSRequest(filename, requestName, username = None, password = None, posta
         # and a "please enter your username and password" message, but that's OK.
         # Our session is now authenticated.
         # 2025-10-18 KWS Added a timeout for the initial connection to stop hangs.
-        response = s.post(postageStampServerURL, timeout=(5, 5))
+        response = s.post(postageStampServerURL, timeout=(8, 8))
         # Now post the data. This time we should get a 200 OK.
         # 2025-10-18 KWS The timeout value is a connect timeout only. Give it a tuple of two numbers
         #                and we have a connect and read timeout.
-        response = s.post(postageStampServerURL, files = data, timeout = (5, 5), headers = headers)
+        response = s.post(postageStampServerURL, files = data, timeout = (8, 8), headers = headers)
         pssServerId = extractIdFromResponse(requestName, response.text)
 
     except IOError as e:
