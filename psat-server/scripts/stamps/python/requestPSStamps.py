@@ -383,7 +383,8 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
                         thresholdMJDMax = detectionData[0]['mjd'] + limitDaysAfter
                 else:
                     thresholdMJD = getCurrentMJD() - limitDays
-                lightcurveData = eliminateOldDetections(conn, candidate['id'], lightcurveData, thresholdMJD, thresholdMJDMax)
+                if requestType == 'incremental':
+                    lightcurveData = eliminateOldDetections(conn, candidate['id'], lightcurveData, thresholdMJD, thresholdMJDMax)
 
             if lightcurveData:
                 #for row in lightcurveData:
