@@ -225,13 +225,12 @@ def main(argv = None):
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
-
-    if int(options.nprocesses) == 1 or len(candidateList) == 1 or options.test is not None:
+    if int(options.nprocesses) == 1 or len(candidateList) == 1 or options.test:
         requestForcedPhotometry(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, email, requestHome = requestHome, uploadURL = uploadURL)
 
     else:
         # Do some multiprocessing.
-        print("Requesting stamps...")
+        print("Requesting forced photometry...")
 
         if len(candidateList) > 1:
             nProcessors, listChunks = splitList(candidateList, bins = nprocesses)

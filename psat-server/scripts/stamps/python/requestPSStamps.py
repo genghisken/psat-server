@@ -30,10 +30,11 @@ Example:
   python %s ../../../../config/config.yaml 1124922100042044700 --requestprefix=qub_stamp_request --test
   python %s ../../../../../ps13pi/config/config.yaml 1232123421115632400 --requesttype=incremental --detectiontype=all --limitdays=6000 --usefirstdetection --limitdaysafter=6000 --overrideflags --requesthome=/db0/ingest/pstamp/requests --test
   python %s ../../../../../ps13pi/config/config.yaml --listid=4 --requesttype=incremental --limit=6 --requesthome=/db0/ingest/pstamp/requests --test
+  python %s ../../../../../ps13pi/config/config.yaml 1024205490165722800 --requesttype=all --limit=5 --requesthome=/astrosurveydb2/ingest/pstamp/requests --loglocation=/astrosurveydb2/tc_logs/ps13pi/
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 
 sys.path.append('../../common/python')
