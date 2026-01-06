@@ -423,7 +423,8 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
                         imageRequestData.append(row)
                 #imageRequestData += lightcurveData
 
-        print(thresholdMJD, thresholdMJDMax)
+        print("Min MJD =", thresholdMJD)
+        print("Max MJD =", thresholdMJDMax)
         print("Number of PS Images to Request: %d" % len(imageRequestData))
 
         currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
