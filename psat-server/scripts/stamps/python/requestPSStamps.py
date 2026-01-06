@@ -30,16 +30,17 @@ Example:
   python %s ../../../../config/config.yaml 1124922100042044700 --requestprefix=qub_stamp_request --test
   python %s ../../../../../ps13pi/config/config.yaml 1232123421115632400 --requesttype=incremental --detectiontype=all --limitdays=6000 --usefirstdetection --limitdaysafter=6000 --overrideflags --requesthome=/db0/ingest/pstamp/requests --test
   python %s ../../../../../ps13pi/config/config.yaml --listid=4 --requesttype=incremental --limit=6 --requesthome=/db0/ingest/pstamp/requests --test
+  python %s ../../../../../ps13pi/config/config.yaml 1024205490165722800 --requesttype=all --limit=5 --requesthome=/astrosurveydb2/ingest/pstamp/requests --loglocation=/astrosurveydb2/tc_logs/ps13pi/
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 
 sys.path.append('../../common/python')
 from queries import getPanSTARRSCandidates, updateTransientObservationAndProcessingStatus, insertTransientObjectComment, LC_NON_DET_AND_BLANKS_QUERY, LC_DET_QUERY
 
-from gkutils.commonutils import dbConnect, getCurrentMJD, PROCESSING_FLAGS, Struct, cleanOptions, splitList, parallelProcess
+from gkutils.commonutils import dbConnect, getCurrentMJD, getMJDFromSqlDate, PROCESSING_FLAGS, Struct, cleanOptions, splitList, parallelProcess
 from pstamp_utils import getAverageCoordinates, IPP_IDET_NON_DETECTION_VALUE, writeFITSPostageStampRequestById, addRequestToDatabase, addRequestIdToTransients, sendPSRequest, updateRequestStatus, width, height, SUBMITTED, findIdCombinationForPostageStampRequest2, getObjectsByList
 
 import MySQLdb, sys, datetime, time
@@ -316,6 +317,17 @@ def eliminateOldDetections(conn, candidate, detections, thresholdMJD, thresholdM
 
 def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, stamppass, stampemail, requestHome = '/tmp', uploadURL = None, n = None):
 
+    # 2026-01-06 KWS If the followup_flag_date is not specified (e.g. unpromoted object) we need a default.
+    #            So let's use the flagdate option to override the flag date.
+    if options.flagdate is not None:
+        try:
+            flagDate = '%s-%s-%s' % (options.flagdate[0:4], options.flagdate[4:6], options.flagdate[6:8])
+        except:
+            flagDate = '2015-02-01'
+    thresholdMJD = getMJDFromSqlDate(flagDate + ' 00:00:00')
+    if thresholdMJD is None:
+        sys.exit("Flag date is not in the right format.")
+
     camera = 'gpc1'
     limit = 0
     if options.limit is not None:
@@ -350,6 +362,8 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
         imageRequestData = []
         for candidate in candidateArray:
 
+            thresholdMJDMax = 70000
+
             if detectionType == 'all' and limit == 0:
                 lightcurveData = getLightcurveDetections(conn, candidate['id'])
                 lightcurveData += getLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
@@ -367,8 +381,9 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
                 # most recent <limit> images to be requested.
                 if limit > 0:
                     lightcurveData = getLightcurveDetections(conn, candidate['id'], limit = limit)
+                    existingImages = getExistingDetectionImages(conn, candidate['id'])
 
-            if requestType == 'incremental' and limit == 0:
+            if requestType == 'incremental':
                 lightcurveData = eliminateExistingImages(conn, candidate['id'], lightcurveData, existingImages)
 
             if limitDays > 0:
@@ -381,15 +396,35 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
                     thresholdMJD = detectionData[0]['mjd'] - limitDays
                     if limitDaysAfter > 0:
                         thresholdMJDMax = detectionData[0]['mjd'] + limitDaysAfter
+                elif candidate['followup_flag_date'] is not None:
+                    # Use the flag date
+                    thresholdMJD = getMJDFromSqlDate(candidate['followup_flag_date'].strftime("%Y-%m-%d %H:%M:%S")) - limitDays
                 else:
+                    # Or just use the current date
                     thresholdMJD = getCurrentMJD() - limitDays
-                lightcurveData = eliminateOldDetections(conn, candidate['id'], lightcurveData, thresholdMJD, thresholdMJDMax)
+                if requestType == 'incremental':
+                    # 2026-01-06 KWS Cut by the MJD thresholds. Then eliminate any existing images.
+                    lightcurveData = eliminateOldDetections(conn, candidate['id'], lightcurveData, thresholdMJD, thresholdMJDMax)
+                    lightcurveData = eliminateExistingImages(conn, candidate['id'], lightcurveData, existingImages)
 
+            # 2026-01-06 KWS Belt and braces approach. CUT any images outside the MJD thresholds. 
             if lightcurveData:
                 #for row in lightcurveData:
-                #    print row
-                imageRequestData += lightcurveData
+                #    print (row)
+                if thresholdMJD > thresholdMJDMax:
+                    # swap them round
+                    minMJD = thresholdMJDMax
+                    maxMJD = thresholdMJD
+                    thresholdMJD = minMJD
+                    thresholdMJDMax = maxMJD
 
+                for row in lightcurveData:
+                    if row['mjd'] > thresholdMJD and row['mjd'] < thresholdMJDMax:
+                        imageRequestData.append(row)
+                #imageRequestData += lightcurveData
+
+        print("Min MJD =", thresholdMJD)
+        print("Max MJD =", thresholdMJDMax)
         print("Number of PS Images to Request: %d" % len(imageRequestData))
 
         currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
