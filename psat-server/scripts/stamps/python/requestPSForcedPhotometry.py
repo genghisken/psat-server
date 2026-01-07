@@ -2,7 +2,7 @@
 """Request Pan-STARRS forced photometry
 
 Usage:
-  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--difftype=<difftype>] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--rbthreshold=<rbthreshold>] [--camera=<camera>] [--coords=<coords>]
+  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overlapdays=<overlapdays>] [--overrideflags] [--difftype=<difftype>] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--rbthreshold=<rbthreshold>] [--camera=<camera>] [--coords=<coords>] [--nprocesses=<nprocesses>] [--loglocation=<loglocation>] [--logprefix=<logprefix>]
   %s (-h | --help)
   %s --version
 
@@ -16,6 +16,7 @@ Options:
   --limitdays=<limitdays>             Number of days before which we will not request forced photometry [default: 100]
   --limitdaysafter=<limitdaysafter>   Number of days after which we will not request images [default: 0]
   --usefirstdetection                 Use the first detection from which to count date threshold
+  --overlapdays=<overlapdays>         Go back this number of days before the max of what is already in the forced phot table [default: 0]
   --overrideflags                     Ignore processing flags when requesting object data. Dangerous!
   --difftype=<difftype>               Diff type [default: WSdiff]
   --requestprefix=<requestprefix>     Detectability request prefix [default: qub_det_request]
@@ -23,6 +24,10 @@ Options:
   --rbthreshold=<rbthreshold>         Only request forced photometry if RB factor above a specified threshold (only applies to lists).
   --camera=<camera>                   Pan-STARRS camera [default: gpc1]
   --coords=<coords>                   Coordinates to use to override the coordinates of the specified object. Comma separated, no spaces.
+  --nprocesses=<nprocesses>           Number of processes to use [default: 4]
+  --loglocation=<loglocation>         Log file location [default: /tmp/]
+  --logprefix=<logprefix>             Log prefix [default: forced_phot_requester]
+
 
 Example:
   python %s ../../../../config/config.yaml 1124922100042044700 --requestprefix=yse_det_request --test
@@ -96,7 +101,7 @@ def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, s
  
         fileWritten = False
         for candidate in candidateSubList:
-            fileWritten = writeDetectabilityFITSRequest(conn, requestFileName, requestName, candidateSubList, diffType = options.difftype, limitDays = limitDays, limitDaysAfter = limitDaysAfter, camera = options.camera, coords = coords)
+            fileWritten = writeDetectabilityFITSRequest(conn, requestFileName, requestName, candidateSubList, diffType = options.difftype, limitDays = limitDays, limitDaysAfter = limitDaysAfter, camera = options.camera, coords = coords, overlapDays = abs(float(options.overlapdays)))
  
         time.sleep(1)
  
@@ -118,6 +123,35 @@ def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, s
 
         # Sleep for 1 second.  This should ensure that all request IDs (which are time based) are unique
         time.sleep(1)
+
+
+def workerFPRequester(num, db, listFragment, dateAndTime, firstPass, miscParameters):
+    """thread worker function"""
+    # Redefine the output to be a log file.
+    options = miscParameters[0]
+    objectsPerIteration = miscParameters[1]
+    stampuser = miscParameters[2]
+    stamppass = miscParameters[3]
+    email = miscParameters[4]
+    requestHome = miscParameters[5]
+    uploadURL = miscParameters[6]
+
+    sys.stdout = open('%s%s_%s_%d.log' % (options.loglocation, options.logprefix, dateAndTime, num), "w")
+    conn = dbConnect(db[3], db[0], db[1], db[2])
+    # 2023-03-13 KWS MySQLdb disables autocommit by default. Switch it on globally.
+    conn.autocommit(True)
+
+    # Call the postage stamp requester
+    objectsForUpdate = requestForcedPhotometry(conn, options, listFragment, objectsPerIteration, stampuser, stamppass, email, requestHome = requestHome, uploadURL = uploadURL, n = num)
+
+    #q.put(objectsForUpdate)
+
+    print("Process complete.")
+    conn.close()
+    print("DB Connection Closed - exiting")
+    return 0
+
+
 
  
 def main(argv = None):
@@ -191,7 +225,21 @@ def main(argv = None):
     if len(candidateList) > MAX_NUMBER_OF_OBJECTS:
         sys.exit("Maximum request size is for images for %d candidates. Attempted to make %d requests.  Aborting..." % (MAX_NUMBER_OF_OBJECTS, len(candidateList)))
 
-    requestForcedPhotometry(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, email, requestHome = requestHome, uploadURL = uploadURL)
+    if int(options.nprocesses) == 1 or len(candidateList) == 1 or options.test:
+        requestForcedPhotometry(conn, options, candidateList, OBJECTS_PER_ITERATION, stampuser, stamppass, email, requestHome = requestHome, uploadURL = uploadURL)
+
+    else:
+        # Do some multiprocessing.
+        print("Requesting forced photometry...")
+
+        if len(candidateList) > 1:
+            nProcessors, listChunks = splitList(candidateList, bins = nprocesses)
+
+            print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
+            parallelProcess(db, dateAndTime, nProcessors, listChunks, workerFPRequester, miscParameters = [options, OBJECTS_PER_ITERATION, stampuser, stamppass, email, requestHome, uploadURL], drainQueues = False)
+            print("%s Done Parallel Processing" % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
+
+
 
     conn.commit()
     conn.close()
