@@ -75,7 +75,7 @@ def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = N
         cursor.close ()
 
     except MySQLdb.Error as e:
-        print("Error %d: %s" % (e.args[0], e.args[1]))
+        print(str(e))
         sys.exit (1)
 
     return resultSet
@@ -128,7 +128,7 @@ def getAtlasObjectsByCustomList(conn, listId = 4):
         cursor.close ()
 
     except MySQLdb.Error as e:
-        print("Error %d: %s" % (e.args[0], e.args[1]))
+        print(str(e))
         sys.exit (1)
 
     return resultSet
@@ -189,7 +189,7 @@ def getPanSTARRSObjects(conn, listId = 4, dateThreshold = '2013-06-01', objectId
         cursor.close ()
 
     except MySQLdb.Error as e:
-        print("Error %d: %s" % (e.args[0], e.args[1]))
+        print(str(e))
         sys.exit (1)
 
     return resultSet
@@ -361,6 +361,218 @@ def insertTransientObjectComment(conn, objectId, comment):
 
     cursor.close ()
     return conn.insert_id()
+
+
+def getAtlasObjectInfo(conn, objectId):
+    """
+    Get all object occurrences.
+    """
+
+    try:
+        cursor = conn.cursor (MySQLdb.cursors.DictCursor)
+
+        cursor.execute ("""
+            SELECT d.ra RA,
+                   d.dec 'DEC',
+                   d.atlas_object_id,
+                   m.filter Filter,
+                   m.mjd_obs MJD,
+                   m.filename Filename,
+                   m.object field,
+                   d.tphot_id,
+                   d.mag,
+                   d.dm,
+                   m.exptime,
+                   m.mag5sig,
+                   d.id,
+                   d.htm16ID
+            FROM atlas_diff_detections d, atlas_metadata m
+            where d.atlas_object_id=%s
+            and d.atlas_metadata_id = m.id
+            ORDER by MJD
+        """, (objectId,))
+        resultSet = cursor.fetchall ()
+
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print(str(e))
+        sys.exit (1)
+
+    return resultSet
+
+
+# 2017-06-19 KWS Get object info as defined in DDC files.
+# 2017-10-03 KWS Only pick up POSITIVE FLUX (det != 5).
+# 2018-03-19 KWS Apparently, det != 5 is not quite enough to exclude negative flux!
+# 2018-05-03 KWS Include an option to pick up the negative flux detections (e.g.
+#                for calculating average RA and Dec). This will also get all the
+#                deprecated detections.
+def getAtlasObjectInfoddc(conn, objectId, negativeFlux = False):
+    """
+    Get all object occurrences.
+    """
+
+    try:
+        cursor = conn.cursor (MySQLdb.cursors.DictCursor)
+
+        if negativeFlux:
+            cursor.execute ("""
+                SELECT d.ra RA,
+                       d.dec 'DEC',
+                       d.atlas_object_id,
+                       m.filt Filter,
+                       m.mjd MJD,
+                       m.filename Filename,
+                       m.obj field,
+                       d.mag,
+                       d.dmag dm,
+                       m.texp exptime,
+                       m.obs expname,
+                       m.mag5sig,
+                       d.det_id,
+                       d.pmv,
+                       d.pvr,
+                       d.ptr,
+                       d.pkn,
+                       d.det,
+                       d.dup,
+                       d.id,
+                       d.x,
+                       d.y,
+                       d.htm16ID
+                FROM atlas_detectionsddc d, atlas_metadataddc m
+                where d.atlas_object_id=%s
+                and d.atlas_metadata_id = m.id
+                ORDER by MJD
+          """, (objectId,))
+        else:
+            cursor.execute ("""
+                SELECT d.ra RA,
+                       d.dec 'DEC',
+                       d.atlas_object_id,
+                       m.filt Filter,
+                       m.mjd MJD,
+                       m.filename Filename,
+                       m.obj field,
+                       d.mag,
+                       d.dmag dm,
+                       m.texp exptime,
+                       m.obs expname,
+                       m.mag5sig,
+                       d.det_id,
+                       d.pmv,
+                       d.pvr,
+                       d.ptr,
+                       d.pkn,
+                       d.det,
+                       d.dup,
+                       d.id,
+                       d.x,
+                       d.y,
+                       d.htm16ID
+                FROM atlas_detectionsddc d, atlas_metadataddc m
+                where d.atlas_object_id=%s
+                and d.atlas_metadata_id = m.id
+                and d.det != 5
+                and d.mag > 0.0
+                and (d.deprecated != 1 or d.deprecated is null)
+                ORDER by MJD
+            """, (objectId,))
+        resultSet = cursor.fetchall ()
+
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print(str(e))
+        sys.exit (1)
+
+
+    return resultSet
+
+
+def getPSObjectInfo(conn, objectId):
+    """
+    Get all object occurrences. Grab the quality data as well so we can make a subsequent
+    decision to reject the recurrence if necessary.
+    """
+
+    try:
+        cursor = conn.cursor (MySQLdb.cursors.DictCursor)
+
+        # Note that DEC is a MySQL reserved word, so need quotes around it
+
+        # 2011-10-12 KWS Addded imageid to order by clause to make sure that the results
+        #                are ordered consistently
+        # 2013-08-26 KWS Addded flags so we can check for ghosts
+        # 2021-10-02 KWS Addded flags2 so we can check for ghosts & crosstalk
+        cursor.execute ("""
+              SELECT d.ra_psf RA,
+                     d.dec_psf 'DEC',
+                     m.imageid,
+                     substr(m.fpa_filter,1,1) Filter,
+                     m.mjd_obs MJD,
+                     m.filename Filename,
+                     d.cal_psf_mag,
+                     d.psf_inst_mag,
+                     d.psf_inst_mag_sig,
+                     d.ap_mag,
+                     d.moments_xy,
+                     d.flags,
+                     d.flags2,
+                     m.zero_pt,
+                     m.exptime,
+                     m.skycell,
+                     m.tessellation field
+              FROM tcs_transient_objects d, tcs_cmf_metadata m
+              where d.id=%s
+              and d.tcs_cmf_metadata_id = m.id
+              UNION ALL
+              SELECT d.ra_psf RA,
+                     d.dec_psf 'DEC',
+                     m.imageid,
+                     substr(m.fpa_filter,1,1) Filter,
+                     m.mjd_obs MJD,
+                     m.filename Filename,
+                     d.cal_psf_mag,
+                     d.psf_inst_mag,
+                     d.psf_inst_mag_sig,
+                     d.ap_mag,
+                     d.moments_xy,
+                     d.flags,
+                     d.flags2,
+                     m.zero_pt,
+                     m.exptime,
+                     m.skycell,
+                     m.tessellation field
+              FROM tcs_transient_reobservations d, tcs_cmf_metadata m
+              where d.transient_object_id=%s
+              and d.tcs_cmf_metadata_id = m.id
+              ORDER by MJD, imageid
+        """, (objectId, objectId))
+        result_set = cursor.fetchall ()
+
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print(str(e))
+        sys.exit (1)
+
+
+    return result_set
+
+
+def getObjectInfo(conn, objectId, survey='atlas', ddc=True):
+    objectInfo = None
+    if survey == 'atlas':
+        if ddc:
+            objectInfo = getAtlasObjectInfoddc(conn, objectId)
+        else:
+            objectInfo = getAtlasObjectInfo(conn, objectId)
+    elif survey == 'panstarrs':
+        objectInfo = getPSObjectInfo(conn, objectId)
+    return objectInfo
+
 
 
 # 2013-10-11 KWS Rehash of LC detections query based on the Non-detections query below.

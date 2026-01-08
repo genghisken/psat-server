@@ -47,6 +47,7 @@ OK                 = 0
 PAGE_NOT_FOUND     = 1
 BAD_SERVER_ADDRESS = 2
 HTTP_ERROR         = 3
+SOCKET_TIMEOUT     = 4
 
 # Locally defined error codes for image download
 ERROR_FILE_NOT_IN_DATASTORE_INDEX = -1

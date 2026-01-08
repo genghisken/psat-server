@@ -54,7 +54,7 @@ def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, s
     if options.rbthreshold:
         rbThreshold = float(options.rbthreshold)
         for candidate in candidateList:
-            if candidate['rb_factor'] >= rbThreshold:
+            if candidate['rb_factor'] is not None and candidate['rb_factor'] >= rbThreshold:
                 candidateListFiltered.append(candidate)
         candidateList = candidateListFiltered
 
