@@ -126,7 +126,7 @@ def main(argv = None):
         except:
             dateThreshold = '2013-06-01'
 
-    elif options.candidate or options.list or options.customList:
+    if options.candidate or options.list or options.customList:
         # pull from DB into a list of dicts
         if options.survey == 'atlas':
             candidateList = getATLASCandidates(conn, options, processingFlags = PROCESSING_FLAGS['moons'])

@@ -84,7 +84,7 @@ def moonMatcher(conn, connCatalogues, options, candidateList, detectionOffset = 
                         break
                     counter += 1
             elif options.survey == 'panstarrs':
-                if det['psf_inst_mag'] is None or det['psf_inst_mag_sig'] is None or det['cal_psf_mag'] is None:
+                if det['psf_inst_mag'] is not None and det['psf_inst_mag_sig'] is not None and det['cal_psf_mag'] is not None:
                     if counter == detectionOffset:
                         detectionToUse = det
                         break
@@ -124,7 +124,7 @@ def updateObjects(conn, options, objectsForUpdate):
 
             commentRowsUpdated = insertTransientObjectComment(conn, candidate['id'], comment)
         else:
-            rowsChecked = updateTransientObservationAndProcessingStatus(conn, candidate['id'], processingFlag = PROCESSING_FLAGS['pmcheck'], survey = options.survey)
+            rowsChecked = updateTransientObservationAndProcessingStatus(conn, candidate['id'], processingFlag = PROCESSING_FLAGS['moons'], survey = options.survey)
 
     return
 
@@ -177,16 +177,13 @@ def main(argv = None):
         except:
             dateThreshold = '2013-06-01'
 
-    elif options.candidate or options.list or options.customList:
+    if options.candidate or options.list or options.customList:
         # pull from DB into a list of dicts
         if options.survey == 'atlas':
             candidateList = getATLASCandidates(conn, options, processingFlags = PROCESSING_FLAGS['moons'])
         elif options.survey == 'panstarrs':
             candidateList = getPanSTARRSCandidates(conn, options, processingFlags = PROCESSING_FLAGS['moons'])
 
-
-    # ALWAYS run recentre first - THEN run merge.  After recentering - if the recentred object is very close
-    # to a neighbour, we can merge the two.
 
     offset = 0
     if int(options.detectionOffset) > 0:
