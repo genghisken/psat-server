@@ -36,7 +36,7 @@ import sys
 __doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import os, MySQLdb, shutil, re, datetime, time
-from gkutils.commonutils import find, Struct, cleanOptions, getCurrentMJD, readGenericDataFile, dbConnect, coords_sex_to_dec, PROCESSING_FLAGS
+from gkutils.commonutils import find, Struct, cleanOptions, getCurrentMJD, readGenericDataFile, dbConnect, coords_sex_to_dec, PROCESSING_FLAGS, splitList, parallelProcess
 from pstamp_utils import getObjectsByList, writeDetectabilityFITSRequest, addRequestToDatabase, sendPSRequest, updateRequestStatus, DETECTABILITY_REQUEST, SUBMITTED
 import random
 
@@ -175,6 +175,12 @@ def main(argv = None):
     database = config['databases']['local']['database']
     hostname = config['databases']['local']['hostname']
 
+    db = []
+    db.append(username)
+    db.append(password)
+    db.append(database)
+    db.append(hostname)
+
     uploadURL = config['postage_stamp_parameters']['uploadurl']
 
     stampuser = config['web_credentials']['stampserver']['username']
@@ -199,6 +205,10 @@ def main(argv = None):
 
     MAX_NUMBER_OF_OBJECTS = int(config['postage_stamp_parameters']['max_number_of_objects'])
     OBJECTS_PER_ITERATION = int(config['postage_stamp_parameters']['fp_objects_per_iteration'])
+
+    currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
+    (year, month, day, hour, min, sec) = currentDate.split(':')
+    dateAndTime = "%s%s%s_%s%s%s" % (year, month, day, hour, min, sec)
 
     # If the list isn't specified assume it's the Eyeball List.
     if options.listid is not None:
@@ -233,7 +243,7 @@ def main(argv = None):
         print("Requesting forced photometry...")
 
         if len(candidateList) > 1:
-            nProcessors, listChunks = splitList(candidateList, bins = nprocesses)
+            nProcessors, listChunks = splitList(candidateList, bins = int(options.nprocesses))
 
             print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
             parallelProcess(db, dateAndTime, nProcessors, listChunks, workerFPRequester, miscParameters = [options, OBJECTS_PER_ITERATION, stampuser, stamppass, email, requestHome, uploadURL], drainQueues = False)
