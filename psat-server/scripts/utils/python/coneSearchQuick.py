@@ -2,7 +2,7 @@
 """Quick cone search.
 
 Usage:
-  %s <configfile> <coords> [--table=<table>] [--radius=<radius>]
+  %s <configfile> <coords> [--table=<table>] [--columns=<columns>] [--radius=<radius>]
   %s (-h | --help)
   %s --version
 
@@ -10,6 +10,7 @@ Options:
   -h --help                  Show this screen.
   --version                  Show version.
   --table=<table>            Table to search [default: tcs_cat_ps_tessellation]
+  --columns=<columns>        Column attributes to return, comma separated, no spaces [default: skycell]
   --radius=<radius>          Search radius (arcsec) [default: 1]
 
 E.g.:
@@ -45,7 +46,8 @@ def crossmatch(conn, options):
             match = {}
             separation = row[0]
             match['separation'] = separation
-            match['skycell'] = row[1]['skycell']
+            for c in options.columns.split(','):
+                match[c] = row[1][c]
             skycells.append(match)
 
     return skycells
@@ -77,8 +79,8 @@ def main():
     conn = dbConnect(hostname, username, password, database)
 
 
-    skycells = crossmatch(conn, options)
-    for row in skycells:
+    matches = crossmatch(conn, options)
+    for row in matches:
         print(row)
 
     conn.close()
