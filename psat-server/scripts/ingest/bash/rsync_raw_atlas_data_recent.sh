@@ -55,16 +55,16 @@ MJDNDAYSAGO=$(($MJDTODAY-$NDAYS-1))
 # 2018-09-11 KWS Use -K option - which forces rsync to follow symlinks on local media.
 #                Implemented so that we can rsync from Hawaii to archived data area.
 # 2018-09-05 KWS Use minimum encryption for efficiency.
-LOCKFILE=$LOCKFILE_LOCATION/atlas_raw_rsync_lock_recent_$CAMERA
+export LOCKFILE=$LOCKFILE_LOCATION/atlas_raw_rsync_lock_recent_$CAMERA
 if [ ! -f $LOCKFILE ]
 then
   echo "Rsync started: `date +%Y%m%d_%H%M%S`" > $LOCKFILE
   for ((i=MJDNDAYSAGO;i<=MJDTODAY;i++)); do
+    # Make the CMD variable an array since timeout will split the command and produce a syntax error
+    export CMD=(/usr/bin/rsync -avkKL -e 'ssh -c aes128-ctr -o Compression=no' --exclude=\".*\" "$REMOTE_USER@$REMOTE_SERVER:/atlas/obs/$CAMERA/$i" "$DESTINATION_ROOT/atlas/obs/$CAMERA")
 
-    export CMD="/usr/bin/rsync -avkKL -e \"ssh -c aes128-ctr -o Compression=no\" --exclude=\".*\" $REMOTE_USER@$REMOTE_SERVER:/atlas/obs/$CAMERA/$i /mnt/autofs/mcclayrds-nobackup/ad00018/atlas/obs/$CAMERA"
-    timeout $TIMEOUT $CMD
+    timeout "$TIMEOUT" "${CMD[@]}"
   done
-  sleep 30
   rm -f $LOCKFILE
 else
   echo "Rsync already running. Remove lockfile to start a new download."
