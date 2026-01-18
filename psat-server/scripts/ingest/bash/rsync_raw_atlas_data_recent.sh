@@ -28,7 +28,7 @@ export NDAYS=$2
 export LOCKFILE_LOCATION=$3
 
 # 2024-08-21 KWS Introduced a timeout for the rsync command. It will self destruct after TIMEOUT seconds
-export TIMEOUT=1200
+#export TIMEOUT=1200
 
 # We know the following MJDs are bad.
 #export SKIPMJDS=57656,57657
@@ -63,7 +63,10 @@ then
     # Make the CMD variable an array since timeout will split the command and produce a syntax error
     export CMD=(/usr/bin/rsync -avkKL -e 'ssh -c aes128-ctr -o Compression=no' --exclude=\".*\" "$REMOTE_USER@$REMOTE_SERVER:/atlas/obs/$CAMERA/$i" "$DESTINATION_ROOT/atlas/obs/$CAMERA")
 
-    timeout "$TIMEOUT" "${CMD[@]}"
+#    timeout "$TIMEOUT" "${CMD[@]}"
+    echo "*****" `date +%Y-%m-%d\ %H:%M:%S` "***** Copying MJD ${i}"
+    "${CMD[@]}"
+    echo "*************************************************"
   done
   rm -f $LOCKFILE
 else
