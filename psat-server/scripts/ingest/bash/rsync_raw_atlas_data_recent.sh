@@ -72,3 +72,4 @@ then
 else
   echo "Rsync already running. Remove lockfile to start a new download."
 fi
+
