@@ -351,8 +351,10 @@ def producePESSTOCSV(conn, options, delimiter, customList, listId = 3, summaryCS
    # 2014-12-09 KWS I've reset the date threshold to be 1st December, when the survey restarted.
    dateThreshold = '2014-12-01'
 
-   #objectList = getSummaryData(conn, dateThreshold, customList = customList)
-   objectList = getAllSummaryDataForGoodAndConfirmedObjects(conn)
+   if customList:
+       objectList = getSummaryData(conn, dateThreshold, customList = customList)
+   else:
+       objectList = getAllSummaryDataForGoodAndConfirmedObjects(conn)
 
    summaryCSVFile = open(summaryCSVFilename, 'w')
 
@@ -552,8 +554,10 @@ def main():
     summaryCSVFilename = '/' + hostname + '/images/' + database + '/lightcurves/' + options.summaryfile
     recurrenceCSVFilename = '/' + hostname + '/images/' + database + '/lightcurves/' + options.recfile
 
-    produceGenericCSV(conn, options, delimiter, detectionLists = detectionLists, summaryCSVFilename = summaryCSVFilename, recurrenceCSVFilename = recurrenceCSVFilename, queryType = EXCLUDE_AGNS)
-    #producePESSTOCSV(conn, options, hostname, database, delimiter, customList, summaryCSVFilename = summaryCSVFilename, recurrenceCSVFilename = recurrenceCSVFilename)
+    if customList:
+        producePESSTOCSV(conn, options, delimiter, customList, summaryCSVFilename = summaryCSVFilename, recurrenceCSVFilename = recurrenceCSVFilename)
+    else:
+        produceGenericCSV(conn, options, delimiter, detectionLists = detectionLists, summaryCSVFilename = summaryCSVFilename, recurrenceCSVFilename = recurrenceCSVFilename, queryType = EXCLUDE_AGNS)
 
     if options.writeAGNs:
         summaryCSVFilename = '/' + hostname + '/images/' + database + '/lightcurves/' + options.agnsummaryfile

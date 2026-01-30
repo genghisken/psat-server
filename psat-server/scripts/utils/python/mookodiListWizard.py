@@ -26,7 +26,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        #logging.FileHandler("atlas_debug.log"),
+#        logging.FileHandler("atlas_debug.log"),
         logging.StreamHandler()
     ]
 )
@@ -62,53 +62,63 @@ def remove_single_atlas_id(atlas_id: int, list_name: str, api_config_file: str =
 try:
     logging.info("Fetching custom list (objectgroupid=16)...")
     mokoodi = ac.RequestCustomListsTable({'objectgroupid': 16}, get_response=True)
-    mokoodi_list_df = pd.DataFrame(mokoodi.response_data).drop('object_group_id', axis=1)
-    atlas_ids = mokoodi_list_df.transient_object_id.values.astype(str)
-    logging.info(f"Fetched {len(atlas_ids)} entries from custom list.")
+    try:
+        mokoodi_list_df = pd.DataFrame(mokoodi.response_data).drop('object_group_id', axis=1)
+        atlas_ids = mokoodi_list_df.transient_object_id.values.astype(str)
+        logging.info(f"Fetched {len(atlas_ids)} entries from custom list.")
+    except KeyError as e:
+        atlas_ids
+        logging.info("Live Mookodi list is empty - carry on")
 except Exception as e:
     logging.exception("Failed to fetch Mokoodi list.")
     raise
 
-try:
-    logging.info("Requesting source data in chunks...")
-    multi_data = ac.RequestMultipleSourceData(
-        array_ids=np.array(atlas_ids),
-        mjdthreshold=60_500,
-        chunk_size=25  # or 50, or whatever works
-    )
-    multi_data.chunk_get_response_quiet()
-    logging.info(f"Received data for {len(multi_data.response_data)} sources.")
-except Exception as e:
-    logging.exception("Error fetching multiple source data.")
-    raise
-    
-to_remove = []
-
-for entry in multi_data.response_data:
+if atlas_ids is not None:
     try:
-        atlas_id = entry['object']['id']
-        classification = entry['object'].get('observation_status')
-
-        logging.debug(f"ATLAS ID {atlas_id} -> classification: {classification}" )
-                      
-        if classification is not None:
-            to_remove.append(atlas_id)
-
+        logging.info("Requesting source data in chunks...")
+        multi_data = ac.RequestMultipleSourceData(
+            array_ids=np.array(atlas_ids),
+            mjdthreshold=60_500,
+            chunk_size=25  # or 50, or whatever works
+        )
+        multi_data.chunk_get_response_quiet()
+        logging.info(f"Received data for {len(multi_data.response_data)} sources.")
     except Exception as e:
-        logging.exception(f"Error processing source data entry.")
-                      
-for atlas_id in to_remove:
-    remove_single_atlas_id(atlas_id, list_name='mookodi_live')
-
+        logging.exception("Error fetching multiple source data.")
+        raise
+        
+    to_remove = []
+    
+    for entry in multi_data.response_data:
+        try:
+            atlas_id = entry['object']['id']
+            classification = entry['object'].get('observation_status')
+    
+            logging.debug(f"ATLAS ID {atlas_id} -> classification: {classification}" )
+                          
+            if classification is not None:
+                to_remove.append(atlas_id)
+    
+        except Exception as e:
+            logging.exception(f"Error processing source data entry.")
+                          
+    for atlas_id in to_remove:
+        remove_single_atlas_id(atlas_id, list_name='mookodi_live')
+    
 # #########################################################
 
 # Step 1: Fetch list of ATLAS IDs In the old Mookodi list
 try:
     logging.info("Fetching custom list (objectgroupid=2)...")
     mokoodi = ac.RequestCustomListsTable({'objectgroupid': 2}, get_response=True)
-    mokoodi_list_df = pd.DataFrame(mokoodi.response_data).drop('object_group_id', axis=1)
-    atlas_ids = mokoodi_list_df.transient_object_id.values.astype(str)
-    logging.info(f"Fetched {len(atlas_ids)} entries from custom list.")
+    try: 
+        mokoodi_list_df = pd.DataFrame(mokoodi.response_data).drop('object_group_id', axis=1)
+        atlas_ids = mokoodi_list_df.transient_object_id.values.astype(str)
+        logging.info(f"Fetched {len(atlas_ids)} entries from custom list.")
+    except KeyError as e:
+        atlas_ids = None
+        logging.info("Old Mookodi list is empty - nothing to see here - exiting")
+        exit()
 except Exception as e:
     logging.exception("Failed to fetch Mokoodi list.")
     raise
@@ -165,3 +175,6 @@ for atlas_id in good_targets:
 # REMOVE BAD TARGETS FROM OLD LIST
 for atlas_id in to_remove:
     remove_single_atlas_id(atlas_id, list_name='mookodi')
+    
+
+        
