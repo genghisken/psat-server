@@ -97,6 +97,7 @@ def moonMatcher(conn, connCatalogues, options, candidateList, detectionOffset = 
         message, results = coneSearchHTM(detectionToUse['RA'], detectionToUse['DEC'], matchRadius, 'tcs_cat_satellites', queryType = FULL, conn = connCatalogues)
         if results and len(results) >= 1:
             # We have more than one object.  No we need to merge anything. Can exit now.
+
             for row in results:
                 if detectionToUse['MJD'] > row[1]['mjd'] - matchTimeDelta and detectionToUse['MJD'] < row[1]['mjd'] + matchTimeDelta:
                     moon = row[1]['name']
@@ -104,6 +105,7 @@ def moonMatcher(conn, connCatalogues, options, candidateList, detectionOffset = 
                     xmResult['moon'] = moon
                     xmResult['separation'] = separation
                     xmResult['matchTime'] = row[1]['mjd']
+                    print("MOONS: %s (%.2f arcsec)" % (moon, separation))
                     break
 
         objectsForUpdate.append(xmResult)
