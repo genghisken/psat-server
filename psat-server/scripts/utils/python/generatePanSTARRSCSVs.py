@@ -89,7 +89,7 @@ def getSummaryData(conn, dateThreshold, customList = 2):
       cursor = conn.cursor (MySQLdb.cursors.DictCursor)
 
       cursor.execute ('''
-          select o.id, o.ra_psf, o.dec_psf, o.psf_inst_mag_sig, o.cal_psf_mag, substr(m.fpa_filter,1,1) filter, o.local_designation, o.ps1_designation, o.followup_flag_date, o.object_classification
+          select o.id, o.ra_psf, o.dec_psf, o.psf_inst_mag_sig, o.cal_psf_mag, substr(m.fpa_filter,1,1) filter, o.local_designation, o.ps1_designation, o.other_designation as tns_name, o.followup_flag_date, o.object_classification
             from tcs_transient_objects o, tcs_cmf_metadata m, tcs_object_groups og
            where o.tcs_cmf_metadata_id = m.id
              and o.id = og.transient_object_id
@@ -123,7 +123,7 @@ def getAllSummaryDataForGoodAndConfirmedObjects(conn, dateThreshold = '2013-06-0
       cursor = conn.cursor (MySQLdb.cursors.DictCursor)
 
       cursor.execute ('''
-          select o.id, o.ra_psf, o.dec_psf, o.psf_inst_mag_sig, o.cal_psf_mag, substr(m.fpa_filter,1,1) filter, o.local_designation, o.ps1_designation, o.followup_flag_date, o.object_classification
+          select o.id, o.ra_psf, o.dec_psf, o.psf_inst_mag_sig, o.cal_psf_mag, substr(m.fpa_filter,1,1) filter, o.local_designation, o.ps1_designation, o.other_designation as tns_name, o.followup_flag_date, o.object_classification
             from tcs_transient_objects o, tcs_cmf_metadata m
            where o.tcs_cmf_metadata_id = m.id
              and (o.detection_list_id = 1 or o.detection_list_id = 2)

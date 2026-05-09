@@ -2548,6 +2548,8 @@ def getDetectabilityInfo2(conn, candidate, limitDays = 100, limitDaysAfter = 0, 
         limitDays:
         limitDaysAfter:
         useFirstDetection:
+        fpType:
+        overlapDays:
     """
 
     import json
@@ -3930,7 +3932,7 @@ def writeFITSPostageStampRequestBySkycell(conn, gpc1Conn, outfile, requestName, 
 # 2025-12-19 KWS Introduced overlapDays - subtract this value from the max MJD
 #                so that we can force an overlap request (and don't have to delete
 #                existing photometry.
-def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, diffType = 'WSdiff', email = 'qub2@qub.ac.uk', camera = 'gpc1', limitDays = 100, limitDaysAfter = 0, coords = [], overlapDays = 0):
+def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, inputType = 'WSdiff', email = 'qub2@qub.ac.uk', camera = 'gpc1', limitDays = 100, limitDaysAfter = 0, coords = [], overlapDays = 0):
    """writeDetectabilityFITSRequest.
 
    Args:
@@ -3938,7 +3940,7 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
        outfile:
        requestName:
        candidateList:
-       diffType:
+       inputType:
        email:
        camera:
        limitDays:
@@ -3975,9 +3977,9 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
    row = 1
 
    fpType = 0
-   if diffType == 'warp':
+   if inputType == 'warp':
       fpType = 1
-   elif diffType == 'stack':
+   elif inputType == 'stack':
       fpType = 2
 
    for candidate in candidateList:
@@ -4000,8 +4002,21 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
       # 2012-09-21 KWS Discovered that PyFITS3 doesn't allow implicit creation of
       #                double arrays from integer lists.  Need to cast integers
       #                as floats.
+      previous_fpa_id = 0
       for result in detectabilityResultSet:
          #rownum.append(str(candidate)) # Detectability rows are ASCII values
+
+         if inputType == 'warp' or inputType == 'stack':
+             current_fpa_id = int(result["target"])
+         else:
+             current_fpa_id = int(result["diff"])
+         # 2026-05-09 KWS Skip over any duplicates. Duplicates can happen if the object is
+         #                re-diffed against a new template.
+         if current_fpa_id == previous_fpa_id:
+             continue
+
+         fpa_id.append(current_fpa_id)
+
          rownum.append("%s_%05d" % (base26(candidate['id']), row))
          try:
              project.append(result["pscamera"].lower())
@@ -4014,11 +4029,8 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
          dec2_deg.append(dec)
          mjd_obs.append(float(int(result["mjd"])))
          filter.append(result["filter"])
-         if diffType == 'warp' or diffType == 'stack':
-             fpa_id.append(int(result["target"]))
-         else:
-             fpa_id.append(int(result["diff"]))
          row = row + 1
+         previous_fpa_id = current_fpa_id
 
    # Create the FITS columns.
    if row == 1:
@@ -4046,7 +4058,7 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
    exthdr.set('QUERY_ID',requestName,'MOPS Query ID for this batch query')
    exthdr.set('EXTVER','2','Extension version')
    exthdr.set('OBSCODE','566','site identifier (MPC observatory code)')
-   exthdr.set('STAGE',diffType,'processing stage to examine')
+   exthdr.set('STAGE',inputType,'processing stage to examine')
    exthdr.set('EMAIL',email,'Email address of submitter')
    hdulist.writeto(outfile, overwrite=True)
 
@@ -4056,7 +4068,7 @@ def writeDetectabilityFITSRequest(conn, outfile, requestName, candidateList, dif
 
 
 
-def writeDetectabilityManualFITSRequest(outfile, requestName, ra, dec, epochRows, diffType = 'SSdiff', email = 'qub2@qub.ac.uk'):
+def writeDetectabilityManualFITSRequest(outfile, requestName, ra, dec, epochRows, inputType = 'SSdiff', email = 'qub2@qub.ac.uk'):
    """writeDetectabilityManualFITSRequest.
 
    Args:
@@ -4065,7 +4077,7 @@ def writeDetectabilityManualFITSRequest(outfile, requestName, ra, dec, epochRows
        ra:
        dec:
        epochRows:
-       diffType:
+       inputType:
        email:
    """
 
@@ -4131,7 +4143,7 @@ def writeDetectabilityManualFITSRequest(outfile, requestName, ra, dec, epochRows
    exthdr.set('QUERY_ID',requestName,'MOPS Query ID for this batch query')
    exthdr.set('EXTVER','2','Extension version')
    exthdr.set('OBSCODE','566','site identifier (MPC observatory code)')
-   exthdr.set('STAGE',diffType,'processing stage to examine')
+   exthdr.set('STAGE',inputType,'processing stage to examine')
    exthdr.set('EMAIL',email,'Email address of submitter')
    hdulist.writeto(outfile, overwrite=True)
 
@@ -4146,7 +4158,7 @@ def writeDetectabilityManualFITSRequest(outfile, requestName, ra, dec, epochRows
 #                the detection and non-detection lightcurve data. If not available (e.g.
 #                there isn't a detection at that point) then inject the exposures manually.
 #                Dave's code can grab the required exposure CMF data.
-def writeDetectabilityFITSRequestByExpName(conn, outfile, requestName, candidateList, diffType = 'WSdiff', email = 'qub2@qub.ac.uk'):
+def writeDetectabilityFITSRequestByExpName(conn, outfile, requestName, candidateList, inputType = 'WSdiff', email = 'qub2@qub.ac.uk'):
    """writeDetectabilityFITSRequestByExpName.
 
    Args:
@@ -4154,7 +4166,7 @@ def writeDetectabilityFITSRequestByExpName(conn, outfile, requestName, candidate
        outfile:
        requestName:
        candidateList:
-       diffType:
+       inputType:
        email:
    """
 
@@ -4226,7 +4238,7 @@ def writeDetectabilityFITSRequestByExpName(conn, outfile, requestName, candidate
    exthdr.set('QUERY_ID',requestName,'MOPS Query ID for this batch query')
    exthdr.set('EXTVER','2','Extension version')
    exthdr.set('OBSCODE','566','site identifier (MPC observatory code)')
-   exthdr.set('STAGE',diffType,'processing stage to examine')
+   exthdr.set('STAGE',inputType,'processing stage to examine')
    exthdr.set('EMAIL',email,'Email address of submitter')
    hdulist.writeto(outfile, overwrite=True)
 

@@ -2,7 +2,7 @@
 """Request Pan-STARRS forced photometry
 
 Usage:
-  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overlapdays=<overlapdays>] [--overrideflags] [--difftype=<difftype>] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--rbthreshold=<rbthreshold>] [--camera=<camera>] [--coords=<coords>] [--nprocesses=<nprocesses>] [--loglocation=<loglocation>] [--logprefix=<logprefix>]
+  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overlapdays=<overlapdays>] [--overrideflags] [--inputtype=<inputtype>] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--rbthreshold=<rbthreshold>] [--camera=<camera>] [--coords=<coords>] [--nprocesses=<nprocesses>] [--loglocation=<loglocation>] [--logprefix=<logprefix>]
   %s (-h | --help)
   %s --version
 
@@ -18,7 +18,7 @@ Options:
   --usefirstdetection                 Use the first detection from which to count date threshold
   --overlapdays=<overlapdays>         Go back this number of days before the max of what is already in the forced phot table [default: 0]
   --overrideflags                     Ignore processing flags when requesting object data. Dangerous!
-  --difftype=<difftype>               Diff type [default: WSdiff]
+  --inputtype=<inputtype>             Input type [default: WSdiff]
   --requestprefix=<requestprefix>     Detectability request prefix [default: qub_det_request]
   --requesthome=<requesthome>         Place to store the FITS request before sending
   --rbthreshold=<rbthreshold>         Only request forced photometry if RB factor above a specified threshold (only applies to lists).
@@ -101,7 +101,7 @@ def requestForcedPhotometry(conn, options, candidateList, objectsPerIteration, s
  
         fileWritten = False
         for candidate in candidateSubList:
-            fileWritten = writeDetectabilityFITSRequest(conn, requestFileName, requestName, candidateSubList, diffType = options.difftype, limitDays = limitDays, limitDaysAfter = limitDaysAfter, camera = options.camera, coords = coords, overlapDays = abs(float(options.overlapdays)))
+            fileWritten = writeDetectabilityFITSRequest(conn, requestFileName, requestName, candidateSubList, inputType = options.inputtype, limitDays = limitDays, limitDaysAfter = limitDaysAfter, camera = options.camera, coords = coords, overlapDays = abs(float(options.overlapdays)))
  
         time.sleep(1)
  
