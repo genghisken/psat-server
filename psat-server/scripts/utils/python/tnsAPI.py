@@ -9,8 +9,8 @@ import logging
 logging.basicConfig(filename='/tmp/tns.log', format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-AT_REPORT_FORM = "set/bulk-report"
-AT_REPORT_REPLY = "get/bulk-report-reply"
+AT_REPORT_FORM = "set/bulk-report/"
+AT_REPORT_REPLY = "get/bulk-report-reply/"
 TNS_ARCHIVE = {'OTHER': '0', 'SDSS': '1', 'DSS': '2'}
 
 httpErrors = {
@@ -141,6 +141,8 @@ class TNSClient(object):
         feed_parameters = self.buildParameters(data);
 
         r = requests.post(feed_url, data = feed_parameters, timeout = 300, headers = self.header)
+        print(r.status_code)
+        print(r.text)
         return self.jsonResponse(r)
 
 
@@ -204,14 +206,10 @@ def getBulkReportReply(reportId, tnsBaseURL, tnsApiKey, botId = None, botName = 
 
     if (reply and 'id_code' in list(reply.keys()) and reply['id_code'] == 200):
         try:
-            # 2025-02-12 KWS The order below matters. The received_data key is the thing
-            #                that TNS are retiring. So it needs to be second!
-            response = reply['data']['feedback']['at_report']
             request = reply['data']['received_data']['at_report']
+            response = reply['data']['feedback']['at_report']
         except ValueError as e:
             logger.error("Cannot find the response feedback payload.")
-        except KeyError as e:
-            logger.warn("Looks like one of the keys (%s) is no longer valid." % str(e))
 
     return request, response
 
@@ -259,17 +257,18 @@ def main(argv = None):
     logger.debug('EXAMPLE BULK AT REPORT')
     logger.debug(json.dumps(js, indent=4, sort_keys=True))
     response = feed_handler.sendBulkReport(js)
-    if response:
-        try:
-            report_id = response['data']['report_id']
-        except ValueError as e:
-            logger.error("Empty response. Something went wrong.  Is the API Key OK?")
-    else:
-        # We got no valid JSON back
-        logger.error("Empty response. Something went wrong.  Is the API Key OK?")
-        return 1
+#    if response:
+#        try:
+#            report_id = response['data']['report_id']
+#        except ValueError as e:
+#            logger.error("Empty response. Something went wrong.  Is the API Key OK?")
+#    else:
+#        # We got no valid JSON back
+#        logger.error("Empty response. Something went wrong.  Is the API Key OK?")
+#        return 1
 
-    report_id = response['data']['report_id']
+#    report_id = response['data']['report_id']
+    report_id = '269257'
 
     logger.info("REPORT ID = %s" % str(report_id))
 
@@ -277,6 +276,7 @@ def main(argv = None):
     while True:
         time.sleep(SLEEP_SEC)
         response = feed_handler.bulkReportReply({'report_id': str(report_id)})
+
         counter += 1
         if (response and 'id_code' in list(response.keys()) and response['id_code'] != 404) or counter >= LOOP_COUNTER:
             break
