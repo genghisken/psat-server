@@ -22,8 +22,8 @@ def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = N
         if objectId is None:
             if rbThreshold is not None:
                 cursor.execute ("""
-                    select o.id, followup_id, ifnull(ra_avg, ra) ra, ifnull(dec_avg, `dec`) `dec`, name, object_classification, detection_list_id, mjd from (
-                        select o.id, followup_id, o.ra, o.`dec`, s.ra_avg, s.dec_avg, atlas_designation 'name', object_classification, detection_list_id, m.mjd
+                    select o.id, followup_id, ifnull(ra_avg, ra) ra, ifnull(dec_avg, `dec`) `dec`, name, object_classification, detection_list_id, mjd, followup_flag_date from (
+                        select o.id, followup_id, o.ra, o.`dec`, s.ra_avg, s.dec_avg, atlas_designation 'name', object_classification, detection_list_id, m.mjd, o.followup_flag_date
                           from atlas_diff_objects o
                           join atlas_detectionsddc d
                             on o.detection_id = d.id
@@ -40,8 +40,8 @@ def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = N
                 """, (listId, dateThreshold, rbThreshold, processingFlags))
             else:
                 cursor.execute ("""
-                    select id, followup_id, ifnull(ra_avg, ra) ra, ifnull(dec_avg, `dec`) `dec`, name, object_classification, detection_list_id, mjd from (
-                        select o.id, followup_id, o.ra, o.`dec`, s.ra_avg, s.dec_avg, atlas_designation 'name', object_classification, detection_list_id, m.mjd
+                    select id, followup_id, ifnull(ra_avg, ra) ra, ifnull(dec_avg, `dec`) `dec`, name, object_classification, detection_list_id, mjd, followup_flag_date from (
+                        select o.id, followup_id, o.ra, o.`dec`, s.ra_avg, s.dec_avg, atlas_designation 'name', object_classification, detection_list_id, m.mjd, o.followup_flag_date
                           from atlas_diff_objects o
                           join atlas_detectionsddc d
                             on o.detection_id = d.id
@@ -58,8 +58,8 @@ def getAtlasObjects(conn, listId = 4, dateThreshold = '2016-01-01', objectId = N
             resultSet = cursor.fetchall ()
         else:
             cursor.execute ("""
-                select id, followup_id, ifnull(ra_avg, ra) ra, ifnull(dec_avg, `dec`) `dec`, name, object_classification, detection_list_id, mjd from (
-                    select o.id, followup_id, o.ra, o.`dec`, s.ra_avg, s.dec_avg, atlas_designation 'name', object_classification, detection_list_id, m.mjd
+                select id, followup_id, ifnull(ra_avg, ra) ra, ifnull(dec_avg, `dec`) `dec`, name, object_classification, detection_list_id, mjd, followup_flag_date from (
+                    select o.id, followup_id, o.ra, o.`dec`, s.ra_avg, s.dec_avg, atlas_designation 'name', object_classification, detection_list_id, m.mjd, o.followup_flag_date
                       from atlas_diff_objects o
                       join atlas_detectionsddc d
                         on o.detection_id = d.id
