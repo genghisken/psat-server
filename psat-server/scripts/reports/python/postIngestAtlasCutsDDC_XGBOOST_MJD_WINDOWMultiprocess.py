@@ -40,6 +40,7 @@ import queue
 # Allow random shuffling of lists.
 import random
 
+sys.path.append('../../common/python')
 
 def worker(num, db, objectListFragment, dateAndTime, firstPass, miscParameters, q):
     """thread worker function"""
