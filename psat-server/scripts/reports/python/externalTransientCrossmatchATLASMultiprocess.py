@@ -197,6 +197,8 @@ def main(argv = None):
         except:
             dateThreshold = '2016-06-01'
 
+    print("Date threshold =", dateThreshold)
+
     if len(options.candidate) > 0:
         for row in options.candidate:
             object = getAtlasObjects(conn, objectId = int(row))
@@ -205,6 +207,7 @@ def main(argv = None):
 
     elif options.customlist is not None:
         candidateList = getAtlasObjectsByCustomList(conn, listId = int(options.customlist))
+
 
     else:
         # Get only the ATLAS objects that don't have the 'moons' flag set.
@@ -218,6 +221,7 @@ def main(argv = None):
     objectsForUpdate = []
 
     if len(candidateList) > 0:
+        print("TOTAL OBJECTS TO CHECK = %d" % len(candidateList))
         nProcessors, listChunks = splitList(candidateList, bins = int(options.numberOfThreads))
 
         print("%s Parallel Processing..." % (datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")))
