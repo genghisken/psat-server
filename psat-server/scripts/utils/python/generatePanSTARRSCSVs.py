@@ -542,6 +542,7 @@ def main():
     detectionLists = [int(x) for x in options.lists.split(',')]
 
     # If the list isn't specified assume it's the Good List.
+    customList = []
     if options.customlist is not None:
         if int(options.customlist) >= 1 and int(options.customlist) <= 100:
             customList = options.customlist
