@@ -2,7 +2,7 @@
 """Request Pan-STARRS Postage Stamps by ID or Exposure Name. The coordsandid is a comma separated set (no spaces) of one or more triplets of RA, Dec and processing ID.
         
 Usage:
-  %s <coordsandid> [--imagetype=<imagetype>] [--optionmask=<optionmask>] [--imagesize=<imagesize>] [--skycell=<skycell>] [--allskycells] [--requestprefix=<requestprefix>] [--coordmask=<coordmask>] [--requesttype=<requesttype>] [--camera=<camera>] [--alias=<alias>] [--requesthome=<requesthome>] [--stampuser=<stampuser>] [--stamppass=<stamppass>] [--uploadurl=<uploadurl>] [--datastoreurl=<datastoreurl>]
+  %s <coordsandid> [--imagetype=<imagetype>] [--optionmask=<optionmask>] [--imagesize=<imagesize>] [--skycell=<skycell>] [--allskycells] [--requestprefix=<requestprefix>] [--coordmask=<coordmask>] [--requesttype=<requesttype>] [--camera=<camera>] [--alias=<alias>] [--requesthome=<requesthome>] [--stampuser=<stampuser>] [--stamppass=<stamppass>] [--uploadurl=<uploadurl>] [--datastoreurl=<datastoreurl>] [--tessellation=<tessellation>]
   %s (-h | --help)
   %s --version  
                 
@@ -23,6 +23,7 @@ Options:
   --stampuser=<stampuser>              Postage stamp service username.
   --stamppass=<stamppass>              Postage stamp service password.
   --uploadurl=<uploadurl>              The Postage stamp service URL.
+  --tessellation=<tessellation>        3pi or MD or M31? [default: RINGS.V3].
   --datastoreurl=<datastoreurl>        The datastore URL from where we will download our request results.
 
 Example:        
@@ -192,9 +193,9 @@ def main(argv = None):
 
    if allskycells:
       # Ignore the coordinates, just get the complete list of skycells for the specified warp_id (usually around 60)
-      writeFGSSPostageStampRequestById(requestFileName, requestName, results, 0, 0, psRequestType = requestType, optionMask = 2057, imageType = options.imagetype, psJobType = 'get_image', camera = options.camera)
+      writeFGSSPostageStampRequestById(requestFileName, requestName, results, 0, 0, psRequestType = requestType, optionMask = 2057, imageType = options.imagetype, psJobType = 'get_image', camera = options.camera, tessellation=options.tessellation)
    else:
-      writeFGSSPostageStampRequestById(requestFileName, requestName, results, imageSize, imageSize, psRequestType = requestType, optionMask = optionMask, imageType = options.imagetype, skycell = options.skycell, coordMask = int(options.coordmask), camera = options.camera)
+      writeFGSSPostageStampRequestById(requestFileName, requestName, results, imageSize, imageSize, psRequestType = requestType, optionMask = optionMask, imageType = options.imagetype, skycell = options.skycell, coordMask = int(options.coordmask), camera = options.camera, tessellation=options.tessellation)
 
    #Send the request to the postage stamp server
    pssServerId = sendPSRequest(requestFileName, requestName, username = options.stampuser, password = options.stamppass, postageStampServerURL = options.uploadurl)

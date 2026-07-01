@@ -2,7 +2,7 @@
 """Generate CSV summary and recurrence files for (e.g.) PESSTO and YSE.
 
 Usage:
-  %s <configfile> [--lists=<lists>] [--listAGN=<listAGN>] [--delimiter=<delimiter>] [--customlist=<customlist>] [--writeAGNs] [--summaryfile=<summaryfile>] [--recfile=<recfile>] [--agnsummaryfile=<agnsummaryfile>] [--agnrecfile=<agnrecfile>]
+  %s <configfile> [--lists=<lists>] [--listAGN=<listAGN>] [--delimiter=<delimiter>] [--customlist=<customlist>] [--writeAGNs] [--summaryfile=<summaryfile>] [--recfile=<recfile>] [--agnsummaryfile=<agnsummaryfile>] [--agnrecfile=<agnrecfile>] [--flagdate=<flagdate>]
   %s (-h | --help)
   %s --version
 
@@ -18,6 +18,7 @@ Options:
   --recfile=<recfile>                Recurrences filename [default: genericrecurrences.csv].
   --agnsummaryfile=<agnsummaryfile>  Summary filename for AGNs if required [default: agnsummary.csv].
   --agnrecfile=<agnrecfile>          AGN recurrences filename if required [default: agnrecurrences.csv].
+  --flagdate=<flagdate>              Don't produce any data from before this date.
 
 E.g.:
   %s ../../../../../ps1yse/config/config.yaml --lists=1,2,3 --writeAGNs
@@ -143,7 +144,7 @@ def getAllSummaryDataForGoodAndConfirmedObjects(conn, dateThreshold = '2013-06-0
 
 # 2013-10-01 KWS Needed to add 3pi diff filename def (RINGS...) to query below
 
-def getGenericSummaryData(conn, detectionLists=[1,2,3,5], queryType = ALL_OBJECTS):
+def getGenericSummaryData(conn, detectionLists=[1,2,3,5], queryType = ALL_OBJECTS, flagdate = None):
    """getGenericSummaryData.
 
    Args:
@@ -164,6 +165,11 @@ def getGenericSummaryData(conn, detectionLists=[1,2,3,5], queryType = ALL_OBJECT
              and (m.filename like 'MD%%%%' or m.filename like 'FGSS%%%%' or m.filename like 'RINGS%%%%')
              and ((sh.rank is null and sh.transient_object_id is null) or (sh.rank = 1 and sh.transient_object_id is not null))
       '''
+
+      if flagdate:
+         sqlSelect += ''' 
+                         and o.followup_flag_date >= '%s'
+                      ''' % flagdate
 
       if queryType == EXCLUDE_AGNS:
          sqlSelect += ''' 
@@ -444,7 +450,7 @@ def produceGenericCSV(conn, options, delimiter, detectionLists=[1,2,3,5], summar
     dateThreshold = '2013-06-01'
 
     # Need to subtract 1 month from the date and send this to the object list grabber.
-    objectList = getGenericSummaryData(conn, detectionLists=detectionLists, queryType = queryType)
+    objectList = getGenericSummaryData(conn, detectionLists=detectionLists, queryType = queryType, flagdate = options.flagdate)
 
 
     summaryCSVFile = open(summaryCSVFilename, 'w')

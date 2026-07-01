@@ -27,6 +27,7 @@ Options:
 import sys
 __doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
+import datetime
 
 import os, MySQLdb, shutil, re
 from gkutils.commonutils import find, Struct, cleanOptions, dbConnect, calculateRMSScatter, getAngularSeparation, coneSearchHTM, QUICK, FULL, CAT_ID_RA_DEC_COLS, PROCESSING_FLAGS, splitList, parallelProcess
@@ -100,7 +101,7 @@ def main(argv = None):
 
     import yaml
     with open(options.configfile) as yaml_file:
-        config = yaml.load(yaml_file)
+        config = yaml.safe_load(yaml_file)
 
     username = config['databases']['local']['username']
     password = config['databases']['local']['password']
@@ -159,9 +160,22 @@ def main(argv = None):
 
     if options.date is not None:
         try:
-            dateThreshold = '%s-%s-%s' % (options.date[0:4], options.date[4:6], options.date[6:8])
+            if len(options.date) == 8:
+                dateThreshold = '%s-%s-%s' % (options.date[0:4], options.date[4:6], options.date[6:8])
+            else:
+                # Assume the date value is a number. Must be less than 60 for the time being.
+                days = 30
+                try:
+                    days = int(options.date)
+                except ValueError as e:
+                    days = 30
+                if days > 60:
+                    days = 60
+                dateThreshold = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime("%Y-%m-%d")
         except:
-            dateThreshold = '2016-06-01'
+            dateThreshold = '2013-06-01'
+
+    print("Date threshold =", dateThreshold)
 
     if len(options.candidate) > 0:
         for row in options.candidate:

@@ -2,7 +2,7 @@
 """Request Pan-STARRS Postage Stamps
 
 Usage:
-  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limit=<limit>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--overrideflags] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--detectiontype=(all|detections|nondetections)] [--requesttype=(all|incremental)] [--nprocesses=<nprocesses>] [--loglocation=<loglocation>] [--logprefix=<logprefix>]
+  %s <configFile> [<candidate>...] [--test] [--listid=<listid>] [--customlist=<customlistid>] [--flagdate=<flagdate>] [--limit=<limit>] [--limitdays=<limitdays>] [--limitdaysafter=<limitdaysafter> ] [--usefirstdetection] [--mjdmin=<mjdmin>] [--mjdmax=<mjdmax>] [--overrideflags] [--requestprefix=<requestprefix>] [--requesthome=<requesthome>] [--detectiontype=(all|detections|nondetections)] [--requesttype=(all|incremental)] [--nprocesses=<nprocesses>] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--definingdetection]
   %s (-h | --help)
   %s --version
 
@@ -14,8 +14,10 @@ Options:
   --customlist=<customlistid>                        The object custom list
   --flagdate=<flagdate>                              Date threshold - no hyphens [default: 20200101]
   --limit=<limit>                                    Recurrent limit - how many stamps will we request
-  --limitdays=<limitdays>                            Number of days before which we will not request forced photometry [default: 100]
+  --limitdays=<limitdays>                            Number of days before which we will not request forced photometry [default: 1000]
   --limitdaysafter=<limitdaysafter>                  Number of days after which we will not request images [default: 0]
+  --mjdmin=<mjdmin>                                  Min MJD - overrides limit, limitdays and limitdaysafter.
+  --mjdmax=<mjdmax>                                  Max MJD - overrides limit, limitdays and limitdaysafter.
   --usefirstdetection                                Use the first detection from which to count date threshold
   --overrideflags                                    Ignore processing flags when requesting object data. Dangerous!
   --requestprefix=<requestprefix>                    Stamp request prefix [default: qub_pstamp_request]
@@ -25,6 +27,7 @@ Options:
   --nprocesses=<nprocesses>                          Number of processes to use [default: 4]
   --loglocation=<loglocation>                        Log file location [default: /tmp/]
   --logprefix=<logprefix>                            Log prefix [default: stamp_requester]
+  --definingdetection                                Use the defining detection ONLY to request data (usually the first detection ingested).
 
 Example:
   python %s ../../../../config/config.yaml 1124922100042044700 --requestprefix=qub_stamp_request --test
@@ -38,10 +41,10 @@ __doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.arg
 from docopt import docopt
 
 sys.path.append('../../common/python')
-from queries import getPanSTARRSCandidates, updateTransientObservationAndProcessingStatus, insertTransientObjectComment, LC_NON_DET_AND_BLANKS_QUERY, LC_DET_QUERY
+from queries import getPanSTARRSCandidates, updateTransientObservationAndProcessingStatus, insertTransientObjectComment, LC_NON_DET_AND_BLANKS_QUERY, LC_DET_QUERY, LC_DET_QUERY_DEFINING_DET
 
 from gkutils.commonutils import dbConnect, getCurrentMJD, getMJDFromSqlDate, PROCESSING_FLAGS, Struct, cleanOptions, splitList, parallelProcess
-from pstamp_utils import getAverageCoordinates, IPP_IDET_NON_DETECTION_VALUE, writeFITSPostageStampRequestById, addRequestToDatabase, addRequestIdToTransients, sendPSRequest, updateRequestStatus, width, height, SUBMITTED, findIdCombinationForPostageStampRequest2, getObjectsByList
+from pstamp_utils import getAverageCoordinates, IPP_IDET_NON_DETECTION_VALUE, writeFITSPostageStampRequestById, addRequestToDatabase, addRequestIdToTransients, sendPSRequest, updateRequestStatus, width, height, SUBMITTED, findIdCombinationForPostageStampRequest2, getObjectsByList, getObjectsByCustomList
 
 import MySQLdb, sys, datetime, time
 
@@ -173,11 +176,17 @@ def getDetectionImages(conn, objectId, ippIdet = IPP_IDET_NON_DETECTION_VALUE):
 
 # 2013-10-11 KWS Added detections so that we can tie them to existing images
 # 2014-07-08 KWS Added extra filter definitions. (Need to fix the query code.)
-def getLightcurveDetections(conn, candidate, filters = "grizywxBV", limit = 0):
+# 2026-07-01 KWS Get the defining detection (the one in tcs_transient_objects).
+#                This is used for generating training sets for ML.
+def getLightcurveDetections(conn, candidate, filters = "grizywxBV", limit = 0, definingdetection = False):
 
    try:
        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-       cursor.execute (LC_DET_QUERY, (candidate,
+       if definingdetection:
+           cursor.execute (LC_DET_QUERY_DEFINING_DET, (candidate,
+                                      filters[0], filters[1], filters[2], filters[3], filters[4], filters[5], filters[6], filters[7], filters[8]))
+       else:
+           cursor.execute (LC_DET_QUERY, (candidate,
                                       filters[0], filters[1], filters[2], filters[3], filters[4], filters[5], filters[6], filters[7], filters[8],
                                       candidate,
                                       filters[0], filters[1], filters[2], filters[3], filters[4], filters[5], filters[6], filters[7], filters[8]))
@@ -362,9 +371,32 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
         imageRequestData = []
         for candidate in candidateArray:
 
+            mjdOverride = False
             thresholdMJDMax = 70000
 
-            if detectionType == 'all' and limit == 0:
+            if options.definingdetection:
+                # Only query the defining detection.
+                lightcurveData = getLightcurveDetections(conn, candidate['id'], definingdetection = True)
+                existingImages = getExistingDetectionImages(conn, candidate['id'])
+
+            elif options.mjdmin is not None and options.mjdmax is not None and float(options.mjdmin) < float(options.mjdmax):
+                mjdMin = float(options.mjdmin)
+                mjdMax = float(options.mjdmax)
+
+                thresholdMJD = mjdMin
+                thresholdMJDMax = mjdMax
+                if detectionType == 'all':
+                    lightcurveData = getLightcurveDetections(conn, candidate['id'])
+                    lightcurveData += getLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
+                elif detectionType == 'nondetections':
+                    lightcurveData = getLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
+                    existingImages = getExistingNonDetectionImages(conn, candidate['id'])
+                elif detectionType == 'detections':
+                    lightcurveData = getLightcurveDetections(conn, candidate['id'])
+                    existingImages = getExistingDetectionImages(conn, candidate['id'])
+                mjdOverride = True
+
+            elif detectionType == 'all' and limit == 0:
                 lightcurveData = getLightcurveDetections(conn, candidate['id'])
                 lightcurveData += getLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
                 existingImages = getExistingDetectionImages(conn, candidate['id'])
@@ -386,12 +418,16 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
             if requestType == 'incremental':
                 lightcurveData = eliminateExistingImages(conn, candidate['id'], lightcurveData, existingImages)
 
-            if limitDays > 0:
+            if limitDays > 0 and mjdOverride is False and not options.definingdetection:
                 thresholdMJDMax = 70000
                 if useFirstDetection:
                     # We need to know when the first detection was,
                     # but we don't always request detections.
                     detectionData = getLightcurveDetections(conn, candidate['id'])
+                    # 2026-06-23 KWS The query to get lightcurves may return zero rows (e.g. CAL_PSF_MAG is null).
+                    if len(detectionData) == 0:
+                        print("No data for candidate %d. Skipping." % candidate['id'])
+                        continue
                     # The detection MJD should be the first element returned
                     thresholdMJD = detectionData[0]['mjd'] - limitDays
                     if limitDaysAfter > 0:
@@ -402,13 +438,14 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
                 else:
                     # Or just use the current date
                     thresholdMJD = getCurrentMJD() - limitDays
+
                 if requestType == 'incremental':
                     # 2026-01-06 KWS Cut by the MJD thresholds. Then eliminate any existing images.
                     lightcurveData = eliminateOldDetections(conn, candidate['id'], lightcurveData, thresholdMJD, thresholdMJDMax)
                     lightcurveData = eliminateExistingImages(conn, candidate['id'], lightcurveData, existingImages)
 
             # 2026-01-06 KWS Belt and braces approach. CUT any images outside the MJD thresholds. 
-            if lightcurveData:
+            if lightcurveData and not options.definingdetection:
                 #for row in lightcurveData:
                 #    print (row)
                 if thresholdMJD > thresholdMJDMax:
@@ -422,6 +459,8 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
                     if row['mjd'] > thresholdMJD and row['mjd'] < thresholdMJDMax:
                         imageRequestData.append(row)
                 #imageRequestData += lightcurveData
+            else:
+                imageRequestData += lightcurveData
 
         print("Min MJD =", thresholdMJD)
         print("Max MJD =", thresholdMJDMax)
@@ -444,7 +483,7 @@ def requestStamps(conn, options, candidateList, objectsPerIteration, stampuser, 
         if options.test:
             if imageRequestData:
                 for row in imageRequestData:
-                    print(row['mjd'], row['filter'], row['fpa_detector'], end=' ')
+                    print(row['id'], row['mjd'], row['filter'], row['fpa_detector'], end=' ')
                     diffImageCombination = findIdCombinationForPostageStampRequest2(row)
                     for imType in ['target','ref','diff']:
                         print("%s (%s): %s" % (imType, diffImageCombination[imType][0], diffImageCombination[imType][1]), end=' ')
@@ -591,8 +630,8 @@ def main(argv = None):
     if options.limit is not None:
         try:
             limit = int(options.limit)
-            if limit < 2 or limit > 100:
-                print("Detection limit must be between 2 and 100")
+            if limit < 1 or limit > 100:
+                print("Detection limit must be between 1 and 100")
                 return 1
         except ValueError as e:
             sys.exit("Detection limit must be an integer")
@@ -621,16 +660,34 @@ def main(argv = None):
 
     dateThreshold = '%s-%s-%s' % (options.flagdate[0:4], options.flagdate[4:6], options.flagdate[6:8])
 
-    candidateList = []
-    if len(options.candidate) > 0:
-        for row in options.candidate:
-            object = getObjectsByList(conn, objectId = int(row))
-            if object:
-                candidateList.append(object)
 
+    candidateList = []
+    if options.candidate is not None and len(options.candidate) > 0:
+        for row in options.candidate:
+            obj = getObjectsByList(conn, objectId = int(row))
+            if obj:
+                candidateList.append(obj)
     else:
-        candidateList = getObjectsByList(conn, listId = detectionList, dateThreshold = dateThreshold, processingFlags = processingFlags)
-        #candidateList = getPS1Candidates(conn, listId = detectionList, flagDate = flagDate, processingFlags = processingFlags, ignoreProcessingFlags = options.overrideflags)
+        if options.customlist is not None:
+            if int(options.customlist) > 0 and int(options.customlist) <= 200:
+                customList = int(options.customlist)
+                if options.overrideflags:
+                    processingFlags = 0
+                candidateList = getObjectsByCustomList(conn, customList, processingFlags = processingFlags)
+            else:
+                print("The list must be between 1 and 200 inclusive.  Exiting.")
+                sys.exit(1)
+        else:
+            if options.listid is not None:
+                if int(options.listid) > 0 and int(options.listid) < 14:
+                    detectionList = int(options.listid)
+                    if options.overrideflags:
+                        processingFlags = 0
+                    candidateList = getObjectsByList(conn, listId = detectionList, dateThreshold = dateThreshold, processingFlags = processingFlags)
+                    #candidateList = getPS1Candidates(conn, listId = detectionList, flagDate = dateThreshold, processingFlags = processingFlags, ignoreProcessingFlags = options.overrideflags)
+                else:
+                    print("The list must be between 1 and 13 inclusive.  Exiting.")
+                    sys.exit(1)
 
 
     currentDate = datetime.datetime.now().strftime("%Y:%m:%d:%H:%M:%S")

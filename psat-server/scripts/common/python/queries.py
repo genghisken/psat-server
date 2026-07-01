@@ -620,6 +620,30 @@ LC_DET_QUERY = """\
        order by mjd, imageid, ipp_idet
       """
 
+# 2026-07-01 KWS Redefine LC_DET_QUERY to only use the defining detection - used for ML training sets.
+
+LC_DET_QUERY_DEFINING_DET = """\
+         select mjd_obs mjd, substr(fpa_filter,1,1) filter, imageid, cast(truncate(mjd_obs,3) as char) tdate, ipp_idet, ra_psf, dec_psf, o.id, filename, ppsub_input, ppsub_reference, m.skycell sc, m.fpa_detector,
+                case
+                    when instr(m.filename,'MD') then substr(m.filename, instr(m.filename,'MD'),4)
+                    when instr(m.filename,'RINGS') then substr(m.filename, instr(m.filename,'RINGS'),8)
+                    else 'null'
+                end as field,
+                case
+                    -- 3pi
+                    when instr(m.filename,'WS') then if(instr(m.filename,'skycell'), replace(substr(m.filename, instr(m.filename,'skycell'),instr(m.filename,'.dif') - instr(m.filename,'skycell')), '.WS', ''), 'null')
+                    -- MD
+                    else if(instr(m.filename,'skycell'), replace(substr(m.filename, instr(m.filename,'skycell'),instr(m.filename,'.dif') - instr(m.filename,'skycell')), '.SS', ''), 'null')
+                end as skycell
+           from tcs_transient_objects o, tcs_cmf_metadata m
+          where o.tcs_cmf_metadata_id = m.id
+            and o.id = %s
+            and o.cal_psf_mag is not null
+            and (fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%') or fpa_filter like concat(%s,'%%'))
+       order by mjd, imageid, ipp_idet
+      """
+
+
 # 2013-09-16 KWS Non-detections AND Blanks so that we can request postage stamps for blank areas...
 # 2015-05-31 KWS Added filename, ppsub_input, ppsub_reference to selection.
 # 2021-12-28 KWS Pull out fpa_detector so we can identify which camera we need to make

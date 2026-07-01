@@ -4257,7 +4257,7 @@ def writeDetectabilityFITSRequestByExpName(conn, outfile, requestName, candidate
 #                1 center in pixel coordinates; width and height in arc seconds
 #                2 center in RA/DEC; width and height in pixels
 #                3 center x/y, width, and height in pixel coordinates
-def writeFGSSPostageStampRequestById(outfile, requestName, results, xsize, ysize, psRequestType = 'byid', optionMask = 2049, imageType = 'warp', psJobType = 'stamp', skycell = 'null', email = 'qub2@qub.ac.uk', camera = 'gpc1', coordMask = 2):
+def writeFGSSPostageStampRequestById(outfile, requestName, results, xsize, ysize, psRequestType = 'byid', optionMask = 2049, imageType = 'warp', psJobType = 'stamp', skycell = 'null', email = 'qub2@qub.ac.uk', camera = 'gpc1', coordMask = 2, tessellation='RINGS.V3'):
    """writeFGSSPostageStampRequestById.
 
    Args:
@@ -4333,7 +4333,7 @@ def writeFGSSPostageStampRequestById(outfile, requestName, results, xsize, ysize
       req_type.append(psRequestType)
       img_type.append(imageType)  # Hard wired to warp for FGSS 3pi data
       id.append(result["warp_id"]) # This should contain the warp ID as extracted from the GPC1 database
-      tess_id.append('RINGS.V3')
+      tess_id.append(tessellation)
       component.append(skycell)
       coord_mask.append(coordMask)
       center_x.append(float(result["ra_psf"]))
