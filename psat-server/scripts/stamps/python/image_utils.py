@@ -796,6 +796,7 @@ def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/at
         print("Stamp is too close to the edge. Image size (%d, %d), x + dx/2 = %d, y + dy/2 = %d" % (sizex, sizey, x + size/2, y + size/2))
         status = PSTAMP_EDGE_TOO_CLOSE
         if test:
+            print("MONSTA: ", monstaCmd, monstaScript, filename, tempFilename, x - size/2, x + size/2 - 1, y - size/2, y + size/2 - 1, sizex, sizey)
             return status, rot
 
     if os.path.exists(tempFilename):
