@@ -808,6 +808,9 @@ def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/at
             th.writeto(tempFilename, overwrite=True, output_verify='ignore')
             th.close()
         shutil.move(tempFilename, outputFilename)
+        # 2026-07-02 KWS If we're using the monsta script that generates a jpg, move it as well.
+        if monstaScript == '/atlas/lib/monsta/subarray.pro':
+            shutil.move(tempFilename + '.jpg', outputFilename + '.jpg')
     else:
         if status == PSTAMP_SUCCESS:
             # There should only be success if there was a stamp produced.
