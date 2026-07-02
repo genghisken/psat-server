@@ -2,7 +2,7 @@
 """Make an ATLAS stamp given the RA and Dec and exposure ID (a wrapper for ATLAS pix2sky and monsta)
 
 Usage:
-  %s <exposure> <coords> [--outputfile=<outputfile>] [--stampSize=<n>] [--imageType=<type>] [--stamplocation=<location>] [--test]
+  %s <exposure> <coords> [--outputfile=<outputfile>] [--stampSize=<n>] [--stamplocation=<location>] [--test]
   %s (-h | --help)
   %s --version
 
@@ -15,7 +15,7 @@ Options:
   --stamplocation=<location>   Default place to store the stamps. [default: /tmp]
 
 Example:
-   %s /atlas/red/02a/60781/02a60781o0467o.fits.fz 226.12135656667,21.429724244444 --stampSize=400 --imageType=red --stamplocation=/tmp
+   %s /atlas/red/02a/60781/02a60781o0467o.fits.fz 226.12135656667,21.429724244444 --stampSize=400 --stamplocation=/tmp
 """
 import sys
 __doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
@@ -33,9 +33,6 @@ from image_utils import getMonstaPostageStamp
 def makeATLASStamp(options):
 
     ra,dec=options.coords.split(',')
-
-    if options.imageType not in ["diff", "red"]:
-        sys.exit("Invalid image type")
 
     try:
         ra = float(ra)
