@@ -15,7 +15,7 @@ Options:
   --stamplocation=<location>   Default place to store the stamps. [default: /tmp]
 
 Example:
-   %s titan.csv exposures.txt --stampSize=2400 --stamplocation=/tmp --edge
+   %s ~/atlas/titan/for_smp_inside_hosts_20260616.csv ~/atlas/titan/for_smp_inside_hosts_20260616_exposures.txt --test --edge
 """
 import sys
 __doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
@@ -58,8 +58,9 @@ def generateStamps(options):
 
             stampoptions = Struct(**stampopts)
 
-            os.makedirs(path, exist_ok=True)
-            makeATLASStamp(stampoptions)
+            if not options.test:
+                os.makedirs(path, exist_ok=True)
+                makeATLASStamp(stampoptions)
 
 
 def main(argv = None):
