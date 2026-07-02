@@ -50,6 +50,8 @@ def generateStamps(options):
 
             stampopts = {}
 
+            stampopts['exposure'] = exp
+            stampopts['coords'] = values['ra'] + ',' + values['dec']
             stampopts['outputfile'] = filename
             stampopts['test'] = options.test
             stampopts['edge'] = options.edge
