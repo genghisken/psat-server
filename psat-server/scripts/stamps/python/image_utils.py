@@ -760,7 +760,7 @@ def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/at
     tempFilename = '/tmp/monsta/' + os.path.basename(filename) + '_' + str(os.getpid())
 
     # 2016-03-01 KWS Fixed a bug which means that we can't extract anything close to the edge.
-    if x + size/2 < sizex and y + size/2 < sizey and x > size/2 and y > size/2 and not edge:
+    if (x >= 0 and x < sizex and y >= 0 and y < sizey and x + size/2 < sizex and y + size/2 < sizey and x > size/2 and y > size/2) and not edge or (x >= 0 and x < sizex and y >= 0 and y < sizey and edge):
 
         if not os.path.exists('/tmp/monsta'):
             os.makedirs('/tmp/monsta')

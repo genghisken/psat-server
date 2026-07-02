@@ -2,7 +2,7 @@
 """Make an ATLAS stamp given the RA and Dec and exposure ID (a wrapper for ATLAS pix2sky and monsta)
 
 Usage:
-  %s <exposure> <coords> [--outputfile=<outputfile>] [--stampsize=<stampsize>] [--stamplocation=<location>] [--test]
+  %s <exposure> <coords> [--outputfile=<outputfile>] [--stampsize=<stampsize>] [--stamplocation=<location>] [--test] [--edge]
   %s (-h | --help)
   %s --version
 
@@ -10,6 +10,7 @@ Options:
   -h --help                    Show this screen.
   --version                    Show version.
   --test                       Just do a quick test.
+  --edge                       Try and cutout stamps close to the edge.
   --stampsize=<stampsize>      Size of the postage stamps in arcsec [default: 2400].
   --outputfile=<outputfile>    The output filename [default: stamp]
   --stamplocation=<location>   Default place to store the stamps. [default: /tmp]
@@ -57,7 +58,7 @@ def makeATLASStamp(options):
     x,y = getATLASxyFromRaDec(options.exposure, ra, dec)
     if x is not None and y is not None and x >= 0 and y >= 0 and x <= nx and y <= ny:
         # Use the default monsta script so we get the JPEGs too.
-        getMonstaPostageStamp(options.exposure, options.stamplocation + '/' + options.outputfile, x, y, stampsize, monstaScript = '/atlas/lib/monsta/subarray.pro', ccdSizex = nx, ccdSizey = ny, test = options.test, edge = True)
+        getMonstaPostageStamp(options.exposure, options.stamplocation + '/' + options.outputfile, x, y, stampsize, monstaScript = '/atlas/lib/monsta/subarray.pro', ccdSizex = nx, ccdSizey = ny, test = options.test, edge = options.edge)
     else:
         print("Unable to produce stamp.")
 
