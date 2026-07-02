@@ -56,7 +56,7 @@ def generateStamps(options):
             stampopts['test'] = options.test
             stampopts['edge'] = options.edge
             stampopts['stampsize'] = options.stampsize
-            stampopts['stamplocation'] = options.stamplocation
+            stampopts['stamplocation'] = path
 
             stampoptions = Struct(**stampopts)
 
