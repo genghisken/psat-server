@@ -57,7 +57,7 @@ def makeATLASStamp(options):
     x,y = getATLASxyFromRaDec(options.exposure, ra, dec)
     if x is not None and y is not None and x >= 0 and y >= 0 and x <= nx and y <= ny:
         # Use the default monsta script so we get the JPEGs too.
-        getMonstaPostageStamp(options.exposure, options.stamplocation + '/' + options.outputfile, x, y, stampsize, monstaScript = '/atlas/lib/monsta/subarray.pro', ccdSizex = nx, ccdSizey = ny, test = options.test)
+        getMonstaPostageStamp(options.exposure, options.stamplocation + '/' + options.outputfile, x, y, stampsize, monstaScript = '/atlas/lib/monsta/subarray.pro', ccdSizex = nx, ccdSizey = ny, test = options.test, edge = True)
     else:
         print("Unable to produce stamp.")
 
