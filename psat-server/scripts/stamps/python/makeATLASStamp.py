@@ -66,6 +66,8 @@ def makeATLASStamp(options):
 def main(argv = None):
     opts = docopt(__doc__, version='0.1')
     opts = cleanOptions(opts)
+    options = Struct(**opts)
+
     makeATLASStamp(options)
 
 if __name__=='__main__':
