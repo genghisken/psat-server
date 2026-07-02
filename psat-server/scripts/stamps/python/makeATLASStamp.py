@@ -52,7 +52,7 @@ def makeATLASStamp(options):
         # Use rectangular footprint of TDO
         nx, ny, scale = (9576, 6376, 1.256)
 
-    stampsize = float(options.stampsize)*scale
+    stampsize = float(options.stampsize)/scale
 
     x,y = getATLASxyFromRaDec(options.exposure, ra, dec)
     if x is not None and y is not None and x >= 0 and y >= 0 and x <= nx and y <= ny:
