@@ -44,7 +44,7 @@ def generateStamps(options):
         for exp in values['exps']:
 
             path = options.stamplocation + '/' + obj
-            filename = path + '/' + obj + '_' + os.path.basename(exp).split('.')[0] + '.fits'
+            filename = obj + '_' + os.path.basename(exp).split('.')[0] + '.fits'
             if options.test:
                 print(obj, values['ra'], values['dec'], exp, filename)
 
