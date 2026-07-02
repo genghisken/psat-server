@@ -20,7 +20,7 @@ Example:
 import sys
 __doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
-import os, MySQLdb, shutil, re
+import os, shutil, re
 from gkutils.commonutils import Struct, cleanOptions, readGenericDataFile, coords_sex_to_dec
 
 import os
