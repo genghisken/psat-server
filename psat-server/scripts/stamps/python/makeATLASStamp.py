@@ -2,7 +2,7 @@
 """Make an ATLAS stamp given the RA and Dec and exposure ID (a wrapper for ATLAS pix2sky and monsta)
 
 Usage:
-  %s <exposure> <coords> [--outputfile=<outputfile>] [--stampSize=<n>] [--stamplocation=<location>] [--test]
+  %s <exposure> <coords> [--outputfile=<outputfile>] [--stampsize=<stampsize>] [--stamplocation=<location>] [--test]
   %s (-h | --help)
   %s --version
 
@@ -10,7 +10,7 @@ Options:
   -h --help                    Show this screen.
   --version                    Show version.
   --test                       Just do a quick test.
-  --stampSize=<n>              Size of the postage stamps in pixels [default: 200].
+  --stampsize=<stampsize>      Size of the postage stamps in arcsec [default: 2400].
   --outputfile=<outputfile>    The output filename [default: stamp]
   --stamplocation=<location>   Default place to store the stamps. [default: /tmp]
 
@@ -43,20 +43,21 @@ def makeATLASStamp(options):
         except Exception as e:
             sys.exit("Can't parse the coordinates.")
 
-    stampSize = int(options.stampSize)
+    nx = 10560
+    ny = 10560
+    scale = 1.863
 
-    ccdSizex = 10560
-    ccdSizey = 10560
+
     if '05r' in options.exposure:
         # Use rectangular footprint of TDO
-        #nx, ny, scale = (9576, 6376, 1.256)
-        ccdSizex = 9576
-        ccdSizey = 6376
+        nx, ny, scale = (9576, 6376, 1.256)
+
+    stampsize = float(options.stampsize)*scale
 
     x,y = getATLASxyFromRaDec(options.exposure, ra, dec)
-    if x is not None and y is not None and x >= 0 and y >= 0 and x <= ccdSizex and y <= ccdSizey:
+    if x is not None and y is not None and x >= 0 and y >= 0 and x <= nx and y <= ny:
         # Use the default monsta script so we get the JPEGs too.
-        getMonstaPostageStamp(options.exposure, options.stamplocation + '/' + options.outputfile, x, y, stampSize, monstaScript = '/atlas/lib/monsta/subarray.pro', ccdSizex = ccdSizex, ccdSizey = ccdSizey)
+        getMonstaPostageStamp(options.exposure, options.stamplocation + '/' + options.outputfile, x, y, stampsize, monstaScript = '/atlas/lib/monsta/subarray.pro', ccdSizex = nx, ccdSizey = ny)
     else:
         print("Unable to produce stamp.")
 
