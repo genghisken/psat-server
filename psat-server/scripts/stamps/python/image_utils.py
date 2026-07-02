@@ -697,7 +697,7 @@ def getFITSPostageStamp(filename, outputFilename, x, y, dx, dy):
 
 
 # 2025-07-02 KWS Grab the ccd size from the image shape. (NOTE: change to header info - means we don't have to load an array with the entire image.)
-def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/atlas/vendor/monsta/bin/monsta', monstaScript = '/atlas/lib/monsta/subarray_ken3.pro', ccdSizex = 10560, ccdSizey = 10560):
+def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/atlas/vendor/monsta/bin/monsta', monstaScript = '/atlas/lib/monsta/subarray_ken3.pro', ccdSizex = 10560, ccdSizey = 10560, test = False):
     """
     Use monsta subarray to cut out a substamp
     """
@@ -767,6 +767,8 @@ def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/at
         # 2025-07-02 KWS Switch to calling the monsta script assuming sizex and sizey are different. Should yield the same result if both are 10560.
         #                NOTE: Normally x,y are the coords. Now we have to calculate them ourself. x = x - size/2, y = y - size/2 I think.
         print("MONSTA: ", monstaCmd, monstaScript, filename, tempFilename, x - size/2, x + size/2 - 1, y - size/2, y + size/2 - 1, sizex, sizey)
+        if test:
+            return status, rot
         p = subprocess.Popen([monstaCmd, monstaScript, filename, tempFilename, str(x - size/2), str(x + size/2 - 1), str(y - size/2), str(y + size/2 - 1), str(sizex), str(sizey)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         #print("MONSTA: ", monstaCmd, monstaScript, filename, tempFilename, x, y, size, ccdSize)
         #p = subprocess.Popen([monstaCmd, monstaScript, filename, tempFilename, str(x), str(y), str(size), str(ccdSize)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -793,6 +795,8 @@ def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/at
     else:
         print("Stamp is too close to the edge. Image size (%d, %d), x + dx/2 = %d, y + dy/2 = %d" % (sizex, sizey, x + size/2, y + size/2))
         status = PSTAMP_EDGE_TOO_CLOSE
+        if test:
+            return status, rot
 
     if os.path.exists(tempFilename):
         # 2025-07-09 KWS Emergency fix. The wpwarp2 tool can't read the FILTER info if it's not a string. Fix and rewrite.
