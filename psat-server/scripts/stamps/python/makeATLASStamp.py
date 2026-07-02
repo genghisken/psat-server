@@ -60,8 +60,6 @@ def makeATLASStamp(options):
     else:
         print("Unable to produce stamp.")
 
-    conn.close ()
-
 
 def main(argv = None):
     opts = docopt(__doc__, version='0.1')
