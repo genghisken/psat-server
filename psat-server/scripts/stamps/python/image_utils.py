@@ -697,7 +697,8 @@ def getFITSPostageStamp(filename, outputFilename, x, y, dx, dy):
 
 
 # 2025-07-02 KWS Grab the ccd size from the image shape. (NOTE: change to header info - means we don't have to load an array with the entire image.)
-def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/atlas/vendor/monsta/bin/monsta', monstaScript = '/atlas/lib/monsta/subarray_ken3.pro', ccdSizex = 10560, ccdSizey = 10560, test = False):
+# 2026-07-02 KWS Turns out that subarray.pro CAN produce a stamp close to the edge. Give us that option.
+def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/atlas/vendor/monsta/bin/monsta', monstaScript = '/atlas/lib/monsta/subarray_ken3.pro', ccdSizex = 10560, ccdSizey = 10560, test = False, edge = False):
     """
     Use monsta subarray to cut out a substamp
     """
@@ -759,7 +760,7 @@ def getMonstaPostageStamp(filename, outputFilename, x, y, size, monstaCmd = '/at
     tempFilename = '/tmp/monsta/' + os.path.basename(filename) + '_' + str(os.getpid())
 
     # 2016-03-01 KWS Fixed a bug which means that we can't extract anything close to the edge.
-    if x + size/2 < sizex and y + size/2 < sizey and x > size/2 and y > size/2:
+    if x + size/2 < sizex and y + size/2 < sizey and x > size/2 and y > size/2 and not edge:
 
         if not os.path.exists('/tmp/monsta'):
             os.makedirs('/tmp/monsta')
