@@ -15,7 +15,7 @@ Options:
   --stamplocation=<location>   Default place to store the stamps. [default: /tmp]
 
 Example:
-   %s ~/atlas/titan/for_smp_inside_hosts_20260616.csv ~/atlas/titan/for_smp_inside_hosts_20260616_exposures.txt --test --edge
+   %s ~/atlas/titan/for_smp_inside_hosts_20260616.csv ~/atlas/titan/for_smp_inside_hosts_20260616_exposures.txt --stamplocation=/home/ksmith/atlas/titan --edge --test
 """
 import sys
 __doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
