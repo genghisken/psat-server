@@ -664,7 +664,8 @@ def makeATLASObjectPostageStamps3(conn, candidateList, PSSImageRootLocation, sta
                rot = 0
                if useMonsta:
                    #status, rot = imu.getMonstaPostageStamp(imageFilenames[imageType], absoluteLocalImageName, (row['x'] - 0.5), (row['y'] - 0.5), dx)
-                   status, rot = imu.getMonstaPostageStamp(imageFilenames[imageType], absoluteLocalImageName, x, y, dx, ccdSizex = nx, ccdSizey = ny)
+                   # 2026-07-06 KWS It's now possible to request postage stamps near the edge of the detector, so hard wire this into the code.
+                   status, rot = imu.getMonstaPostageStamp(imageFilenames[imageType], absoluteLocalImageName, x, y, dx, ccdSizex = nx, ccdSizey = ny, edge = True)
                else:
                    status = imu.getFITSPostageStamp(imageFilenames[imageType], absoluteLocalImageName, x, y, dx, dy)
 

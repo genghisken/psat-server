@@ -6705,8 +6705,12 @@ def getATLASxyFromRaDec(imageFilename, ra, dec, nx = 10560, ny = 10560):
            y = float(y)
         except ValueError as e:
            print("Unable to convert x and y to float.")
+           x = None
+           y = None
 
         if x < 0 or x > nx or y < 0 or y > ny:
            print("x or y out of bounds (%f, %f)" % (x, y))
+           x = None
+           y = None
 
     return x,y
