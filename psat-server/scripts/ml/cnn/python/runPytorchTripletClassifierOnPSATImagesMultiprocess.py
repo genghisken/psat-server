@@ -35,8 +35,8 @@ Options:
   --trainer=<trainer>                     Legacy Keras trainer module [default: PSAT-D].
 
 Example:
-  cd /storage1/software/CNN_PANSTARRS
-  python runPytorchTripletClassifierOnPSATImagesMultiprocess.py ~/config.yaml --ps1classifier=cnn_models/cnn_model_ps1.pt --listid=4 --outputcsv=/tmp/ps1_pytorch_list_4.csv --update
+  python %s ~/config.yaml --ps1classifier=cnn_models/cnn_model_ps1.pt --listid=4 --outputcsv=/tmp/ps1_pytorch_list_4.csv --update
+  python %s ~/config.yaml --ps1classifier=/home/panstarrs/machine_learning/classifiers/pytorchcnn/cnn_models/cnn_model_ps1.pt --ps2classifier=/home/panstarrs/machine_learning/classifiers/pytorchcnn/cnn_models/cnn_model_ps2.pt --listid=1 --outputcsv=/tmp/pytorch_scores.csv --imageroot=/astrosurveydb2/images/
 """
 import csv
 import datetime
@@ -44,7 +44,7 @@ import glob
 import os
 import sys
 
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 
 _psat_ml = os.environ.get("PSAT_ML_PATH")
 if _psat_ml and _psat_ml not in sys.path:

@@ -11,8 +11,8 @@ def getObjectsByList(conn, dbName, listId = 4, imageRoot='/db4/images/', ps1Data
                 select id
                   from tcs_transient_objects
                  where detection_list_id = %s
-                   -- and confidence_factor is null
-                   -- and tcs_images_id is not null
+                   and confidence_factor is null
+                   and tcs_images_id is not null
               order by followup_id desc
             """, (listId,))
         else:
