@@ -176,10 +176,10 @@ def runPytorchTripletClassifier(opts, processNumber=None):
             data_root=data_root,
         )
 
-    if ps1_filenames and options.ps1legacyclassifier:
-        legacy_ps1 = getRBValues(ps1_filenames, options.ps1legacyclassifier, extension=1, trainer=options.trainer)
-    if ps2_filenames and options.ps2legacyclassifier:
-        legacy_ps2 = getRBValues(ps2_filenames, options.ps2legacyclassifier, extension=1, trainer=options.trainer)
+#    if ps1_filenames and options.ps1legacyclassifier:
+#        legacy_ps1 = getRBValues(ps1_filenames, options.ps1legacyclassifier, extension=1, trainer=options.trainer)
+#    if ps2_filenames and options.ps2legacyclassifier:
+#        legacy_ps2 = getRBValues(ps2_filenames, options.ps2legacyclassifier, extension=1, trainer=options.trainer)
 
     pytorch_final = _aggregate_camera_scores(pytorch_ps1, pytorch_ps2)
     legacy_final = _aggregate_camera_scores(legacy_ps1, legacy_ps2)
