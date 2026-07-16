@@ -12,7 +12,7 @@ Assumes:
   2. The databases are in the SAME MySQL server instance.
 
 Usage:
-  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>] [--getmetadata] [--insertdiffsubcelllogs] [--includeauthtoken] [--survey=<survey>] [--createtarcommand]
+  %s <username> <password> <database> <hostname> <sourceschema> [<candidates>...] [--truncate] [--ddc] [--list=<listid>] [--flagdate=<flagdate>] [--copyimages] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--dumpfile=<dumpfile>] [--nocreateinfo] [--djangofile=<djangofile>] [--imagessource=<imagessource>] [--imagesdest=<imagesdest>] [--getmetadata] [--insertdiffsubcelllogs] [--survey=<survey>] [--createtarcommand]
   %s (-h | --help)
   %s --version
 
@@ -34,15 +34,14 @@ Options:
   --imagesdest=<imagesdest>       Destination location for extracted images [default: /db4/images/].
   --getmetadata                   Get metadata associated with objects, otherwise insert ALL metadata.
   --insertdiffsubcelllogs         Insert diff subcell logs (very large amount of data).
-  --includeauthtoken              Include authtoken_token in the Django export.
   --survey=<survey>               Which transient database are we migrating? atlas or panstarrs? [default: atlas]
 
 
 E.g.:
   %s publicuser publicpass public db1 atlas4 --ddc --list=5 --copyimages
   %s ps13pi_extracteduser xxxxxxxxxxxxxx ps13pi_extracted db0 ps13pi 1111822080325015100 --copyimages --loglocation=/db0/tc_logs/ps13pi/ --nocreateinfo --dumpfile=/home/pstc/ps13pi/ps13pi_extracted.sql --djangofile=/home/pstc/ps13pi/ps13pi_extracted_django.sql --imagessource=/db0/images/ --imagesdest=/db0/images/ --getmetadata --survey=panstarrs
-  %s atlas4_extracteduser xxxxxxxxxxxxxx atlas4_extracted db5 atlas4 1111822090325015200 --copyimages --loglocation=/db5/tc_logs/atlas4/ --nocreateinfo --dumpfile=/home/atls/atlas4/atlas4_extracted.sql --djangofile=/home/atls/atlas4/atlas4_extracted_django.sql --imagessource=/db5/images/ --imagesdest=/db5/images/ --getmetadata --survey=atlas --ddc --includeauthtoken
-  %s atlas4migrateduser xxxxxxxxxxxxxxxx atlas4migrated db5 atlas4 --list=1,2,3,4,5,7,8,9,10,11,12,13 --copyimages --loglocation=/db5/tc_logs/atlas4/ --nocreateinfo --dumpfile=/home/atls/atlas4/atlas4_migrated.sql --djangofile=/home/atls/atlas4/atlas4_migrated_django.sql --imagessource=/db5/images/ --imagesdest=/db5/images/ --survey=atlas --ddc --includeauthtoken --createtarcommand --truncate
+  %s atlas4_extracteduser xxxxxxxxxxxxxx atlas4_extracted db5 atlas4 1111822090325015200 --copyimages --loglocation=/db5/tc_logs/atlas4/ --nocreateinfo --dumpfile=/home/atls/atlas4/atlas4_extracted.sql --djangofile=/home/atls/atlas4/atlas4_extracted_django.sql --imagessource=/db5/images/ --imagesdest=/db5/images/ --getmetadata --survey=atlas --ddc
+  %s atlas4migrateduser xxxxxxxxxxxxxxxx atlas4migrated db5 atlas4 --list=1,2,3,4,5,7,8,9,10,11,12,13 --copyimages --loglocation=/db5/tc_logs/atlas4/ --nocreateinfo --dumpfile=/home/atls/atlas4/atlas4_migrated.sql --djangofile=/home/atls/atlas4/atlas4_migrated_django.sql --imagessource=/db5/images/ --imagesdest=/db5/images/ --survey=atlas --ddc --createtarcommand --truncate
 
 """
 import sys
@@ -189,20 +188,20 @@ def main():
         insertAllRecords(conn, 'tcs_detection_lists', options.sourceschema, options.database)
         print('Inserting data into tcs_gravity_alerts...')
         insertAllRecords(conn, 'tcs_gravity_alerts', options.sourceschema, options.database)
+        print('Inserting data into tcs_api_usage_log...')
+        insertAllRecords(conn, 'tcs_api_usage_log', options.sourceschema, options.database)
 
         # 2024-03-14 KWS Added authtoken_token. 
         print('Extracting all the Django relevant tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
         #djangoTables = 'auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site'
         # 2025-07-28 KWS Since we created the user and token permissions we now have some new tables to backup.
         #                I recommend a complete rewrite where we specify the tables ("djangoTables=...,...,..." with a default comma separated value) in the options.
-        djangoTables = 'auth_group auth_group_permissions auth_group_profile auth_permission auth_user auth_user_groups auth_user_profile auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site'
-        if options.includeauthtoken:
-            djangoTables += ' authtoken_token'
-        cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces %s > %s' % (options.username, options.password, options.sourceschema, options.hostname, djangoTables, options.djangofile)
+        djangoTables = 'auth_group auth_group_permissions auth_group_profile auth_permission auth_user auth_user_groups auth_user_profile auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site authtoken_token'
+        cmd = 'mariadb-dump -u%s --password=%s %s -h %s --no-tablespaces %s > %s' % (options.username, options.password, options.sourceschema, options.hostname, djangoTables, options.djangofile)
         os.system(cmd)
 
         print('Importing the Django tables from the %s schema.' % options.sourceschema)
-        cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.djangofile)
+        cmd = 'mariadb -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.djangofile)
         os.system(cmd)
 
         # 2024-03-14 KWS Added tcs_cmf_metadata, atlas_metadata, atlas_metadataddc.
@@ -218,11 +217,11 @@ def main():
             metatables += ' atlas_diff_subcells atlas_diff_subcell_logs'
         
         if metatables:
-            cmd = 'mysqldump -u%s --password=%s %s -h %s %s --no-tablespaces %s > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, metatables, options.dumpfile)
+            cmd = 'mariadb-dump -u%s --password=%s %s -h %s %s --no-tablespaces %s > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, metatables, options.dumpfile)
             os.system(cmd)
 
             print('Importing the giant tables from the %s schema.' % options.sourceschema)
-            cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.dumpfile)
+            cmd = 'mariadb -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.dumpfile)
             os.system(cmd)
 
     # The following tables contain over 100 million rows each. Doing a standard

@@ -845,24 +845,24 @@ def main(argv = None):
         insertAllRecords(conn, 'tcs_detection_lists', options.sourceschema, options.database)
         print('Inserting data into tcs_gravity_alerts...')
         insertAllRecords(conn, 'tcs_gravity_alerts', options.sourceschema, options.database)
+        print('Inserting data into tcs_api_usage_log...')
+        insertAllRecords(conn, 'tcs_api_usage_log', options.sourceschema, options.database)
 
         # 2024-03-14 KWS Added authtoken_token. 
         print('Extracting all the Django relevant tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
         #djangoTables = 'auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site'
         # 2025-07-28 KWS Since we created the user and token permissions we now have some new tables to backup.
         #                I recommend a complete rewrite where we specify the tables ("djangoTables=...,...,..." with a default comma separated value) in the options.
-        djangoTables = 'auth_group auth_group_permissions auth_group_profile auth_permission auth_user auth_user_groups auth_user_profile auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site'
-        if options.includeauthtoken:
-            djangoTables += ' authtoken_token'
-        cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces %s > %s' % (options.username, options.password, options.sourceschema, options.hostname, djangoTables, options.djangofile)
+        djangoTables = 'auth_group auth_group_permissions auth_group_profile auth_permission auth_user auth_user_groups auth_user_profile auth_user_user_permissions django_admin_log django_content_type django_migrations django_session django_site authtoken_token'
+        cmd = 'mariadb-dump -u%s --password=%s %s -h %s --no-tablespaces %s > %s' % (options.username, options.password, options.sourceschema, options.hostname, djangoTables, options.djangofile)
         os.system(cmd)
 
 #        print('Extracting all the Django relevant tables into a dump file. Requires SELECT and LOCK TABLE access to sourceschema.')
-#        cmd = 'mysqldump -u%s --password=%s %s -h %s --no-tablespaces auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions authtoken_token django_admin_log django_content_type django_migrations django_session django_site > %s' % (options.username, options.password, options.sourceschema, options.hostname, options.djangofile)
+#        cmd = 'mariadb-dump -u%s --password=%s %s -h %s --no-tablespaces auth_group auth_group_permissions auth_permission auth_user auth_user_groups auth_user_user_permissions authtoken_token django_admin_log django_content_type django_migrations django_session django_site > %s' % (options.username, options.password, options.sourceschema, options.hostname, options.djangofile)
 #        os.system(cmd)
 
         print('Importing the Django tables from the %s schema.' % options.sourceschema)
-        cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.djangofile)
+        cmd = 'mariadb -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.djangofile)
         os.system(cmd)
 
         # 2024-03-14 KWS Added tcs_cmf_metadata, atlas_metadata, atlas_metadataddc.
@@ -870,12 +870,12 @@ def main(argv = None):
         noCreateInfo = ''
         if options.nocreateinfo is not None:
             noCreateInfo = '--no-create-info'
-        #cmd = 'mysqldump -u%s --password=%s %s -h %s %s --no-tablespaces tcs_cmf_metadata atlas_metadata atlas_metadataddc atlas_diff_subcells atlas_diff_subcell_logs > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, options.dumpfile)
-        cmd = 'mysqldump -u%s --password=%s %s -h %s %s --no-tablespaces tcs_cmf_metadata atlas_metadata atlas_metadataddc > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, options.dumpfile)
+        #cmd = 'mariadb-dump -u%s --password=%s %s -h %s %s --no-tablespaces tcs_cmf_metadata atlas_metadata atlas_metadataddc atlas_diff_subcells atlas_diff_subcell_logs > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, options.dumpfile)
+        cmd = 'mariadb-dump -u%s --password=%s %s -h %s %s --no-tablespaces tcs_cmf_metadata atlas_metadata atlas_metadataddc > %s' % (options.username, options.password, options.sourceschema, options.hostname, noCreateInfo, options.dumpfile)
         os.system(cmd)
 
         print('Importing the giant tables from the %s schema.' % options.sourceschema)
-        cmd = 'mysql -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.dumpfile)
+        cmd = 'mariadb -u%s --password=%s %s -h %s < %s' % (options.username, options.password, options.database, options.hostname, options.dumpfile)
         os.system(cmd)
 
         # The following tables contain over 100 million rows each. Doing a standard
