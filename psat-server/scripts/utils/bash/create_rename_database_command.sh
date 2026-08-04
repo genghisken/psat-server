@@ -15,5 +15,5 @@ export NEWSCHEMA=$2
 export DBHOST=$3
 
 echo 'SET FOREIGN_KEY_CHECKS=0;'
-mysql -ukws -h${DBHOST} --skip-column-names -Be "SET SESSION group_concat_max_len=65536; SELECT GROUP_CONCAT('RENAME TABLE ${OLDSCHEMA}.', table_name, ' TO ${NEWSCHEMA}.', table_name SEPARATOR '; ') command FROM information_schema.TABLES WHERE table_schema='${OLDSCHEMA}' and table_comment != 'VIEW';" | sed -e 's/$/;/' | sed -e 's/; \+/;\n/g'
+mariadb -ukws -h${DBHOST} --skip-column-names -Be "SET SESSION group_concat_max_len=65536; SELECT GROUP_CONCAT('RENAME TABLE ${OLDSCHEMA}.', table_name, ' TO ${NEWSCHEMA}.', table_name SEPARATOR '; ') command FROM information_schema.TABLES WHERE table_schema='${OLDSCHEMA}' and table_comment != 'VIEW';" | sed -e 's/$/;/' | sed -e 's/; \+/;\n/g'
 echo 'SET FOREIGN_KEY_CHECKS=1;'

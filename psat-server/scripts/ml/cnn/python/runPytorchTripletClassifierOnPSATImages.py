@@ -38,14 +38,15 @@ Options:
 
 Example:
   cd /storage1/software/CNN_PANSTARRS
-  python runPytorchTripletClassifierOnPSATImages.py ~/config.yaml --ps1classifier=cnn_models/cnn_model_ps1.pt --listid=4 --outputcsv=/tmp/ps1_pytorch_list_4.csv
+  python %s ~/config.yaml --ps1classifier=cnn_models/cnn_model_ps1.pt --listid=4 --outputcsv=/tmp/ps1_pytorch_list_4.csv
+  python %s ../../../../../ps13pi/config/config.yaml --ps1classifier=/home/panstarrs/machine_learning/classifiers/pytorchcnn/cnn_models/cnn_model_ps1.pt --ps2classifier=/home/panstarrs/machine_learning/classifiers/pytorchcnn/cnn_models/cnn_model_ps2.pt --listid=1 --outputcsv=/tmp/pytorch_scores.csv --imageroot=/astrosurveydb2/images/
 """
 import csv
 import os
 import sys
 from collections import OrderedDict, defaultdict
 
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 
 _psat_ml = os.environ.get("PSAT_ML_PATH")
 if _psat_ml and _psat_ml not in sys.path:

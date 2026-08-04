@@ -39,9 +39,13 @@ from queries import getAtlasObjects
 
 # XGBOOST settings
 import os
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
+# 2026-07-11 KWS Increased the number of threads from 1 to 8 (experiment).
+os.environ["OMP_NUM_THREADS"] = "8"
+os.environ["MKL_NUM_THREADS"] = "8"
+os.environ["OPENBLAS_NUM_THREADS"] = "8"
+#os.environ["OMP_NUM_THREADS"] = "1"
+#os.environ["MKL_NUM_THREADS"] = "1"
+#os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
 
 # Object quality thresholds - Global data
@@ -427,6 +431,7 @@ def getObjectInfo(conn, objectId, mjdThreshold = None):
    Get all object occurrences. Grab the quality data as well so we can make a subsequent
    decision to reject the recurrence if necessary.
    For ATLAS, the 'fpa_object' name is also the field name.
+   Note that this code should be moved into the common queries code..
    """
 
    try:
@@ -443,6 +448,10 @@ def getObjectInfo(conn, objectId, mjdThreshold = None):
       #                detections would have been available on a certain date.
       # 2022-08-30 KWS Get the chi^2/n value as well so we can check it.
       # 2025-07-04 KWS Added nx and ny. Since TDO, we can no longer assume a chip size of 10560.
+      # 2025-07-04 KWS Added NNC flg, chin, x and y (currently known as nnc_x and nnc_y. This
+      #                will eventually replace the ddc equivalents. We need flg for flagging
+      #                movers, and x and y for applying the heatmaps. The chin value will also
+      #                be useful in future. We'll need to bring out the others eventually.
       if mjdThreshold is not None:
           cursor.execute ("""
                 SELECT d.ra RA,
@@ -467,6 +476,10 @@ def getObjectInfo(conn, objectId, mjdThreshold = None):
                        n.lin,
                        n.flaw,
                        n.cr,
+                       n.flg,
+                       n.chin as nnc_chin,
+                       n.x as nnc_x,
+                       n.y as nnc_y,
                        d.pkn,
                        d.det,
                        d.dup,
@@ -508,6 +521,10 @@ def getObjectInfo(conn, objectId, mjdThreshold = None):
                        n.lin,
                        n.flaw,
                        n.cr,
+                       n.flg,
+                       n.chin as nnc_chin,
+                       n.x as nnc_x,
+                       n.y as nnc_y,
                        d.pkn,
                        d.det,
                        d.dup,
@@ -736,6 +753,8 @@ def evaluateDetectionGates(objectRow, detInMaskArea, minSize):
       xgboostFailReasons.append('y_near_top_edge')
    if detInMaskArea:
       xgboostFailReasons.append('heatmap_mask')
+   if objectRow['flg'] is not None and (objectRow['flg'] & 7) > 0:
+      xgboostFailReasons.append('mover_bit_set')
    if not xgboostFailReasons:
       if not hasNNC:
          xgboostFailReasons.append('missing_nnc_scores')
@@ -1133,9 +1152,14 @@ def testObject(conn, object, mjdWindow = MJD_WINDOW, debug = False, checkTrigger
 
       # 2025-07-04 KWS I don't yet know how to do masks for the TDO telescope. Skip for the time being.
       #                Also switched from using CHIP_SIZE to objectRow['nx'] and objectRow['ny'].
-      if objectRow['expname'][0:3] != '05r':
-          binnedx = int(objectRow['x']*(masks[objectRow['expname'][0:3]].shape[1] - 1)/(objectRow['nx']-1))
-          binnedy = int(objectRow['y']*(masks[objectRow['expname'][0:3]].shape[0] - 1)/(objectRow['ny']-1))
+      # 2026-07-20 KWS Get the x, y info from nnc, not ddc anymore. Should be the same.
+      #if objectRow['expname'][0:3] != '05r':
+          #binnedx = int(objectRow['x']*(masks[objectRow['expname'][0:3]].shape[1] - 1)/(objectRow['nx']-1))
+          #binnedy = int(objectRow['y']*(masks[objectRow['expname'][0:3]].shape[0] - 1)/(objectRow['ny']-1))
+
+      if objectRow['expname'][0:3] != '05r' and objectRow['nnc_x'] is not None and objectRow['nnc_y'] is not None:
+          binnedx = int(objectRow['nnc_x']*(masks[objectRow['expname'][0:3]].shape[1] - 1)/(objectRow['nx']-1))
+          binnedy = int(objectRow['nnc_y']*(masks[objectRow['expname'][0:3]].shape[0] - 1)/(objectRow['ny']-1))
 
           if binnedx < 0:
               binnedx = 0
