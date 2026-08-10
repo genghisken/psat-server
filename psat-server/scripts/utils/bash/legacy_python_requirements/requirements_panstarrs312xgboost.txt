@@ -1,0 +1,9 @@
+astropy
+docopt
+joblib
+matplotlib
+pandas
+pymysql
+pyyaml
+scikit-learn
+xgboost

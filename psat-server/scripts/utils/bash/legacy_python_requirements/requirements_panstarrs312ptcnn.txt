@@ -1,0 +1,6 @@
+docopt
+gkutils
+torch
+h5py
+mysqlclient
+astropy
