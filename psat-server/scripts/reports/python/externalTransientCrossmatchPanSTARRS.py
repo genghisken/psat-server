@@ -48,7 +48,7 @@ def main(argv = None):
 
     import yaml
     with open(options.configfile) as yaml_file:
-        config = yaml.load(yaml_file)
+        config = yaml.safe_load(yaml_file)
 
     username = config['databases']['local']['username']
     password = config['databases']['local']['password']
