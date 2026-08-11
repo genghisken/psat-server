@@ -2,7 +2,7 @@
 """Refactored External Crossmatch code for Pan-STARRS.
 
 Usage:
-  %s <configfile> [<candidate>...] [--list=<listid>] [--searchRadius=<radius>] [--update] [--date=<date>] [--updateSNType] [--numberOfThreads=<n>] [--tnsOnly] [--loglocation=<loglocation>] [--logprefix=<logprefix>]
+  %s <configfile> [<candidate>...] [--list=<listid>] [--searchRadius=<radius>] [--update] [--date=<date>] [--updateSNType] [--numberOfThreads=<n>] [--tnsOnly] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--fileoffiles]
   %s (-h | --help)
   %s --version
 
@@ -19,13 +19,15 @@ Options:
   --tnsOnly                     Only search the TNS database.
   --loglocation=<loglocation>   Log file location [default: /tmp/]
   --logprefix=<logprefix>       Log prefix [default: external_crossmatches]
+  --fileoffiles                 Instead of reading the object ID from the command line, read it from the contents of files.
 
   Example:
     %s ../../../../config/config.yaml 1132030161113247300 --update --updateSNType --numberOfThreads=8
     %s ../../../../config/config.yaml --list=4 --update --updateSNType --numberOfThreads=8
+    %s ../../../../../ps13pi/config/config.yaml ~/all_sherlock_vs_bs_hmps_since_20260101.txt --update --updateSNType --tnsOnly --fileoffiles --numberOfThreads=64 --loglocation=/astrosurveydb2/tc_logs/ps13pi/ --logprefix=external_crossmatches_vs
 """
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 from docopt import docopt
 import datetime
 
@@ -177,7 +179,23 @@ def main(argv = None):
 
     print("Date threshold =", dateThreshold)
 
-    if len(options.candidate) > 0:
+
+    # 2026-08-10 KWS Added the ability to read a list of files rather than just a list of candidates on the
+    #                command line - because I can't pass more than a few thousand objects. This way we can
+    #                read millions of specified objects.
+    if options.fileoffiles and len(options.candidate) > 0:
+        fullcontent = []
+        for f in options.candidate:
+            with open(f) as fp:
+                content = fp.readlines()
+                content = [candidate.strip() for candidate in content]
+            fullcontent += content
+        for row in fullcontent:
+            object = getPS1Objects(conn, objectId = int(row))
+            if object:
+                candidateList.append(object)
+
+    elif len(options.candidate) > 0:
         for row in options.candidate:
             object = getPS1Objects(conn, objectId = int(row))
             if object:
