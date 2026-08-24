@@ -36,6 +36,9 @@ from tnsUtils import tnsAddRequestToDatabase, tnsUpdateRequestStatus, tnsUpdateR
 from gkutils.commonutils import dbConnect, PROCESSING_FLAGS, calculateRMSScatter, getDateFractionMJD, coneSearchHTM, QUICK
 sys.path.append('../../common/python')
 from queries import getObjectInfo
+
+# 2026-08-24 KWS We need the XGBOOST post ingest code in the path for testObject.
+sys.path.append('../../reports/python')
 # 2018-05-21 KWS Retest the cut to grab the flag MJD
 from postIngestAtlasCutsDDC_XGBOOST_MJD_WINDOW import testObject
 
