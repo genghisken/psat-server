@@ -201,15 +201,19 @@ def getBulkReportReply(reportId, tnsBaseURL, tnsApiKey, botId = None, botName = 
     request = None
     response = None
     # reply should be a dict
-    if (reply and 'id_code' in list(reply.keys()) and reply['id_code'] == 404):
+    if (reply and 'id_code' in reply.keys() and reply['id_code'] == 404):
         logger.warn("Unknown report.  Perhaps the report has not yet been processed.")
 
-    if (reply and 'id_code' in list(reply.keys()) and reply['id_code'] == 200):
+    if (reply and 'id_code' in reply.keys() and reply['id_code'] == 200):
         try:
-            request = reply['data']['received_data']['at_report']
+            # 2025-02-12 KWS The order below matters. The received_data key is the thing
+            #                that TNS are retiring. So it needs to be second!
             response = reply['data']['feedback']['at_report']
+            request = reply['data']['received_data']['at_report']
         except ValueError as e:
             logger.error("Cannot find the response feedback payload.")
+        except KeyError as e:
+            logger.warn("Looks like one of the keys (%s) is no longer valid." % str(e))
 
     return request, response
 
