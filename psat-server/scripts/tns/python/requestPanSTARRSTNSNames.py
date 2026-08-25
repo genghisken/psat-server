@@ -34,7 +34,7 @@ import json
 import time
 import logging
 
-from tnsUtils import tnsAddRequestToDatabase, tnsUpdateRequestStatus, tnsUpdateRequestDownloadAttempts, tnsGetRequestList, getSubmissionReports
+from tnsUtils import tnsAddRequestToDatabase, tnsUpdateRequestStatus, tnsUpdateRequestDownloadAttempts, tnsGetRequestList, getSubmissionReports, TNS_ARCHIVE
 
 from gkutils.commonutils import dbConnect, PROCESSING_FLAGS, calculateRMSScatter, getDateFractionMJD, coneSearchHTM, QUICK, grammarJoin, FLAGS, getMJDFromSqlDate
 #from apply3piDiffCuts import getObjectInfo
