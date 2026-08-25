@@ -506,7 +506,7 @@ def tnsReport(conn, tnsBaseURL, tnsApiKey, objectList, skipNonDetections = False
     
     arrayLength = len(objectList)
     maxNumberOfCandidates = 20
-    numberOfIterations = arrayLength/maxNumberOfCandidates
+    numberOfIterations = int(arrayLength/maxNumberOfCandidates)
 
     # Check to see if we need an extra iteration to clean up the end of the array
     if arrayLength%maxNumberOfCandidates != 0:
