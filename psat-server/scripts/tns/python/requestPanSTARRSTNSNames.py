@@ -41,6 +41,7 @@ from gkutils.commonutils import dbConnect, PROCESSING_FLAGS, calculateRMSScatter
 from math import log10
 from collections import OrderedDict
 
+sys.path.append('../../common/python')
 
 # Use the TNS logger /tmp/tns.log to record log info
 logger = logging.getLogger(__name__)
@@ -423,8 +424,8 @@ def getLastNonDetection(conn, candidate, sdssRadius = 300, sdssCatalogue = 'tcs_
     :return nonDetectionData: dict containing non-detection data
 
     """
-    from utils import coneSearchHTM
-    from pstampRequestStamps import getLightcurveNonDetectionsAndBlanks
+    from gkutils.commonutils import coneSearchHTM
+    from queries import getLightcurveNonDetectionsAndBlanks
 
     archiveData = None
 

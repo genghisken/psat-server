@@ -699,3 +699,32 @@ LC_NON_DET_AND_BLANKS_QUERY = """\
          order by mm.mjd_obs
       """
 
+# 2026-08-25 KWS Copied from the old pstampRequestStamps python 2 code.
+IPP_IDET_NON_DETECTION_VALUE = 4300000000
+
+def getLightcurveNonDetectionsAndBlanks(conn, candidate, filters="grizywxBV", ippIdetBlank = IPP_IDET_NON_DETECTION_VALUE):
+
+    try:
+        cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute (LC_NON_DET_AND_BLANKS_QUERY, (candidate,
+                                                      candidate,
+                                                      candidate,
+                                                      candidate,
+                                                      filters[0], filters[1], filters[2], filters[3], filters[4], filters[5], filters[6], filters[7], filters[8]))
+        resultSet = cursor.fetchall ()
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print "Error %d: %s" % (e.args[0], e.args[1])
+        return ()
+
+    # Add the ipp_idet blank value.  Too complicated to add this to the query.
+    ra, dec = getAverageCoordinates(conn, candidate)
+    for row in resultSet:
+        row['id'] = candidate
+        row['ra_psf'] = ra
+        row['dec_psf'] = dec
+        row['ipp_idet'] = ippIdetBlank
+
+    return resultSet
+

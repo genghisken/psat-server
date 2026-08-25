@@ -272,8 +272,10 @@ def getLastNonDetection(conn, candidate, sdssRadius = 300, sdssCatalogue = 'tcs_
     :return nonDetectionData: dict containing non-detection data
 
     """
-    from commonqueries import getLightcurvePoints, getNonDetections, getNonDetectionsUsingATLASFootprint, ATLAS_METADATADDC, LC_POINTS_QUERY_ATLAS_DDC, filterWhereClauseddc, FILTERS
-    from utils import coneSearchHTM
+
+    # 2026-08-25 KWS The commonqueries module is inside the psat_server_web module. Get it from there.
+    from psat_server_web.atlas.atlas.commonqueries import getLightcurvePoints, getNonDetections, getNonDetectionsUsingATLASFootprint, ATLAS_METADATADDC, LC_POINTS_QUERY_ATLAS_DDC, filterWhereClauseddc, FILTERS
+    from gkutils.commonutils import coneSearchHTM
 
     archiveData = None
 
