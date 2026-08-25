@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from tnsAPI import addBulkReport, getBulkReportReply
+from tnsAPI import addBulkReport, getBulkReportReply, TNS_ARCHIVE
 import sys
 import logging
 
