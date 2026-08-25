@@ -746,7 +746,7 @@ def getPanSTARRSAverageCoordinates(conn, candidate, mjd = None):
         cursor.close ()
 
     except MySQLdb.Error as e:
-        print "Error: %s" % (str(e))
+        print ("Error: %s" % (str(e)))
         sys.exit (1)
 
     if row:
