@@ -191,7 +191,7 @@ def listen(options):
                                 zooniverseScoreThreshold=zooniverseScoreThreshold,
                                 botId=botId,
                                 botName=botName,
-                                addInternalIDs=internalids,
+                                addInternalIDs=options.internalids,
                             )
                             for row in reports:
                                 logger.info('Daemon Submission - TNS report ID = %s', row)
@@ -237,7 +237,7 @@ def listen(options):
                                 zooniverseScoreThreshold=zooniverseScoreThreshold,
                                 botId=botId,
                                 botName=botName,
-                                addInternalIDs=internalids,
+                                addInternalIDs=options.internalids,
                             )
                             for row in reports:
                                 logger.info('Daemon TEST Submission - TNS report ID = %s', row)
