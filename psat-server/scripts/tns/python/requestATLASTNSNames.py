@@ -34,7 +34,11 @@ import logging
 
 from tnsUtils import tnsAddRequestToDatabase, tnsUpdateRequestStatus, tnsUpdateRequestDownloadAttempts, tnsGetRequestList, getSubmissionReports
 from gkutils.commonutils import dbConnect, PROCESSING_FLAGS, calculateRMSScatter, getDateFractionMJD, coneSearchHTM, QUICK
-sys.path.append('../../common/python')
+
+# 2026-08-25 KWS When this code runs as a daemon, the runtime path is not obvious. This code fixes it.
+from pathlib import Path
+common_python = Path(__file__).resolve().parents[2] / 'common' / 'python'
+sys.path.append(str(common_python))
 from queries import getObjectInfo
 
 # 2026-08-24 KWS We need the XGBOOST post ingest code in the path for testObject.

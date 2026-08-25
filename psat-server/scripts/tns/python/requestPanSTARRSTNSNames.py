@@ -424,7 +424,10 @@ def getLastNonDetection(conn, candidate, sdssRadius = 300, sdssCatalogue = 'tcs_
 
     """
     from gkutils.commonutils import coneSearchHTM
-    sys.path.append('../../common/python')
+    # 2026-08-25 KWS When this code runs as a daemon, the runtime path is not obvious. This code fixes it.
+    from pathlib import Path
+    common_python = Path(__file__).resolve().parents[2] / 'common' / 'python'
+    sys.path.append(str(common_python))
     from queries import getLightcurveNonDetectionsAndBlanks
 
     archiveData = None
