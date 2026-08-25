@@ -21,11 +21,12 @@ Options:
 
 Example:
   python %s ../../../../config/config.yaml start --pidfile=/nvme/1/var/tnsDaemonPS.pid
+  python %s ~/config_ps13pi.yaml start --pidfile=/astrosurveyweb/tc_logs/ps13pi/panstarrstnsdaemon.pid --logfile=/astrosurveyweb/tc_logs/ps13pi/panstarrstns.log --internalids --daemonErrFile=/astrosurveyweb/tc_logs/ps13pi/panstarrstnsdaemonerr.log --daemonOutFile=/astrosurveyweb/tc_logs/ps13pi/panstarrstnsdaemonout.log
 
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 
 from docopt import docopt
 import os
