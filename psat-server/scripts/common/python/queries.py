@@ -759,8 +759,6 @@ IPP_IDET_NON_DETECTION_VALUE = 4300000000
 
 def getPanSTARRSLightcurveNonDetectionsAndBlanks(conn, candidate, filters="grizywxBV", ippIdetBlank = IPP_IDET_NON_DETECTION_VALUE):
 
-    from gkutils.commonutils import getAverageCoordinates
-
     try:
         cursor = conn.cursor(MySQLdb.cursors.DictCursor)
         cursor.execute (LC_NON_DET_AND_BLANKS_QUERY, (candidate,
