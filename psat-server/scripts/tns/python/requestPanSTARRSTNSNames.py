@@ -428,12 +428,12 @@ def getLastNonDetection(conn, candidate, sdssRadius = 300, sdssCatalogue = 'tcs_
     from pathlib import Path
     common_python = Path(__file__).resolve().parents[2] / 'common' / 'python'
     sys.path.append(str(common_python))
-    from queries import getLightcurveNonDetectionsAndBlanks
+    from queries import getPanSTARRSLightcurveNonDetectionsAndBlanks
 
     archiveData = None
 
     recurrences = getObjectInfo(conn, candidate['id'])
-    blanks = getLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
+    blanks = getPanSTARRSLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
     lastNonDetection = None
 
     tolerance = 0.001

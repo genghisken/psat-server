@@ -700,9 +700,66 @@ LC_NON_DET_AND_BLANKS_QUERY = """\
       """
 
 # 2026-08-25 KWS Copied from the old pstampRequestStamps python 2 code.
+
+def getPanSTARRSAverageCoordinates(conn, candidate, mjd = None):
+    import MySQLdb
+    ra = None
+    dec = None
+
+    try:
+        cursor = conn.cursor (MySQLdb.cursors.DictCursor)
+
+        if mjd:
+            cursor.execute ("""
+              select avg(ra_psf) ra_psf, avg(dec_psf) dec_psf from (
+                 select ra_psf, dec_psf
+                   from tcs_transient_objects o, tcs_cmf_metadata m
+                  where o.id = %s
+                    and o.tcs_cmf_metadata_id = m.id
+                    and m.mjd_obs > %s
+              union all
+                 select r.ra_psf, r.dec_psf
+                   from tcs_transient_reobservations r, tcs_transient_objects o, tcs_cmf_metadata m
+                  where o.id = r.transient_object_id
+                    and o.id = %s
+                    and r.tcs_cmf_metadata_id = m.id
+                    and m.mjd_obs > %s ) temp
+            """, (candidate, mjd, candidate, mjd))
+        else:
+            cursor.execute ("""
+              select avg(ra_psf) ra_psf, avg(dec_psf) dec_psf from (
+                 select ra_psf, dec_psf
+                   from tcs_transient_objects
+                  where id = %s
+              union all
+                 select r.ra_psf, r.dec_psf
+                   from tcs_transient_reobservations r, tcs_transient_objects o
+                  where o.id = r.transient_object_id
+                    and o.id = %s) temp
+            """, (candidate, candidate))
+
+        if cursor.rowcount > 1:
+            print ("Warning: More than one row returned.")
+
+        # Only pick up one row, regardless of how many there are
+        row = cursor.fetchone ()
+        cursor.close ()
+
+    except MySQLdb.Error as e:
+        print "Error: %s" % (str(e))
+        sys.exit (1)
+
+    if row:
+        ra = row["ra_psf"]
+        dec = row["dec_psf"]
+
+    return ra, dec
+
 IPP_IDET_NON_DETECTION_VALUE = 4300000000
 
-def getLightcurveNonDetectionsAndBlanks(conn, candidate, filters="grizywxBV", ippIdetBlank = IPP_IDET_NON_DETECTION_VALUE):
+def getPanSTARRSLightcurveNonDetectionsAndBlanks(conn, candidate, filters="grizywxBV", ippIdetBlank = IPP_IDET_NON_DETECTION_VALUE):
+
+    from gkutils.commonutils import getAverageCoordinates
 
     try:
         cursor = conn.cursor(MySQLdb.cursors.DictCursor)
@@ -719,7 +776,7 @@ def getLightcurveNonDetectionsAndBlanks(conn, candidate, filters="grizywxBV", ip
         return ()
 
     # Add the ipp_idet blank value.  Too complicated to add this to the query.
-    ra, dec = getAverageCoordinates(conn, candidate)
+    ra, dec = getPanSTARRSAverageCoordinates(conn, candidate)
     for row in resultSet:
         row['id'] = candidate
         row['ra_psf'] = ra
