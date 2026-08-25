@@ -715,7 +715,7 @@ def getLightcurveNonDetectionsAndBlanks(conn, candidate, filters="grizywxBV", ip
         cursor.close ()
 
     except MySQLdb.Error as e:
-        print "Error %d: %s" % (e.args[0], e.args[1])
+        print ("Error %s" % (str(e)))
         return ()
 
     # Add the ipp_idet blank value.  Too complicated to add this to the query.
