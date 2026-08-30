@@ -2,7 +2,7 @@
 """Check for Solar System moons.
 
 Usage:
-  %s <configfile> [<candidate>...] [--list=<listid>] [--matchRadius=<radius>] [--matchTimeDelta=<timedelta>] [--update] [--date=<date>] [--survey=<survey>] [--ddc] [--loglocation=<loglocation>] [--logprefix=<logprefix>]
+  %s <configfile> [<candidate>...] [--list=<listid>] [--matchRadius=<radius>] [--matchTimeDelta=<timedelta>] [--update] [--date=<date>] [--survey=<survey>] [--ddc] [--loglocation=<loglocation>] [--logprefix=<logprefix>] [--customlist=<customlistid>]
   %s (-h | --help)
   %s --version
 
