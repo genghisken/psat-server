@@ -147,7 +147,7 @@ def listen(options):
                         reporter=tnsAuthors,
                         botId=botId,
                         botName=botName,
-                        addInternalIDs=internalids,
+                        addInternalIDs=options.internalids,
                     )
                     for row in reports:
                         logger.info('Daemon Submission - TNS report ID = %s', row)

@@ -34,7 +34,7 @@ import json
 import time
 import logging
 
-from tnsUtils import tnsAddRequestToDatabase, tnsUpdateRequestStatus, tnsUpdateRequestDownloadAttempts, tnsGetRequestList, getSubmissionReports
+from tnsUtils import tnsAddRequestToDatabase, tnsUpdateRequestStatus, tnsUpdateRequestDownloadAttempts, tnsGetRequestList, getSubmissionReports, addBulkReport, TNS_ARCHIVE
 
 from gkutils.commonutils import dbConnect, PROCESSING_FLAGS, calculateRMSScatter, getDateFractionMJD, coneSearchHTM, QUICK, grammarJoin, FLAGS, getMJDFromSqlDate
 #from apply3piDiffCuts import getObjectInfo
@@ -423,13 +423,17 @@ def getLastNonDetection(conn, candidate, sdssRadius = 300, sdssCatalogue = 'tcs_
     :return nonDetectionData: dict containing non-detection data
 
     """
-    from utils import coneSearchHTM
-    from pstampRequestStamps import getLightcurveNonDetectionsAndBlanks
+    from gkutils.commonutils import coneSearchHTM
+    # 2026-08-25 KWS When this code runs as a daemon, the runtime path is not obvious. This code fixes it.
+    from pathlib import Path
+    common_python = Path(__file__).resolve().parents[2] / 'common' / 'python'
+    sys.path.append(str(common_python))
+    from queries import getPanSTARRSLightcurveNonDetectionsAndBlanks
 
     archiveData = None
 
     recurrences = getObjectInfo(conn, candidate['id'])
-    blanks = getLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
+    blanks = getPanSTARRSLightcurveNonDetectionsAndBlanks(conn, candidate['id'])
     lastNonDetection = None
 
     tolerance = 0.001
@@ -506,7 +510,7 @@ def tnsReport(conn, tnsBaseURL, tnsApiKey, objectList, skipNonDetections = False
     
     arrayLength = len(objectList)
     maxNumberOfCandidates = 20
-    numberOfIterations = arrayLength/maxNumberOfCandidates
+    numberOfIterations = int(arrayLength/maxNumberOfCandidates)
 
     # Check to see if we need an extra iteration to clean up the end of the array
     if arrayLength%maxNumberOfCandidates != 0:

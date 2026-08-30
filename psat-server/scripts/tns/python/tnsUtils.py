@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-from tnsAPI import addBulkReport, getBulkReportReply
+from tnsAPI import addBulkReport, getBulkReportReply, TNS_ARCHIVE
 import sys
 import logging
+import json
 
 # The following code should be useable by both the Pan-STARRS and ATLAS surveys.
 

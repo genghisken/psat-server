@@ -34,8 +34,15 @@ import logging
 
 from tnsUtils import tnsAddRequestToDatabase, tnsUpdateRequestStatus, tnsUpdateRequestDownloadAttempts, tnsGetRequestList, getSubmissionReports
 from gkutils.commonutils import dbConnect, PROCESSING_FLAGS, calculateRMSScatter, getDateFractionMJD, coneSearchHTM, QUICK
-sys.path.append('../../common/python')
+
+# 2026-08-25 KWS When this code runs as a daemon, the runtime path is not obvious. This code fixes it.
+from pathlib import Path
+common_python = Path(__file__).resolve().parents[2] / 'common' / 'python'
+sys.path.append(str(common_python))
 from queries import getObjectInfo
+
+# 2026-08-24 KWS We need the XGBOOST post ingest code in the path for testObject.
+sys.path.append('../../reports/python')
 # 2018-05-21 KWS Retest the cut to grab the flag MJD
 from postIngestAtlasCutsDDC_XGBOOST_MJD_WINDOW import testObject
 
@@ -269,8 +276,10 @@ def getLastNonDetection(conn, candidate, sdssRadius = 300, sdssCatalogue = 'tcs_
     :return nonDetectionData: dict containing non-detection data
 
     """
-    from commonqueries import getLightcurvePoints, getNonDetections, getNonDetectionsUsingATLASFootprint, ATLAS_METADATADDC, LC_POINTS_QUERY_ATLAS_DDC, filterWhereClauseddc, FILTERS
-    from utils import coneSearchHTM
+
+    # 2026-08-25 KWS The commonqueries module is inside the psat_server_web module. Get it from there.
+    from psat_server_web.atlas.atlas.commonqueries import getLightcurvePoints, getNonDetections, getNonDetectionsUsingATLASFootprint, ATLAS_METADATADDC, LC_POINTS_QUERY_ATLAS_DDC, filterWhereClauseddc, FILTERS
+    from gkutils.commonutils import coneSearchHTM
 
     archiveData = None
 
@@ -383,7 +392,7 @@ def tnsReport(conn, tnsBaseURL, tnsApiKey, objectList, ddc = False, donotsend = 
     
     arrayLength = len(objectList)
     maxNumberOfCandidates = 100
-    numberOfIterations = arrayLength/maxNumberOfCandidates
+    numberOfIterations = int(arrayLength/maxNumberOfCandidates)
 
     # Check to see if we need an extra iteration to clean up the end of the array
     if arrayLength%maxNumberOfCandidates != 0:

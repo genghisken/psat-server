@@ -21,11 +21,12 @@ Options:
 
 Example:
   python %s ../../../../config/config.yaml start --pidfile=/nvme/1/var/tnsDaemonPS.pid
+  python %s ~/config_ps13pi.yaml start --pidfile=/astrosurveyweb/tc_logs/ps13pi/panstarrstnsdaemon.pid --logfile=/astrosurveyweb/tc_logs/ps13pi/panstarrstns.log --internalids --daemonErrFile=/astrosurveyweb/tc_logs/ps13pi/panstarrstnsdaemonerr.log --daemonOutFile=/astrosurveyweb/tc_logs/ps13pi/panstarrstnsdaemonout.log
 
 """
 
 import sys
-__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
+__doc__ = __doc__ % (sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0], sys.argv[0])
 
 from docopt import docopt
 import os
@@ -141,7 +142,7 @@ def listen(options):
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind((server, port))
+        s.bind((options.server, int(options.port)))
         s.listen(1)
 
         while True:
@@ -191,7 +192,7 @@ def listen(options):
                                 zooniverseScoreThreshold=zooniverseScoreThreshold,
                                 botId=botId,
                                 botName=botName,
-                                addInternalIDs=internalids,
+                                addInternalIDs=options.internalids,
                             )
                             for row in reports:
                                 logger.info('Daemon Submission - TNS report ID = %s', row)
@@ -237,7 +238,7 @@ def listen(options):
                                 zooniverseScoreThreshold=zooniverseScoreThreshold,
                                 botId=botId,
                                 botName=botName,
-                                addInternalIDs=internalids,
+                                addInternalIDs=options.internalids,
                             )
                             for row in reports:
                                 logger.info('Daemon TEST Submission - TNS report ID = %s', row)
