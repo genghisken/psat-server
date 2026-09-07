@@ -338,7 +338,7 @@ class ExternalCrossmatches_tcs_cat_tns(ExternalCrossmatches):
         #else:
         #    self.externalCrossmatch['comments'] = None
 
-        self.externalCrossmatch['url'] = 'https://wis-tns.org/object/' + crossmatch[1]['tns_name']
+        self.externalCrossmatch['url'] = 'https://www.wis-tns.org/object/' + crossmatch[1]['tns_name']
 
         if crossmatch[1]['hostz']:
             self.externalCrossmatch['host_z'] = crossmatch[1]['hostz']
