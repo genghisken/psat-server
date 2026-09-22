@@ -1,0 +1,7 @@
+mysqlclient
+docopt
+astropy
+gkutils
+gkhtm
+requests
+pillow
