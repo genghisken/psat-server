@@ -14,6 +14,8 @@ Options:
 
 E.g.:
   %s ../../../../../ps13pi/config/config.yaml
+
+NOTE: This code requires at least python 3.11. The most recent astropy version in python 3.9 has a FITS data read bug when NaN data is in image.
 """
 
 import sys
