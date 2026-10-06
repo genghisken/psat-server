@@ -555,7 +555,7 @@ def fitsToImage(r, g=None, b=None, outputFilename='/tmp/out.jpeg', nsigma = 10.0
         b = r
 
     print("Loading r image...")
-    r_img = pf.getdata(r)
+    r_img = nan_to_num(pf.getdata(r), nan=0.0)
     (dataStdDev, dataMedian, maskedPixelRatio, maskedPixelRatioAtCore, coreStdDev, coreMedian) = getFITSImageStats2(image = r_img, imageCoreSizePercent = imageCoreSizePercent, excludeZeros = excludeZeros, magicNumber = magicNumber)
     if useCoreStats:
         rminval = coreMedian - coreStdDev*minFudge
@@ -565,7 +565,7 @@ def fitsToImage(r, g=None, b=None, outputFilename='/tmp/out.jpeg', nsigma = 10.0
         rmaxval = dataMedian + (nsigma * dataStdDev) * rFudge
 
     print("Loading g image...")
-    g_img = pf.getdata(g)
+    g_img = nan_to_num(pf.getdata(g), nan=0.0)
     (dataStdDev, dataMedian, maskedPixelRatio, maskedPixelRatioAtCore, coreStdDev, coreMedian) = getFITSImageStats2(image = g_img, imageCoreSizePercent = imageCoreSizePercent, excludeZeros = excludeZeros, magicNumber = magicNumber)
     if useCoreStats:
         gminval = coreMedian - coreStdDev*minFudge
@@ -575,7 +575,7 @@ def fitsToImage(r, g=None, b=None, outputFilename='/tmp/out.jpeg', nsigma = 10.0
         gmaxval = dataMedian + (nsigma * dataStdDev) * gFudge
 
     print("Loading b image...")
-    b_img = pf.getdata(b)
+    b_img = nan_to_num(pf.getdata(b), nan=0.0)
     (dataStdDev, dataMedian, maskedPixelRatio, maskedPixelRatioAtCore, coreStdDev, coreMedian) = getFITSImageStats2(image = b_img, imageCoreSizePercent = imageCoreSizePercent, excludeZeros = excludeZeros, magicNumber = magicNumber)
     if useCoreStats:
         bminval = coreMedian - coreStdDev*minFudge
