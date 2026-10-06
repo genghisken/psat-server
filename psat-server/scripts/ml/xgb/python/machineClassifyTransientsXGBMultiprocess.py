@@ -24,9 +24,11 @@ from xgb_catalogue_utils import (
 from machineClassifyTransientsXGB import (
     effective_date_threshold,
     get_object_details,
+    get_ps1_objects,
     get_ps1_objects_shadow,
     parse_date_threshold,
     resolve_shadow_thresholds,
+    update_classification_confidences,
 )
 
 LOG_FILE_LOCATION = "/" + os.uname()[1].split(".")[0] + "/tc_logs/"
@@ -117,6 +119,7 @@ def parallel_process(
     return full_results
 
 
+# 2026-10-06 KWS Added --update option. We now want to update the database.
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Multiprocess Pan-STARRS catalogue XGBoost classifier (shadow mode)."
@@ -126,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--list", type=int, default=4, dest="list_id")
     parser.add_argument("--catalogues", action="store_true")
     parser.add_argument("--shadow", action="store_true", default=False)
+    parser.add_argument("--update", action="store_true", default=False, help="Update the database.")
     parser.add_argument("--logfile", type=str, default=None)
     parser.add_argument("--date", type=str, default="20130601")
     parser.add_argument("--limit", type=int, default=1_000_000)
@@ -137,10 +141,11 @@ def main(argv: list[str] | None = None) -> int:
     if not args.catalogues:
         print("ERROR: --catalogues is required.", file=sys.stderr)
         return 1
-    if not args.shadow:
-        print("ERROR: only --shadow mode is enabled in phase 1.", file=sys.stderr)
+    # 2026-10-06 KWS Written by claude and reviewed.
+    if args.shadow == args.update:
+        print("ERROR: specify exactly one of --shadow or --update.", file=sys.stderr)
         return 1
-    if not args.logfile:
+    if args.shadow and not args.logfile:
         print("ERROR: --shadow requires --logfile", file=sys.stderr)
         return 1
 
@@ -173,7 +178,9 @@ def main(argv: list[str] | None = None) -> int:
             print("Detection list must be between 1 and 8", file=sys.stderr)
             conn.close()
             return 1
-        candidate_list = get_ps1_objects_shadow(
+        # 2026-10-06 KWS Written by claude and reviewed. Nice function re-use.
+        fetch_objects = get_ps1_objects if args.update else get_ps1_objects_shadow
+        candidate_list = fetch_objects(
             conn,
             list_id=args.list_id,
             date_threshold=date_threshold,
@@ -183,6 +190,9 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"TOTAL OBJECTS TO SCORE = {len(candidate_list)}")
     if not candidate_list:
+        # 2026-10-06 KWS Logic by claude and OK I think.
+        if args.update:
+            return 0
         try:
             thresholds = resolve_shadow_thresholds(config, args.rf_threshold, args.xgb_threshold)
         except ValueError as exc:
@@ -199,6 +209,17 @@ def main(argv: list[str] | None = None) -> int:
     print(f"{datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')} Parallel Processing...")
     results = parallel_process(db_credentials, date_and_time, n_processors, list_chunks, [xgb_config])
     print(f"{datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')} Done Parallel Processing")
+
+    # 2026-10-06 KWS Logic by claude and reviewed.
+    if args.update:
+        conn = db_connect(db_cfg["hostname"], db_cfg["username"], db_cfg["password"], db_cfg["database"])
+        if conn is None:
+            print("Cannot connect to the database", file=sys.stderr)
+            return 1
+        updated = update_classification_confidences(conn, results)
+        conn.close()
+        print(f"Updated classification_confidence for {updated} objects")
+        return 0
 
     try:
         thresholds = resolve_shadow_thresholds(config, args.rf_threshold, args.xgb_threshold)
