@@ -17,6 +17,7 @@ import pandas as pd
 import pymysql
 import xgboost as xgb
 
+
 # Must match 5.XGBOOST.py / training_meta_ps*.json feature order.
 XGB_FEATURES = [
     "x_psf",
@@ -159,9 +160,12 @@ def load_xgb_models(xgb_config: XGBCatalogueConfig) -> tuple[xgb.XGBClassifier, 
         if not path.is_file():
             raise FileNotFoundError(f"XGB model not found: {path}")
 
-    ps1_model = xgb.XGBClassifier()
+    # 2026-10-08 KWS Problem is that xgb.XGBClassifier() will try and grab as many CPUs as possible, 
+    #                but we're already using multiprocessing, so restrict the number of jobs
+    #                (n_jobs=N) spawned by each classifier.
+    ps1_model = xgb.XGBClassifier(n_jobs=4)
     ps1_model.load_model(str(ps1_path))
-    ps2_model = xgb.XGBClassifier()
+    ps2_model = xgb.XGBClassifier(n_jobs=4)
     ps2_model.load_model(str(ps2_path))
     return ps1_model, ps2_model
 
@@ -322,8 +326,8 @@ def fetch_detection_rows(conn, object_id: int, features: list[str]) -> list[dict
 def score_candidate(
     conn,
     candidate: dict,
-    ps1_model: xgb.XGBClassifier,
-    ps2_model: xgb.XGBClassifier,
+    ps1_model: xgb.XGBClassifier(),
+    ps2_model: xgb.XGBClassifier(),
     xgb_config: XGBCatalogueConfig,
 ) -> dict[str, Any]:
     object_id = int(candidate["id"])
