@@ -66,6 +66,39 @@ def get_ps1_objects_shadow(
         return list(cursor.fetchall())
 
 
+# 2026-10-06 KWS Written by claude, and reviewed. Same as above, but pull out
+#                all objects with null classification_confidence.
+def get_ps1_objects(
+    conn,
+    list_id: int = 4,
+    date_threshold: str = "2013-06-01",
+    limit: int = 1_000_000,
+) -> list[dict]:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select o.id,
+                   followup_id,
+                   ra_psf as ra,
+                   dec_psf as `dec`,
+                   local_designation as name,
+                   ps1_designation,
+                   object_classification,
+                   local_comments,
+                   followup_flag_date,
+                   classification_confidence
+              from tcs_transient_objects o
+             where o.detection_list_id = %s
+               and o.classification_confidence is null
+               and o.followup_flag_date >= %s
+          order by o.id
+             limit %s
+            """,
+            (list_id, date_threshold, limit),
+        )
+        return list(cursor.fetchall())
+
+
 def get_object_details(conn, object_id: int) -> dict | None:
     with conn.cursor() as cursor:
         cursor.execute(
@@ -88,6 +121,41 @@ def get_object_details(conn, object_id: int) -> dict | None:
             (object_id,),
         )
         return cursor.fetchone()
+
+
+# 2026-10-05 KWS Copied and modified the following function from the original RF classifier code.
+#                The code updates the confidence_factor column in tcs_transient_objects for CNN stuff
+#                and classification_confidence if it's XGB. Assume catalogue for the time being.
+def updatePanSTARRSRBFactor(conn, object_id: int, realBogusValue: float) -> int:
+
+    rowsUpdated = 0
+
+    with conn.cursor() as cursor:
+
+        cursor.execute ("""
+             update tcs_transient_objects
+             set classification_confidence = %s
+             where id = %s
+        """, (realBogusValue, object_id))
+
+        rowsUpdated = cursor.rowcount
+
+        # Did we update any transient object rows? If not issue a warning.
+        if rowsUpdated == 0:
+            print ("WARNING: No transient object entries were updated.")
+
+    return rowsUpdated
+
+
+# 2026-10-06 KWS Written by claude and reviewed.
+def update_classification_confidences(conn, results: list[dict]) -> int:
+    updated = 0
+    for result in results:
+        xgb_score = result.get("xgb_score")
+        if xgb_score is None:
+            continue
+        updated += updatePanSTARRSRBFactor(conn, int(result["candidate"]["id"]), float(xgb_score))
+    return updated
 
 
 def parse_date_threshold(date_arg: str | None) -> str:
@@ -124,6 +192,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help="Shadow mode: log scores only, no DB updates or garbage moves",
+    )
+    parser.add_argument(
+        "--update",
+        action="store_true",
+        default=False,
+        help="Update the database.",
     )
     parser.add_argument("--logfile", type=str, default=None, help="Shadow comparison CSV path")
     parser.add_argument(
@@ -188,12 +262,13 @@ def main(argv: list[str] | None = None) -> int:
         print("ERROR: --catalogues is required for catalogue XGB scoring.", file=sys.stderr)
         return 1
 
-    if not args.shadow:
-        print(
-            "ERROR: only --shadow mode is enabled in phase 1. "
-            "Refusing to run without --shadow.",
-            file=sys.stderr,
-        )
+    # 2026-10-06 KWS Modified by claude and reviewed.
+    if args.shadow == args.update:
+        print("ERROR: specify exactly one of --shadow or --update.", file=sys.stderr)
+        return 1
+
+    if args.shadow and not args.logfile:
+        print("ERROR: --shadow requires --logfile", file=sys.stderr)
         return 1
 
     with open(args.config_file, encoding="utf-8") as yaml_file:
@@ -224,7 +299,9 @@ def main(argv: list[str] | None = None) -> int:
             print("Detection list must be between 1 and 8", file=sys.stderr)
             conn.close()
             return 1
-        candidate_list = get_ps1_objects_shadow(
+        # 2026-10-06 KWS Written by claude and reviewed. Nice re-use of a single function call!
+        fetch_objects = get_ps1_objects if args.update else get_ps1_objects_shadow
+        candidate_list = fetch_objects(
             conn,
             list_id=args.list_id,
             date_threshold=date_threshold,
@@ -233,12 +310,13 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"TOTAL OBJECTS TO SCORE = {len(candidate_list)}")
     results = do_xgb_catalogue_classification(conn, candidate_list, xgb_config)
+    # 2026-10-06 KWS Written by claude and reviewed. Call the update code and sum the updates.
+    if args.update:
+        updated = update_classification_confidences(conn, results)
+        print(f"Updated classification_confidence for {updated} objects")
     conn.close()
 
     if args.shadow:
-        if not args.logfile:
-            print("ERROR: --shadow requires --logfile", file=sys.stderr)
-            return 1
         try:
             thresholds = resolve_shadow_thresholds(config, args.rf_threshold, args.xgb_threshold)
         except ValueError as exc:
