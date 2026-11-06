@@ -2,24 +2,24 @@
 """Download from the TNS.  Max size of request is 1000 pages.
 
 Usage:
-  %s <configFile> [--pageSize=<n>] [--pageNumber=<n>] [--inLastNumberOfDays=<n>] [--userId=<userId>] [--userName=<userName>] [--debug]
+  %s <configFile> [--entriesperpage=<n>] [--pages=<n>] [--recentdays=<n>] [--userId=<userId>] [--userName=<userName>] [--debug]
   %s (-h | --help)
   %s --version
 
 Options:
   -h --help                    Show this screen.
   --version                    Show version.
-  --pageSize=<n>               Request page size [default: 50].
-  --pageNumber=<n>             Request page number [default: 0].
-  --inLastNumberOfDays=<n>     Get everything in the specified number of days.
+  --entriesperpage=<n>         Request number of entries per page (max 500) [default: 50].
+  --pages=<n>                  Request this number of pages (max 100) [default: 1].
+  --recentdays=<n>             Get everything in the specified number of days [default: 7].
   --userId=<userId>            Use this userId for authorized access to TNS.
   --userName=<userName>        Use this userName for authorized access to TNS.
   --debug                      If true, write out what we got from TNS. Don't write to the database.
 
 E.g.:
-  %s ../../../../config/config.yaml --pageSize=500 --pageNumber=0 --userName=jbloggs --userId=0
+  %s ../../../../config/config.yaml --entriesperpage=500 --pages=1 --userName=jbloggs --userId=0
   or
-  %s ../../../../config/config.yaml --pageSize=500 --inLastNumberOfDays=100 --userName=jbloggs --userId=0 --debug
+  %s ../../../../config/config.yaml --pages=10 --entriesperpage=500  --recentdays=7 --userName=jbloggs --userId=0 --debug
 """
 
 import sys
@@ -151,12 +151,12 @@ def insertTNS(conn, tnsEntry):
 
 
 # This funciton will return a giant CSV covering N pages (up to 100).
-def pollTNS(options, page=0, resultSize=50, inLastNumberDays=None, header = None):
+def pollTNS(options, header = None):
 
     csvdata = []
 
-    if inLastNumberDays:
-        pastTime = (datetime.now(timezone.utc) - timedelta(days=inLastNumberDays)).strftime("%Y-%m-%d")
+    if options.recentdays:
+        pastTime = (datetime.now(timezone.utc) - timedelta(days=int(options.recentdays))).strftime("%Y-%m-%d")
         print(pastTime)
     else:
         pastTime = ""
@@ -176,8 +176,10 @@ def pollTNS(options, page=0, resultSize=50, inLastNumberDays=None, header = None
             "groupid[]": "null",
             "type[]": "null",
             "discoverer": "",
-            "date_start[date]": pastTime,
-            "date_end[date]": "2100-01-01",
+            "reported_within_last_value": options.recentdays,
+            "reported_within_last_units": "days",
+         #   "date_start[date]": pastTime,
+         #   "date_end[date]": "2100-01-01",
             "discovery_mag_min": "",
             "discovery_mag_max": "",
             "redshift_min": "",
@@ -198,7 +200,7 @@ def pollTNS(options, page=0, resultSize=50, inLastNumberDays=None, header = None
             "display[discoverer]": "1",
             "display[sources]": "1",
             "display[bibcode]": "1",
-            "num_page": resultSize,
+            "num_page": options.entriesperpage,
             "edit[type]": "",
             "edit[objname]": "",
             "edit[id]": "",
@@ -215,7 +217,7 @@ def pollTNS(options, page=0, resultSize=50, inLastNumberDays=None, header = None
         with requests.Session() as session:
             session.headers.update(header)  # Your existing TNS header
 
-            for p in range(page):
+            for p in range(int(options.pages)):
                 params["page"] = p
 
                 response = session.get(
@@ -228,8 +230,8 @@ def pollTNS(options, page=0, resultSize=50, inLastNumberDays=None, header = None
                 reader = csv.DictReader(StringIO(response.text))
                 rows = list(reader)
                 csvdata += rows
-                if (len(rows) < resultSize):
-                    # If we get less than the number of rows we requested, we must be on the last page.
+                if (len(rows) < int(options.entriesperpage)):
+                    # If we get less than the number of entries per page we requested, we must be on the last page.
                     break
                 status_code = response.status_code
                 print(status_code)
@@ -269,15 +271,10 @@ def getTNSData(opts):
         print("Cannot connect to the database")
         return 1
 
-    inLastNumberOfDays = None
-    if options.inLastNumberOfDays:
-        inLastNumberOfDays = int(options.inLastNumberOfDays)
-
-    data = pollTNS(options, page = int(options.pageNumber), resultSize = int(options.pageSize), inLastNumberDays = inLastNumberOfDays, header = header)
+    data = pollTNS(options, header = header)
 
     if options.debug:
         # Just print what we got and exit. Go no further.
-        print("*********************")
         for row in data:
             for k,v in row.items():
                 print (k, v)
