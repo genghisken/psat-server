@@ -38,6 +38,7 @@ from datetime import datetime, timedelta, timezone
 import time
 
 
+# 2026-11-09 KWS Added cursor.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
 def getTNSRow(conn, tnsName):
    """
    Has the TNS row been updated compared with what's in the database?
@@ -45,6 +46,7 @@ def getTNSRow(conn, tnsName):
 
    try:
       cursor = conn.cursor (MySQLdb.cursors.DictCursor)
+      cursor.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
 
       cursor.execute ("""
            select tns_prefix, tns_name
@@ -62,9 +64,11 @@ def getTNSRow(conn, tnsName):
    return resultSet
 
 
+# 2026-11-09 KWS Added cursor.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
 def deleteTNSRow(conn, tnsName):
     try:
         cursor = conn.cursor (MySQLdb.cursors.DictCursor)
+        cursor.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
 
         cursor.execute ("""
             delete from tcs_cat_tns
@@ -81,11 +85,13 @@ def deleteTNSRow(conn, tnsName):
 
 # 2020-02-25 KWS TNS changed "Discovery Mag" to "Discovery Mag/Flux" and
 #                            "Discovery Mag Filter" to "Discovery Filter"
+# 2026-11-09 KWS Added cursor.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
 def insertTNS(conn, tnsEntry):
 
     insertId = 0
     try:
         cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
 
         cursor.execute ("""
             insert into tcs_cat_tns (
