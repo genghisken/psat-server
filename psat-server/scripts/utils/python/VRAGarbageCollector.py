@@ -42,6 +42,10 @@ def get_vra_eyeball():
     todo_list = atlasapiclient.RequestVRAToDoList(payload = {'datethreshold': "2024-02-22"}, get_response=True)
     todo_df=pd.DataFrame(todo_list.response_data)
     # Claude wrote this for atlasvras issue #38 (2026-11-24)
+    # Oversight level: HIGH
+    # HFS + KWS:We used to use the min time stamp from todo list but if we have stragglers
+    # (we had  a few from overa year ago) we end up request ~10 million rows from 
+    # the tcs_vra_scores table. 
     ids = ','.join(todo_df.transient_object_id.astype(str))
     vra_scores = atlasapiclient.RequestVRAScores(payload={'objects': ids}, get_response=True)
     return pd.DataFrame(vra_scores.response_data).set_index('transient_object_id')
